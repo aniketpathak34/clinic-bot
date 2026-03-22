@@ -1,0 +1,27 @@
+import os
+from celery import Celery
+from celery.schedules import crontab
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+
+app = Celery('clinic_bot')
+app.config_from_object('django.conf:settings', namespace='CELERY')
+app.autodiscover_tasks()
+
+app.conf.beat_schedule = {
+    # Morning: Make confirmation calls for tomorrow's appointments
+    'confirmation-calls': {
+        'task': 'apps.notifications.tasks.make_confirmation_calls',
+        'schedule': crontab(hour=10, minute=0),  # 10 AM IST
+    },
+    # Afternoon: Retry unanswered calls
+    'retry-unanswered-calls': {
+        'task': 'apps.notifications.tasks.retry_unanswered_calls',
+        'schedule': crontab(hour=14, minute=0),  # 2 PM IST
+    },
+    # Evening: Send WhatsApp reminders
+    'day-before-reminders': {
+        'task': 'apps.notifications.tasks.send_day_before_reminders',
+        'schedule': crontab(hour=18, minute=0),  # 6 PM IST
+    },
+}
