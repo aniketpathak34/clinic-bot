@@ -24,7 +24,7 @@ def send_booking_confirmation(appointment_id):
         logger.error(f"Appointment {appointment_id} not found")
         return
 
-    service = get_whatsapp_service()
+    service = get_whatsapp_service(clinic=appointment.clinic)
     lang = appointment.patient.language_preference or 'en'
 
     # Confirm to patient
@@ -51,12 +51,12 @@ def send_day_before_reminders():
     appointments = Appointment.objects.filter(
         status='booked',
         slot__date=tomorrow,
-    ).select_related('patient', 'doctor', 'slot')
+    ).select_related('patient', 'doctor', 'slot', 'clinic')
 
-    service = get_whatsapp_service()
     count = 0
 
     for appointment in appointments:
+        service = get_whatsapp_service(clinic=appointment.clinic)
         lang = appointment.patient.language_preference or 'en'
         reminder_msg = get_msg(lang, 'booking_confirmed',
                               doctor=appointment.doctor.name,
@@ -141,13 +141,13 @@ def handle_call_response(appointment_id, patient_response):
     """
     try:
         appointment = Appointment.objects.select_related(
-            'patient', 'doctor', 'slot'
+            'patient', 'doctor', 'slot', 'clinic'
         ).get(id=appointment_id)
     except Appointment.DoesNotExist:
         logger.error(f"Appointment {appointment_id} not found")
         return
 
-    service = get_whatsapp_service()
+    service = get_whatsapp_service(clinic=appointment.clinic)
     lang = appointment.patient.language_preference or 'en'
 
     if patient_response == '1':

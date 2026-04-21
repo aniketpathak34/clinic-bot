@@ -6,10 +6,27 @@ class Clinic(models.Model):
     clinic_code = models.CharField(max_length=20, unique=True)
     whatsapp_number = models.CharField(max_length=15, blank=True)
     address = models.TextField(blank=True)
+
+    # Meta WhatsApp Cloud API (per-clinic)
+    phone_number_id = models.CharField(max_length=50, blank=True, db_index=True)
+    display_phone_number = models.CharField(max_length=20, blank=True, db_index=True)
+    access_token = models.TextField(blank=True)
+    owner_number = models.CharField(max_length=15, blank=True)
+    working_hours = models.CharField(max_length=100, blank=True)
+    working_days = models.CharField(max_length=50, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.name} ({self.clinic_code})"
+
+    @classmethod
+    def find_by_display_number(cls, display_number: str):
+        if not display_number:
+            return None
+        normalized = display_number.lstrip('+')
+        return cls.objects.filter(display_phone_number=normalized).first() \
+            or cls.objects.filter(whatsapp_number=normalized).first()
 
 
 class Doctor(models.Model):

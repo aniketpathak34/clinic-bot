@@ -1,5 +1,9 @@
 """Generate QR codes for clinics.
 
+With multi-clinic Meta setup, each clinic has its own WhatsApp number
+(Clinic.display_phone_number). The QR links directly to that number — no
+clinic code needed, since the inbound number identifies the clinic.
+
 Usage:
     python manage.py generate_qr                # All clinics
     python manage.py generate_qr TC01           # Specific clinic
@@ -12,9 +16,6 @@ from django.core.management.base import BaseCommand
 from apps.clinic.models import Clinic
 
 
-BOT_WHATSAPP_NUMBER = os.getenv('MSG91_INTEGRATED_NUMBER', '917020162229')
-
-
 class Command(BaseCommand):
     help = 'Generate WhatsApp QR codes for clinic onboarding'
 
@@ -24,9 +25,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if options['list']:
-            clinics = Clinic.objects.all()
-            for c in clinics:
-                self.stdout.write(f"  {c.clinic_code} — {c.name} ({c.address})")
+            for c in Clinic.objects.all():
+                self.stdout.write(f"  {c.clinic_code} — {c.name} ({c.display_phone_number or c.whatsapp_number or 'no number'})")
             return
 
         if options['clinic_code']:
@@ -37,21 +37,26 @@ class Command(BaseCommand):
         else:
             clinics = Clinic.objects.all()
 
-        # Create output directory
         qr_dir = os.path.join(settings.BASE_DIR, 'qr_codes')
         os.makedirs(qr_dir, exist_ok=True)
 
         for clinic in clinics:
-            wa_link = f"https://wa.me/{BOT_WHATSAPP_NUMBER}?text={clinic.clinic_code}"
+            number = (clinic.display_phone_number or clinic.whatsapp_number or '').lstrip('+')
+            if not number:
+                self.stderr.write(self.style.WARNING(
+                    f"⚠️  Skipping {clinic.clinic_code} — no display_phone_number set"
+                ))
+                continue
+
+            # Pre-filled text helps route new conversations even before the webhook.
+            wa_link = f"https://wa.me/{number}?text=Hi"
 
             qr = qrcode.QRCode(version=1, box_size=10, border=4)
             qr.add_data(wa_link)
             qr.make(fit=True)
 
             img = qr.make_image(fill_color="black", back_color="white")
-
-            filename = f"{clinic.clinic_code}.png"
-            filepath = os.path.join(qr_dir, filename)
+            filepath = os.path.join(qr_dir, f"{clinic.clinic_code}.png")
             img.save(filepath)
 
             self.stdout.write(self.style.SUCCESS(

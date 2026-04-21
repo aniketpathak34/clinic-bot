@@ -1,61 +1,60 @@
+"""Seed one test clinic bound to the Meta test phone number.
+
+Reads env vars so deploy can override without code changes:
+  TEST_CLINIC_PHONE_NUMBER_ID      (required for webhook routing)
+  TEST_CLINIC_DISPLAY_PHONE_NUMBER (required)
+  TEST_CLINIC_OWNER_NUMBER         (optional — for daily summary)
+  TEST_CLINIC_DOCTOR_NUMBER        (optional — the doctor WhatsApp)
+"""
+import os
 from django.core.management.base import BaseCommand
 from apps.clinic.models import Clinic, Doctor
 
 
 class Command(BaseCommand):
-    help = 'Create seed data for testing'
+    help = 'Seed a test clinic wired to the Meta test phone number'
 
     def handle(self, *args, **options):
-        # Clinic 1
-        clinic1, created = Clinic.objects.get_or_create(
-            clinic_code='TC01',
-            defaults={
-                'name': 'Sharma Clinic',
-                'whatsapp_number': '919999999999',
-                'address': 'Kothrud, Pune',
-            }
-        )
-        status = 'Created' if created else 'Exists'
-        self.stdout.write(f'{status}: {clinic1}')
+        phone_number_id = os.getenv('TEST_CLINIC_PHONE_NUMBER_ID', '').strip()
+        display_number = os.getenv('TEST_CLINIC_DISPLAY_PHONE_NUMBER', '').strip().lstrip('+')
+        owner_number = os.getenv('TEST_CLINIC_OWNER_NUMBER', '').strip().lstrip('+')
+        doctor_number = os.getenv('TEST_CLINIC_DOCTOR_NUMBER', '').strip().lstrip('+')
 
-        # Doctor for Clinic 1 (pre-registered via admin)
-        doc1, created = Doctor.objects.get_or_create(
-            whatsapp_number='919888888888',
-            defaults={
-                'clinic': clinic1,
-                'name': 'Sharma',
-                'specialty': 'general',
-                'is_registered': True,
-            }
-        )
-        status = 'Created' if created else 'Exists'
-        self.stdout.write(f'{status}: {doc1}')
+        if not phone_number_id or not display_number:
+            self.stdout.write(self.style.WARNING(
+                'Skipping seed: set TEST_CLINIC_PHONE_NUMBER_ID and '
+                'TEST_CLINIC_DISPLAY_PHONE_NUMBER in environment.'
+            ))
+            return
 
-        # Clinic 2
-        clinic2, created = Clinic.objects.get_or_create(
-            clinic_code='PATIL01',
+        clinic, created = Clinic.objects.update_or_create(
+            clinic_code='TEST01',
             defaults={
-                'name': 'Patil Dental Clinic',
-                'whatsapp_number': '919777777777',
-                'address': 'Aundh, Pune',
-            }
+                'name': 'Test Clinic',
+                'whatsapp_number': display_number,
+                'display_phone_number': display_number,
+                'phone_number_id': phone_number_id,
+                'owner_number': owner_number,
+                'address': 'Pune (test)',
+                'working_hours': 'Mon-Sat 9am-8pm',
+                'working_days': 'Mon-Sat',
+            },
         )
-        status = 'Created' if created else 'Exists'
-        self.stdout.write(f'{status}: {clinic2}')
+        self.stdout.write(self.style.SUCCESS(
+            f"{'Created' if created else 'Updated'}: {clinic} "
+            f"(phone_number_id={phone_number_id}, display={display_number})"
+        ))
 
-        doc2, created = Doctor.objects.get_or_create(
-            whatsapp_number='919666666666',
-            defaults={
-                'clinic': clinic2,
-                'name': 'Patil',
-                'specialty': 'dentist',
-                'is_registered': True,
-            }
-        )
-        status = 'Created' if created else 'Exists'
-        self.stdout.write(f'{status}: {doc2}')
-
-        self.stdout.write(self.style.SUCCESS('\nSeed data ready!'))
-        self.stdout.write(self.style.SUCCESS(f'\nClinic links:'))
-        for clinic in Clinic.objects.all():
-            self.stdout.write(f'  {clinic.name}: wa.me/917020162229?text={clinic.clinic_code}')
+        if doctor_number:
+            doc, d_created = Doctor.objects.update_or_create(
+                whatsapp_number=doctor_number,
+                defaults={
+                    'clinic': clinic,
+                    'name': 'Test Doctor',
+                    'specialty': 'general',
+                    'is_registered': True,
+                },
+            )
+            self.stdout.write(self.style.SUCCESS(
+                f"{'Created' if d_created else 'Updated'}: {doc}"
+            ))

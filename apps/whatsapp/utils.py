@@ -1,113 +1,71 @@
+"""Meta WhatsApp Cloud API helpers."""
 from importlib import import_module
 from django.conf import settings
 
 
-def get_whatsapp_service():
-    """Factory: returns the configured WhatsApp service instance."""
+def get_whatsapp_service(clinic=None):
+    """Factory: returns a service instance bound to the given clinic.
+
+    - If WHATSAPP_SERVICE_CLASS points to the mock, clinic is ignored.
+    - For the Meta service, clinic supplies phone_number_id + access_token.
+    - If clinic is None, falls back to settings.META_DEFAULT_PHONE_NUMBER_ID.
+    """
     module_path, class_name = settings.WHATSAPP_SERVICE_CLASS.rsplit('.', 1)
     module = import_module(module_path)
     service_class = getattr(module, class_name)
-    return service_class()
+
+    try:
+        return service_class(clinic=clinic)
+    except TypeError:
+        # Mock or older service without clinic kwarg
+        return service_class()
 
 
 def extract_message_from_webhook(payload: dict) -> tuple:
-    """Extract phone number and message text from webhook payload.
-    Supports both MSG91 and Meta WhatsApp Cloud API formats.
-    Returns (phone_number, message_text) or (None, None) if not a message.
+    """Extract (patient_phone, text, display_phone_number) from a Meta webhook.
+
+    display_phone_number is the clinic's WhatsApp number that received the message —
+    used to look up which clinic this conversation belongs to in multi-clinic mode.
+
+    Returns (None, None, None) if the payload is not a user message
+    (e.g. a delivery/read status callback).
     """
-    # Try MSG91 format first
-    phone, text = _extract_msg91(payload)
-    if phone and text:
-        return phone, text
-
-    # Fallback to Meta format
-    return _extract_meta(payload)
-
-
-def _extract_msg91(payload: dict) -> tuple:
-    """Extract from MSG91 webhook payload.
-
-    Actual MSG91 inbound payload:
-    {
-        "customerNumber": "917030344210",
-        "text": "Hi",
-        "contentType": "text",
-        "messageType": "text",
-        "integratedNumber": "917020162229",
-        "customerName": "Aniket Pathak",
-        ...
-    }
-    """
-    try:
-        # MSG91 payloads always have customerNumber and integratedNumber
-        phone = payload.get('customerNumber', '')
-        integrated = payload.get('integratedNumber', '')
-
-        if not phone or not integrated:
-            return None, None
-
-        # Clean phone number
-        phone = phone.lstrip('+')
-
-        # Get message text based on content type
-        content_type = payload.get('contentType', '')
-        message_type = payload.get('messageType', '')
-
-        if message_type == 'interactive' or content_type == 'interactive':
-            # User tapped a button or list item — extract the ID or title
-            interactive = payload.get('interactive', '')
-            if interactive:
-                import json
-                try:
-                    inter_data = json.loads(interactive) if isinstance(interactive, str) else interactive
-                    # Button reply
-                    if 'button_reply' in inter_data:
-                        text = inter_data['button_reply'].get('id', '') or inter_data['button_reply'].get('title', '')
-                    # List reply
-                    elif 'list_reply' in inter_data:
-                        text = inter_data['list_reply'].get('id', '') or inter_data['list_reply'].get('title', '')
-                    else:
-                        text = payload.get('text', '') or payload.get('button', '')
-                except (json.JSONDecodeError, TypeError):
-                    text = payload.get('text', '') or payload.get('button', '')
-            else:
-                text = payload.get('text', '') or payload.get('button', '')
-        elif content_type in ('text', 'button') or message_type == 'text':
-            text = payload.get('text', '')
-        else:
-            text = payload.get('text', '')
-
-        if text:
-            return phone, text.strip()
-        return None, None
-
-    except (KeyError, AttributeError):
-        return None, None
-
-
-def _extract_meta(payload: dict) -> tuple:
-    """Extract from Meta WhatsApp Cloud API webhook payload."""
     try:
         entry = payload.get('entry', [{}])[0]
         changes = entry.get('changes', [{}])[0]
         value = changes.get('value', {})
+
+        # Clinic's WA number (the one receiving the message)
+        metadata = value.get('metadata', {})
+        display_number = metadata.get('display_phone_number', '').lstrip('+')
+
         messages = value.get('messages', [])
         if not messages:
-            return None, None
+            return None, None, display_number or None
+
         message = messages[0]
         phone = message.get('from', '')
-        # Handle text messages
-        if message.get('type') == 'text':
+        msg_type = message.get('type')
+
+        if msg_type == 'text':
             text = message.get('text', {}).get('body', '')
-        # Handle interactive button replies
-        elif message.get('type') == 'interactive':
+        elif msg_type == 'interactive':
             interactive = message.get('interactive', {})
             if interactive.get('type') == 'button_reply':
-                text = interactive.get('button_reply', {}).get('title', '')
+                reply = interactive.get('button_reply', {})
+                text = reply.get('id') or reply.get('title', '')
+            elif interactive.get('type') == 'list_reply':
+                reply = interactive.get('list_reply', {})
+                text = reply.get('id') or reply.get('title', '')
             else:
-                text = interactive.get('list_reply', {}).get('title', '')
+                text = ''
+        elif msg_type == 'button':
+            # Template button reply
+            text = message.get('button', {}).get('payload', '') or message.get('button', {}).get('text', '')
         else:
             text = ''
-        return phone, text
-    except (IndexError, KeyError):
-        return None, None
+
+        return phone or None, (text.strip() if text else None), display_number or None
+
+    except (IndexError, KeyError, AttributeError):
+        return None, None, None

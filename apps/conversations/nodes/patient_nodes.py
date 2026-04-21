@@ -147,9 +147,9 @@ def _date_list(lang, doctor_id, doctor_name):
 # ─── Doctor Notifications ────────────────────────────────────────
 
 def _notify_doctor(event: str, patient_name: str, doctor: Doctor, slot_date: str, slot_time: str):
-    """Send instant WhatsApp notification to doctor."""
+    """Send instant WhatsApp notification to doctor (sent from doctor's clinic number)."""
     try:
-        service = get_whatsapp_service()
+        service = get_whatsapp_service(clinic=doctor.clinic)
         if event == 'booked':
             msg = (
                 f"🔔 *New Appointment Booked!*\n\n"

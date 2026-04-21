@@ -1,20 +1,35 @@
-import os
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Clinic, Doctor, Patient, AvailableSlot, Appointment
 
-BOT_NUMBER = os.getenv('MSG91_INTEGRATED_NUMBER', '917020162229')
-
 
 @admin.register(Clinic)
 class ClinicAdmin(admin.ModelAdmin):
-    list_display = ('name', 'clinic_code', 'whatsapp_number', 'whatsapp_link', 'doctor_count', 'created_at')
-    search_fields = ('name', 'clinic_code')
+    list_display = ('name', 'clinic_code', 'display_phone_number', 'phone_number_id',
+                    'whatsapp_link', 'doctor_count', 'created_at')
+    search_fields = ('name', 'clinic_code', 'display_phone_number', 'phone_number_id')
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'clinic_code', 'address', 'working_hours', 'working_days'),
+        }),
+        ('WhatsApp (Meta Cloud API)', {
+            'fields': ('display_phone_number', 'whatsapp_number', 'phone_number_id',
+                       'access_token', 'owner_number'),
+            'description': (
+                "display_phone_number = the clinic's WhatsApp number (without +). "
+                "phone_number_id = Meta's internal ID for the number. "
+                "access_token = leave blank to use the shared System User token."
+            ),
+        }),
+    )
 
     def whatsapp_link(self, obj):
-        link = f"https://wa.me/{BOT_NUMBER}?text={obj.clinic_code}"
+        number = (obj.display_phone_number or obj.whatsapp_number or '').lstrip('+')
+        if not number:
+            return '—'
+        link = f"https://wa.me/{number}"
         return format_html('<a href="{}" target="_blank">📱 {}</a>', link, link)
-    whatsapp_link.short_description = 'Patient Booking Link'
+    whatsapp_link.short_description = 'Clinic WhatsApp Link'
 
     def doctor_count(self, obj):
         return obj.doctors.filter(is_registered=True).count()

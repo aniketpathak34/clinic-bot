@@ -12,7 +12,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-in-production')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
-ALLOWED_HOSTS = ['*']
+
+_hosts = os.getenv('ALLOWED_HOSTS', '').strip()
+ALLOWED_HOSTS = [h.strip() for h in _hosts.split(',') if h.strip()] if _hosts else ['*']
+
+# Render sets RENDER_EXTERNAL_HOSTNAME automatically; append it so the webhook resolves.
+_render_host = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+if _render_host and _render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_host)
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if origin.strip()
+]
+if _render_host:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_render_host}")
 
 # Application definition
 INSTALLED_APPS = [
@@ -31,6 +44,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -59,13 +73,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database — SQLite for dev, PostgreSQL for prod
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database — SQLite for dev, PostgreSQL when DATABASE_URL is set (Render).
+_database_url = os.getenv('DATABASE_URL', '').strip()
+if _database_url:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(_database_url, conn_max_age=600, ssl_require=True),
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -80,23 +101,27 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Groq (Llama 3.1)
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
-# MSG91
-MSG91_AUTH_KEY = os.getenv('MSG91_AUTH_KEY', '')
-MSG91_INTEGRATED_NUMBER = os.getenv('MSG91_INTEGRATED_NUMBER', '')
-MSG91_IVR_FLOW_ID = os.getenv('MSG91_IVR_FLOW_ID', '')
+# Meta WhatsApp Cloud API — per-clinic credentials live on the Clinic model.
+# These are fallbacks / defaults for admin tasks or when a clinic row doesn't
+# override the access token.
+META_ACCESS_TOKEN = os.getenv('META_ACCESS_TOKEN', '')
+META_DEFAULT_PHONE_NUMBER_ID = os.getenv('META_DEFAULT_PHONE_NUMBER_ID', '')
+META_GRAPH_API_VERSION = os.getenv('META_GRAPH_API_VERSION', 'v21.0')
 
-# WhatsApp
 WHATSAPP_VERIFY_TOKEN = os.getenv('WHATSAPP_VERIFY_TOKEN', 'clinic-bot-verify')
 WHATSAPP_SERVICE_CLASS = os.getenv(
     'WHATSAPP_SERVICE_CLASS',
-    'apps.whatsapp.mock_service.MockWhatsAppService'
+    'apps.whatsapp.meta_service.MetaWhatsAppService',
 )
-# To use MSG91: WHATSAPP_SERVICE_CLASS=apps.whatsapp.msg91_service.MSG91WhatsAppService
+# For local dev without Meta credentials:
+# WHATSAPP_SERVICE_CLASS=apps.whatsapp.mock_service.MockWhatsAppService
 
 # Automated Calls (Twilio — mock for dev)
 CALL_SERVICE_CLASS = os.getenv(

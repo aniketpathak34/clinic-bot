@@ -1,11 +1,14 @@
+import json
 import logging
 from django.conf import settings
 from django.http import HttpResponse, HttpRequest
 from ninja import Router
 
-from .utils import extract_message_from_webhook, get_whatsapp_service
+from apps.clinic.models import Clinic
 from apps.conversations.engine import handle_message
 from apps.conversations.response import BotResponse
+
+from .utils import extract_message_from_webhook, get_whatsapp_service
 
 logger = logging.getLogger(__name__)
 
@@ -27,34 +30,40 @@ def whatsapp_webhook_verify(request: HttpRequest):
 
 @router.post("/whatsapp/")
 def whatsapp_webhook_receive(request: HttpRequest):
-    """Receive incoming WhatsApp messages."""
-    import json
+    """Receive incoming WhatsApp messages from Meta."""
     try:
         payload = json.loads(request.body)
     except json.JSONDecodeError:
         return {"status": "invalid_json"}
 
-    print(f"[WEBHOOK] Raw payload: {json.dumps(payload)[:500]}")
-    phone, text = extract_message_from_webhook(payload)
-    print(f"[WEBHOOK] Extracted — phone: {phone}, text: {text}")
+    phone, text, display_number = extract_message_from_webhook(payload)
 
     if not phone or not text:
+        # Status callback, read receipt, or empty — ack and move on.
         return {"status": "no_message"}
 
-    logger.info(f"Incoming message from {phone}: {text}")
+    clinic = Clinic.find_by_display_number(display_number) if display_number else None
+    if not clinic:
+        logger.warning(
+            f"[WEBHOOK] No clinic registered for display_phone_number={display_number!r}; "
+            f"message from {phone} dropped"
+        )
+        return {"status": "unknown_clinic"}
 
-    response = handle_message(phone, text)
-    send_bot_response(phone, response)
+    logger.info(f"[{clinic.clinic_code}] Incoming from {phone}: {text}")
+
+    response = handle_message(phone, text, clinic=clinic)
+    send_bot_response(phone, response, clinic=clinic)
 
     return {"status": "ok"}
 
 
-def send_bot_response(phone: str, response):
+def send_bot_response(phone: str, response, clinic=None):
     """Send the appropriate message type based on BotResponse.
 
     Tries interactive (buttons/list) first, falls back to plain text.
     """
-    service = get_whatsapp_service()
+    service = get_whatsapp_service(clinic=clinic)
 
     if isinstance(response, str):
         service.send_message(phone, response)
@@ -69,19 +78,23 @@ def send_bot_response(phone: str, response):
             result = service.send_buttons(phone, response.text, response.buttons)
             if result.get('status') != 'error':
                 return
-        # Fallback to text
-        options = "\n".join(f"{btn.get('id', i+1)}. {btn['title']}" for i, btn in enumerate(response.buttons))
+        options = "\n".join(
+            f"{btn.get('id', i+1)}. {btn['title']}" for i, btn in enumerate(response.buttons)
+        )
         service.send_message(phone, f"{response.text}\n\n{options}")
 
     elif response.response_type == "list" and response.list_sections:
         if hasattr(service, 'send_list'):
-            result = service.send_list(phone, response.text, response.list_button_text, response.list_sections)
+            result = service.send_list(
+                phone, response.text, response.list_button_text, response.list_sections
+            )
             if result.get('status') != 'error':
                 return
-        # Fallback to text
         for section in response.list_sections:
             rows = section.get('rows', [])
-            options = "\n".join(f"{row.get('id', i+1)}. {row['title']}" for i, row in enumerate(rows))
+            options = "\n".join(
+                f"{row.get('id', i+1)}. {row['title']}" for i, row in enumerate(rows)
+            )
             service.send_message(phone, f"{response.text}\n\n{options}")
 
     else:

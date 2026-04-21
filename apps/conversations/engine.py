@@ -1,12 +1,17 @@
 """
 Core conversation engine — dispatches incoming messages to the correct flow.
 
-New architecture:
-- Patient first message contains clinic code (from QR/link)
-- Bot identifies clinic → scopes all actions to that clinic
-- Doctors are pre-registered via admin (no self-registration)
+Multi-clinic architecture:
+- Each clinic has its own Meta WhatsApp number (phone_number_id).
+- The webhook resolves the clinic from metadata.display_phone_number and
+  passes it into handle_message as `incoming_clinic`. That clinic is
+  authoritative — patients never need to send a clinic code.
+- Doctors are identified by their whatsapp_number belonging to a Doctor row.
 """
 import logging
+
+from apps.clinic.models import Doctor
+
 from .models import ConversationState
 from .response import BotResponse
 from .graphs.identification import identify_user, try_parse_clinic_code
@@ -16,39 +21,39 @@ from .graphs.doctor_graph import run_doctor_graph
 logger = logging.getLogger(__name__)
 
 
-def handle_message(phone: str, text: str):
-    """Main entry point: process an incoming WhatsApp message."""
+def handle_message(phone: str, text: str, clinic=None):
+    """Main entry point: process an incoming WhatsApp message.
 
-    # Load or create conversation state
-    state, created = ConversationState.objects.get_or_create(
+    `clinic` is the Clinic that received the message, resolved from Meta's
+    webhook metadata.display_phone_number. When provided it is authoritative.
+    """
+    incoming_clinic = clinic
+
+    state, _ = ConversationState.objects.get_or_create(
         whatsapp_number=phone,
-        defaults={'user_type': 'unknown', 'context': {}}
+        defaults={'user_type': 'unknown', 'context': {}},
     )
+
+    # The inbound number is authoritative — trust it over any stale state.
+    if incoming_clinic is not None and state.clinic_id != incoming_clinic.id:
+        state.clinic = incoming_clinic
+        state.save(update_fields=['clinic'])
 
     text_lower = text.strip().lower()
 
-    # Check for reset commands
+    # Reset commands
     if text_lower in ('reset', 'restart', 'start over'):
         state.reset()
         state.user_type = 'unknown'
         state.language = ''
+        if incoming_clinic is not None:
+            state.clinic = incoming_clinic
         state.save()
-        return BotResponse.as_text(
-            "Conversation reset.\n\n"
-            "To book an appointment, scan the QR code at the clinic "
-            "or send the clinic code."
-        )
+        return BotResponse.as_text("Conversation reset. Send *hi* to start again.")
 
-    # "Hi/Hello" mid-flow → restart to main menu (keep clinic + language)
+    # Hi/Hello mid-flow → restart to main menu (keep clinic + language)
     if text_lower in ('hi', 'hello', 'hey', 'start') and state.current_flow not in ('', 'main_menu', 'language_select'):
-        if state.language and state.clinic:
-            state.current_flow = 'main_menu'
-            state.step = ''
-            state.context = {}
-            state.save()
-            from .nodes.patient_nodes import _main_menu_list
-            return _main_menu_list(state.language)
-        elif state.language:
+        if state.language:
             state.current_flow = 'main_menu'
             state.step = ''
             state.context = {}
@@ -56,34 +61,45 @@ def handle_message(phone: str, text: str):
             from .nodes.patient_nodes import _main_menu_list
             return _main_menu_list(state.language)
 
-    # --- STEP 1: Identify user if unknown ---
+    # --- STEP 1: Identify user type ---
     if state.user_type == 'unknown':
-        user_type, clinic = identify_user(phone, text)
-        state.user_type = user_type
-        if clinic:
-            state.clinic = clinic
-        state.save()
+        # Doctor lookup first — works regardless of which clinic number they messaged
+        doctor = Doctor.objects.filter(
+            whatsapp_number=phone, is_registered=True
+        ).select_related('clinic').first()
 
-        # If still unknown (no clinic code, not a known user)
-        if user_type == 'unknown':
-            return BotResponse.as_text(
-                "Welcome! 👋\n\n"
-                "To book an appointment, please scan the QR code at the clinic "
-                "or send the clinic code.\n\n"
-                "Example: Send *TC01*"
-            )
+        if doctor:
+            state.user_type = 'doctor'
+            state.clinic = doctor.clinic
+            state.save()
+        elif incoming_clinic is not None:
+            # Clinic already known from the number they messaged → treat as patient
+            state.user_type = 'patient'
+            state.save()
+        else:
+            # Fallback to legacy identification (clinic-code flow)
+            user_type, resolved_clinic = identify_user(phone, text)
+            state.user_type = user_type
+            if resolved_clinic:
+                state.clinic = resolved_clinic
+            state.save()
+            if user_type == 'unknown':
+                return BotResponse.as_text(
+                    "Welcome! 👋\n\n"
+                    "To book an appointment, scan the QR code at the clinic "
+                    "or send the clinic code.\n\n"
+                    "Example: Send *TC01*"
+                )
 
-    # --- STEP 2: Patient without clinic — ask for clinic code ---
+    # --- STEP 2: Patient still without clinic — ask for clinic code (legacy path) ---
     if state.user_type == 'patient' and not state.clinic:
-        # Try to parse clinic code from current message
-        clinic = try_parse_clinic_code(text)
-        if clinic:
-            state.clinic = clinic
+        resolved_clinic = try_parse_clinic_code(text)
+        if resolved_clinic:
+            state.clinic = resolved_clinic
             state.save()
         else:
             return BotResponse.as_text(
-                "Please send the clinic code to continue.\n\n"
-                "You can find it on the clinic's QR code or card.\n"
+                "Please send the clinic code to continue.\n"
                 "Example: *TC01*"
             )
 
@@ -93,7 +109,6 @@ def handle_message(phone: str, text: str):
     else:
         response = run_patient_graph(state, text)
 
-    # Ensure we always return a BotResponse
     if isinstance(response, str):
         return BotResponse.as_text(response)
     return response

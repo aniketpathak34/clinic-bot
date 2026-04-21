@@ -7,3 +7,7 @@ django-celery-beat>=2.5
 python-dotenv>=1.0
 requests>=2.31
 qrcode[pil]>=7.4
+gunicorn>=21.2
+whitenoise>=6.6
+dj-database-url>=2.1
+psycopg[binary]>=3.1

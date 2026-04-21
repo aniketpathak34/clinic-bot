@@ -42,11 +42,11 @@ jobs:
             DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
             DEBUG=False
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            MSG91_AUTH_KEY=${{ secrets.MSG91_AUTH_KEY }}
-            MSG91_INTEGRATED_NUMBER=${{ secrets.MSG91_INTEGRATED_NUMBER }}
-            MSG91_IVR_FLOW_ID=
-            WHATSAPP_SERVICE_CLASS=apps.whatsapp.msg91_service.MSG91WhatsAppService
-            WHATSAPP_VERIFY_TOKEN=clinic-bot-verify
+            META_ACCESS_TOKEN=${{ secrets.META_ACCESS_TOKEN }}
+            META_DEFAULT_PHONE_NUMBER_ID=${{ secrets.META_DEFAULT_PHONE_NUMBER_ID }}
+            META_GRAPH_API_VERSION=v21.0
+            WHATSAPP_SERVICE_CLASS=apps.whatsapp.meta_service.MetaWhatsAppService
+            WHATSAPP_VERIFY_TOKEN=${{ secrets.WHATSAPP_VERIFY_TOKEN }}
             CALL_SERVICE_CLASS=apps.notifications.call_service.MockCallService
             CELERY_BROKER_URL=redis://redis:6379/0
             ENVEOF

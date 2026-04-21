@@ -1,0 +1,128 @@
+# Render blueprint — deploy web + worker + beat + redis + postgres.
+# Commit this file, then in Render: New → Blueprint → connect this repo.
+databases:
+  - name: clinic-bot-db
+    plan: free
+    databaseName: clinic_bot
+    user: clinic_bot
+
+services:
+  # ─── Redis (free plan) ───
+  - type: redis
+    name: clinic-bot-redis
+    plan: free
+    ipAllowList: []   # private to the Render account
+
+  # ─── Web: Django + gunicorn (Meta webhook lives here) ───
+  - type: web
+    name: clinic-bot-web
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60"
+    healthCheckPath: /admin/login/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clinic-bot-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: clinic-bot-redis
+          property: connectionString
+      - key: META_GRAPH_API_VERSION
+        value: v21.0
+      - key: WHATSAPP_SERVICE_CLASS
+        value: apps.whatsapp.meta_service.MetaWhatsAppService
+      - key: CALL_SERVICE_CLASS
+        value: apps.notifications.call_service.MockCallService
+      # Fill these in the Render dashboard (Environment tab), not here:
+      - key: META_ACCESS_TOKEN
+        sync: false
+      - key: META_DEFAULT_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # Test clinic seed (optional — used by build.sh to auto-create TEST01)
+      - key: TEST_CLINIC_PHONE_NUMBER_ID
+        sync: false
+      - key: TEST_CLINIC_DISPLAY_PHONE_NUMBER
+        sync: false
+      - key: TEST_CLINIC_OWNER_NUMBER
+        sync: false
+      - key: TEST_CLINIC_DOCTOR_NUMBER
+        sync: false
+
+  # ─── Celery worker (daily reminders + booking confirmations) ───
+  - type: worker
+    name: clinic-bot-worker
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A config worker -l info --concurrency=1"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - fromGroup: clinic-bot-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clinic-bot-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: clinic-bot-redis
+          property: connectionString
+
+  # ─── Celery beat (scheduler for daily summary at 7pm IST) ───
+  - type: worker
+    name: clinic-bot-beat
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A config beat -l info"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - fromGroup: clinic-bot-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: clinic-bot-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: clinic-bot-redis
+          property: connectionString
+
+# Shared secrets so worker + beat pick them up from the web service.
+envVarGroups:
+  - name: clinic-bot-shared
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: META_ACCESS_TOKEN
+        sync: false
+      - key: META_DEFAULT_PHONE_NUMBER_ID
+        sync: false
+      - key: META_GRAPH_API_VERSION
+        value: v21.0
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_SERVICE_CLASS
+        value: apps.whatsapp.meta_service.MetaWhatsAppService
+      - key: CALL_SERVICE_CLASS
+        value: apps.notifications.call_service.MockCallService
+      - key: GROQ_API_KEY
+        sync: false
