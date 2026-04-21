@@ -61,6 +61,13 @@ services:
         sync: false
       - key: TEST_CLINIC_DOCTOR_NUMBER
         sync: false
+      # Django admin superuser (created once by build.sh if not present)
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
 
   # ─── Celery worker (daily reminders + booking confirmations) ───
   - type: worker
