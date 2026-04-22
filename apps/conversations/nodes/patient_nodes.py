@@ -272,6 +272,12 @@ def handle_language_select(state, text):
     state.step = ''
     state.context = {}
     state.save()
+
+    # Persist to the Patient row so future sessions restore it automatically.
+    Patient.objects.filter(whatsapp_number=state.whatsapp_number).update(
+        language_preference=lang
+    )
+
     return _main_menu_list(lang), state
 
 

@@ -39,8 +39,22 @@ def run_patient_graph(state, text: str):
     # Route based on current flow
     flow = state.current_flow
 
-    # New user — no language set yet
+    # No language on conversation state — decide between returning registered patient
+    # (restore their saved language → straight to menu) vs truly new user (language picker).
     if not state.language:
+        from apps.clinic.models import Patient
+        patient = Patient.objects.filter(
+            whatsapp_number=state.whatsapp_number, is_registered=True
+        ).first()
+
+        if patient and patient.language_preference:
+            state.language = patient.language_preference
+            state.current_flow = 'main_menu'
+            state.step = ''
+            state.context = {}
+            state.save()
+            return _main_menu_list(state.language)
+
         state.current_flow = 'language_select'
         state.step = ''
         state.save()
@@ -48,9 +62,8 @@ def run_patient_graph(state, text: str):
         if flow == 'language_select':
             response, state = handle_language_select(state, text)
             return response
-        else:
-            # First message — show language buttons
-            return _language_buttons()
+        # First message from a genuinely new user — show language buttons
+        return _language_buttons()
 
     # Registration flow (lazy — only when booking)
     if flow == 'registration':
