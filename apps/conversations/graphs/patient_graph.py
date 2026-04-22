@@ -27,6 +27,20 @@ def run_patient_graph(state, text: str):
     """
     text_lower = text.strip().lower()
 
+    # Defense-in-depth: if state claims this is a returning registered patient
+    # (language set + not in a mid-flow step) but the Patient row has been
+    # deleted from admin, reset the state so they get the language picker again.
+    from apps.clinic.models import Patient
+    if state.language and state.current_flow in ('', 'main_menu', 'language_select'):
+        if not Patient.objects.filter(
+            whatsapp_number=state.whatsapp_number, is_registered=True
+        ).exists():
+            state.language = ''
+            state.current_flow = ''
+            state.step = ''
+            state.context = {}
+            state.save()
+
     # Global commands — work from any state
     if text_lower == 'menu':
         if state.language:

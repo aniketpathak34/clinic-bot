@@ -1,17 +1,32 @@
 """Signals for the clinic app.
 
-Sends a WhatsApp welcome to a doctor the first time they become registered.
-Idempotent via the Doctor.welcomed_at timestamp.
+- Sends a WhatsApp welcome to a doctor the first time they become registered.
+  Idempotent via the Doctor.welcomed_at timestamp.
+- Wipes a Patient's ConversationState when the Patient row is deleted, so the
+  bot treats them as a fresh user (shows language picker again) on next contact.
 """
 import logging
 from django.db import transaction
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 
-from apps.clinic.models import Doctor
+from apps.clinic.models import Doctor, Patient
 
 logger = logging.getLogger(__name__)
+
+
+@receiver(post_delete, sender=Patient)
+def clear_state_on_patient_delete(sender, instance: Patient, **kwargs):
+    """Drop the ConversationState when a Patient row is removed from admin."""
+    from apps.conversations.models import ConversationState
+    deleted, _ = ConversationState.objects.filter(
+        whatsapp_number=instance.whatsapp_number
+    ).delete()
+    if deleted:
+        logger.info(
+            f"[patient-delete] Cleared ConversationState for {instance.whatsapp_number}"
+        )
 
 
 @receiver(post_save, sender=Doctor)
