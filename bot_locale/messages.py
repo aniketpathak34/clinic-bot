@@ -35,6 +35,14 @@ MESSAGES = {
             "Main Menu → *Cancel Appointment* → pick the one you want to drop.\n"
             "Then come back to *Book Appointment* and choose your preferred slot."
         ),
+        "reminder_hour_before": (
+            "⏰ *Reminder — your appointment starts in ~1 hour!*\n\n"
+            "👨‍⚕️ Doctor: Dr. {doctor}\n"
+            "🏥 Clinic: {clinic_name}\n"
+            "📅 Today {date} at {time}\n"
+            "📍 {address}\n\n"
+            "See you soon! 🙏"
+        ),
 
         # Cancel
         "select_appointment_cancel": "Your upcoming appointments:\n{appointments}\n\nReply with the number to cancel, or 0 to go back.",
@@ -129,6 +137,14 @@ MESSAGES = {
             "मुख्य मेनू → *अपॉइंटमेंट रद्द करें* → जिसे हटाना है चुनें।\n"
             "फिर *अपॉइंटमेंट बुक करें* पर जाकर नया समय चुनें।"
         ),
+        "reminder_hour_before": (
+            "⏰ *रिमाइंडर — आपकी अपॉइंटमेंट 1 घंटे में है!*\n\n"
+            "👨‍⚕️ डॉक्टर: Dr. {doctor}\n"
+            "🏥 क्लिनिक: {clinic_name}\n"
+            "📅 आज {date} को {time}\n"
+            "📍 {address}\n\n"
+            "जल्दी मिलते हैं! 🙏"
+        ),
         "select_appointment_cancel": "आपकी आगामी अपॉइंटमेंट:\n{appointments}\n\nरद्द करने के लिए नंबर भेजें, या वापस जाने के लिए 0 भेजें।",
         "cancel_confirmed": "✅ Dr. {doctor} के साथ {date} को {time} बजे की अपॉइंटमेंट रद्द कर दी गई।",
         "no_appointments": "आपकी कोई आगामी अपॉइंटमेंट नहीं है।",
@@ -169,6 +185,14 @@ MESSAGES = {
             "वेळ बदलण्यासाठी, प्रथम ती रद्द करा:\n"
             "मुख्य मेनू → *अपॉइंटमेंट रद्द करा* → कोणती काढायची ते निवडा.\n"
             "नंतर *अपॉइंटमेंट बुक करा* वर जाऊन नवीन वेळ निवडा."
+        ),
+        "reminder_hour_before": (
+            "⏰ *आठवण — तुमची अपॉइंटमेंट 1 तासात आहे!*\n\n"
+            "👨‍⚕️ डॉक्टर: Dr. {doctor}\n"
+            "🏥 क्लिनिक: {clinic_name}\n"
+            "📅 आज {date} रोजी {time}\n"
+            "📍 {address}\n\n"
+            "लवकरच भेटू! 🙏"
         ),
         "select_appointment_cancel": "तुमच्या आगामी अपॉइंटमेंट:\n{appointments}\n\nरद्द करण्यासाठी क्रमांक पाठवा, किंवा परत जाण्यासाठी 0 पाठवा.",
         "cancel_confirmed": "✅ Dr. {doctor} यांच्यासोबत {date} रोजी {time} वाजताची अपॉइंटमेंट रद्द झाली.",

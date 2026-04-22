@@ -101,6 +101,10 @@ class Appointment(models.Model):
     clinic = models.ForeignKey(Clinic, on_delete=models.CASCADE, related_name='appointments')
     slot = models.ForeignKey(AvailableSlot, on_delete=models.CASCADE, related_name='appointments')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='booked')
+    hour_before_reminded_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Set when the 1-hour-before WhatsApp reminder was sent"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

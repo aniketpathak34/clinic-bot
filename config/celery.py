@@ -19,9 +19,14 @@ app.conf.beat_schedule = {
         'task': 'apps.notifications.tasks.retry_unanswered_calls',
         'schedule': crontab(hour=14, minute=0),  # 2 PM IST
     },
-    # Evening: Send WhatsApp reminders
+    # Evening: Send WhatsApp reminders for tomorrow's appointments
     'day-before-reminders': {
         'task': 'apps.notifications.tasks.send_day_before_reminders',
         'schedule': crontab(hour=18, minute=0),  # 6 PM IST
+    },
+    # Every 5 minutes: nudge patients whose appointment starts in ~1 hour
+    'hour-before-reminders': {
+        'task': 'apps.notifications.tasks.send_hour_before_reminders',
+        'schedule': crontab(minute='*/5'),
     },
 }

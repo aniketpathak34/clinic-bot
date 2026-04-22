@@ -1,8 +1,10 @@
 """Celery tasks for appointment notifications and automated calls."""
 import logging
-from datetime import date, timedelta
+import zoneinfo
+from datetime import date, datetime, timedelta
 
 from celery import shared_task
+from django.utils import timezone
 
 from apps.clinic.models import Appointment
 from apps.whatsapp.utils import get_whatsapp_service
@@ -11,6 +13,8 @@ from .call_service import get_call_service
 from .models import CallLog
 
 logger = logging.getLogger(__name__)
+
+IST = zoneinfo.ZoneInfo('Asia/Kolkata')
 
 
 @shared_task
@@ -237,4 +241,64 @@ def retry_unanswered_calls():
         count += 1
 
     logger.info(f"Retried {count} unanswered calls")
+    return count
+
+
+@shared_task
+def send_hour_before_reminders():
+    """Notify patients whose appointment starts in ~1 hour.
+
+    Designed to run every 5 minutes via Celery Beat. Uses a 55–70 minute
+    window so every appointment gets exactly one reminder around T-60min;
+    idempotency is enforced by Appointment.hour_before_reminded_at.
+    """
+    now_ist = timezone.now().astimezone(IST)
+    window_start = now_ist + timedelta(minutes=55)
+    window_end = now_ist + timedelta(minutes=70)
+
+    # Query candidates by date only (covers the possible range, including midnight crossover)
+    candidate_dates = {window_start.date(), window_end.date()}
+    candidates = Appointment.objects.filter(
+        status='booked',
+        hour_before_reminded_at__isnull=True,
+        slot__date__in=candidate_dates,
+    ).select_related('patient', 'doctor', 'slot', 'clinic')
+
+    count = 0
+    for appt in candidates:
+        # Reconstruct the appointment's IST start time
+        appt_dt = datetime.combine(appt.slot.date, appt.slot.time, tzinfo=IST)
+        if not (window_start <= appt_dt <= window_end):
+            continue
+
+        lang = appt.patient.language_preference or 'en'
+        msg = get_msg(
+            lang, 'reminder_hour_before',
+            doctor=appt.doctor.name,
+            clinic_name=appt.clinic.name,
+            date=appt.slot.date.strftime('%d-%b-%Y'),
+            time=appt.slot.time.strftime('%I:%M %p'),
+            address=appt.clinic.address or '—',
+        )
+
+        try:
+            service = get_whatsapp_service(clinic=appt.clinic)
+            result = service.send_message(appt.patient.whatsapp_number, msg)
+            if result.get('status') == 'error':
+                logger.error(f"[hour-before] Failed for appt {appt.id}: {result}")
+                continue
+        except Exception as e:
+            logger.exception(f"[hour-before] Send crashed for appt {appt.id}: {e}")
+            continue
+
+        Appointment.objects.filter(pk=appt.pk, hour_before_reminded_at__isnull=True).update(
+            hour_before_reminded_at=timezone.now()
+        )
+        logger.info(
+            f"[hour-before] Sent to {appt.patient.whatsapp_number} "
+            f"for appt {appt.id} ({appt.slot.date} {appt.slot.time})"
+        )
+        count += 1
+
+    logger.info(f"[hour-before] Sent {count} reminder(s) in window {window_start.time()}–{window_end.time()}")
     return count
