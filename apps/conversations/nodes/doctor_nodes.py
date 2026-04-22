@@ -58,8 +58,15 @@ def _with_doctor_menu(prefix_text):
     return menu
 
 
-def _next_7_days_list():
-    """Interactive list of next 7 days for date selection."""
+def _next_7_days_list(selected_dates: list = None):
+    """Interactive list of next 7 days. Tap-to-toggle multi-select.
+
+    ✅ prefix marks already-selected dates; the last row is "✅ Done" to
+    finalize. WhatsApp hard-caps list rows at 10, so 7 days + Done fits.
+    """
+    selected_dates = selected_dates or []
+    selected_set = set(selected_dates)
+
     day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     today = date.today()
     rows = []
@@ -67,30 +74,32 @@ def _next_7_days_list():
         d = today + timedelta(days=i)
         day = day_names[d.weekday()]
         label = "Today" if i == 0 else ("Tomorrow" if i == 1 else f"{day}, {d.strftime('%d %b')}")
-
-        # Show existing slot count
-        existing = AvailableSlot.objects.filter(
-            doctor__whatsapp_number__isnull=False,  # will be filtered by caller
-            date=d
-        ).count()
-
+        prefix = "✅ " if d.isoformat() in selected_set else ""
         rows.append({
             "id": d.isoformat(),
-            "title": label,
+            "title": (prefix + label)[:24],   # WhatsApp row title max 24 chars
             "description": d.strftime('%d %B %Y'),
         })
 
-    return BotResponse.as_list(
-        "📅 Select a date to set your availability:",
-        "Choose Date",
-        rows
-    )
+    rows.append({
+        "id": "done",
+        "title": "✅ Done" if selected_set else "⏭️ Skip",
+        "description": f"{len(selected_set)} date(s) selected" if selected_set else "Pick at least one date first",
+    })
+
+    if selected_set:
+        summary = ", ".join(sorted(selected_set))
+        body = f"📅 Pick your available dates — tap to toggle.\n\n*Selected:* {summary}"
+    else:
+        body = "📅 Pick the dates you are available.\nTap a date to add it, then tap it again to remove.\nTap *Done* when finished."
+
+    return BotResponse.as_list(body, "Choose Dates", rows)
 
 
 def _morning_afternoon_buttons():
-    """Buttons to choose morning or afternoon session."""
+    """Buttons to choose morning or afternoon session (single-select)."""
     return BotResponse.as_buttons(
-        "Which session do you want to set?",
+        "Which session do you want to set for the selected date(s)?",
         [
             {"id": "morning", "title": "🌅 Morning"},
             {"id": "afternoon", "title": "🌇 Afternoon"},
@@ -99,24 +108,127 @@ def _morning_afternoon_buttons():
     )
 
 
-def _time_slots_list(session):
-    """List of time slots based on session."""
+def _time_slots_list(session: str, selected_times: list = None):
+    """Interactive slot list with multi-select toggle + Done row."""
+    selected_times = selected_times or []
+    selected_set = set(selected_times)
+
     if session == 'morning':
         slots = [(k, v) for k, v in TIME_SLOTS if int(k.split(':')[0]) < 13]
-        body = "🌅 Select your morning slots:"
+        body_prefix = "🌅 Morning slots"
     elif session == 'afternoon':
         slots = [(k, v) for k, v in TIME_SLOTS if int(k.split(':')[0]) >= 13]
-        body = "🌇 Select your afternoon/evening slots:"
+        body_prefix = "🌇 Afternoon/evening slots"
     else:
         slots = TIME_SLOTS
-        body = "📋 Select your slots:"
+        body_prefix = "📋 Slots"
 
-    # WhatsApp list max 10 rows — split if needed
-    rows = [{"id": k, "title": v} for k, v in slots[:10]]
-    return BotResponse.as_list(body, "Choose Time", rows)
+    # Reserve one row for Done ⇒ max 9 time slots displayed on screen.
+    slots = slots[:9]
+
+    rows = []
+    for k, v in slots:
+        prefix = "✅ " if k in selected_set else ""
+        rows.append({"id": k, "title": (prefix + v)[:24]})
+
+    rows.append({
+        "id": "done",
+        "title": "✅ Done" if selected_set else "⏭️ Cancel",
+        "description": f"{len(selected_set)} time(s) selected" if selected_set else "Pick at least one slot first",
+    })
+
+    if selected_set:
+        summary = ", ".join(
+            v for k, v in TIME_SLOTS if k in selected_set
+        )
+        body = f"{body_prefix} — tap to toggle.\n\n*Selected:* {summary}"
+    else:
+        body = f"{body_prefix}\nTap slots to add, tap again to remove.\nTap *Done* when finished."
+
+    return BotResponse.as_list(body, "Choose Times", rows)
 
 
 # ─── Flow Handlers ───────────────────────────────────────────────
+
+def _parse_incoming_date(text: str):
+    """Return a date from an ISO string, 'today'/'tomorrow', or a title like
+    'Mon, 23 Apr'. Falls through common strptime formats. Returns None on fail.
+    Leading emoji checkmark from a toggled row is stripped.
+    """
+    t = text.strip()
+    if t.startswith('✅ '):
+        t = t[2:].strip()
+    # ISO — list row id format
+    try:
+        return datetime.strptime(t, '%Y-%m-%d').date()
+    except ValueError:
+        pass
+    low = t.lower()
+    today = date.today()
+    if low == 'today':
+        return today
+    if low == 'tomorrow':
+        return today + timedelta(days=1)
+    # Title format "Mon, 23 Mar" or "23 March 2026" etc.
+    clean = t
+    if ', ' in clean:
+        clean = clean.split(', ', 1)[1]
+    for fmt in ['%d %b', '%d %B', '%d %b %Y', '%d %B %Y', '%d-%b-%Y']:
+        try:
+            parsed = datetime.strptime(clean, fmt)
+            if parsed.year == 1900:
+                parsed = parsed.replace(year=today.year)
+            return parsed.date()
+        except ValueError:
+            continue
+    return None
+
+
+def _save_selected_availability(state):
+    """Create AvailableSlot rows for every (selected_date × selected_time).
+    Resets state to doctor menu and returns a summary BotResponse.
+    """
+    context = state.context or {}
+    doctor = Doctor.objects.get(whatsapp_number=state.whatsapp_number)
+
+    selected_dates = [
+        datetime.strptime(d, '%Y-%m-%d').date()
+        for d in context.get('selected_dates', [])
+    ]
+    selected_times = [
+        datetime.strptime(t, '%H:%M').time()
+        for t in context.get('selected_times', [])
+    ]
+
+    created = 0
+    existed = 0
+    for d in selected_dates:
+        for t in selected_times:
+            _, was_created = AvailableSlot.objects.get_or_create(
+                doctor=doctor, date=d, time=t,
+                defaults={'is_booked': False},
+            )
+            if was_created:
+                created += 1
+            else:
+                existed += 1
+
+    # Reset state
+    state.current_flow = 'doctor_menu'
+    state.step = ''
+    state.context = {}
+    state.save()
+
+    date_labels = ", ".join(d.strftime('%d %b') for d in selected_dates)
+    time_labels = ", ".join(t.strftime('%I:%M %p') for t in selected_times)
+    skipped = f" ({existed} already existed)" if existed else ""
+    return _with_doctor_menu(
+        f"✅ *Availability saved*\n\n"
+        f"📅 Dates: {date_labels}\n"
+        f"🕐 Times: {time_labels}\n\n"
+        f"Total new slots: *{created}*{skipped}"
+    )
+
 
 def handle_doctor_menu(state, text):
     choice = text.strip().lower()
@@ -129,10 +241,10 @@ def handle_doctor_menu(state, text):
 
     if choice == '1':
         state.current_flow = 'set_availability'
-        state.step = 'select_date'
-        state.context = {}
+        state.step = 'select_dates'
+        state.context = {'selected_dates': []}
         state.save()
-        return _next_7_days_list(), state
+        return _next_7_days_list([]), state
 
     elif choice == '2':
         return view_today_bookings(state)
@@ -145,148 +257,89 @@ def handle_doctor_menu(state, text):
 
 
 def handle_set_availability(state, text):
-    """Interactive availability setting flow."""
+    """Interactive availability setting flow — multi-select dates + times."""
     context = state.context or {}
+    text_raw = text.strip()
+    text_lower = text_raw.lower()
 
-    if state.step == 'select_date':
-        # Parse the selected date
-        selected_date = None
+    if state.step == 'select_dates':
+        selected = list(context.get('selected_dates', []))
 
-        # Try ISO format (from interactive list id)
-        try:
-            selected_date = datetime.strptime(text.strip(), '%Y-%m-%d').date()
-        except ValueError:
-            pass
+        # "done" from the interactive list row
+        if text_lower in ('done', '✅ done', 'skip', '⏭️ skip', 'finish', '✅ finish'):
+            if not selected:
+                return BotResponse.as_text("Pick at least one date first."), state
+            context['selected_dates'] = selected
+            state.context = context
+            state.step = 'select_session'
+            state.save()
+            return _morning_afternoon_buttons(), state
 
-        # Try common formats
-        if not selected_date:
-            text_lower = text.strip().lower()
-            today = date.today()
-            if text_lower == 'today':
-                selected_date = today
-            elif text_lower == 'tomorrow':
-                selected_date = today + timedelta(days=1)
-            else:
-                # Try title format like "Mon, 23 Mar" or "23 March 2026"
-                clean = text.strip()
-                if ', ' in clean:
-                    clean = clean.split(', ', 1)[1]
-                for fmt in ['%d %b', '%d %B', '%d %b %Y', '%d %B %Y', '%d-%b-%Y']:
-                    try:
-                        parsed = datetime.strptime(clean, fmt)
-                        if parsed.year == 1900:
-                            parsed = parsed.replace(year=today.year)
-                        selected_date = parsed.date()
-                        break
-                    except ValueError:
-                        continue
+        parsed_date = _parse_incoming_date(text_raw)
+        if not parsed_date:
+            return BotResponse.as_text("❌ Couldn't understand the date. Please tap from the list."), state
 
-        if not selected_date:
-            return BotResponse.as_text("❌ Couldn't understand the date. Please try again."), state
-
-        context['date'] = selected_date.isoformat()
-        context['date_display'] = selected_date.strftime('%d-%b-%Y')
+        iso = parsed_date.isoformat()
+        if iso in selected:
+            selected.remove(iso)       # toggle off
+        else:
+            selected.append(iso)       # toggle on
+        context['selected_dates'] = selected
         state.context = context
-        state.step = 'select_session'
         state.save()
-        return _morning_afternoon_buttons(), state
+        return _next_7_days_list(selected), state
 
     elif state.step == 'select_session':
-        session = text.strip().lower()
-        # Map button titles to session IDs
         session_map = {
             'morning': 'morning', '🌅 morning': 'morning', '1': 'morning',
             'afternoon': 'afternoon', '🌇 afternoon': 'afternoon', '2': 'afternoon',
             'full_day': 'full_day', 'full day': 'full_day', '📋 full day': 'full_day', '3': 'full_day',
         }
-        session = session_map.get(session, session)
-
+        session = session_map.get(text_lower, text_lower)
         if session not in ('morning', 'afternoon', 'full_day'):
             return _morning_afternoon_buttons(), state
 
         context['session'] = session
+        context['selected_times'] = []
         state.context = context
         state.step = 'select_slots'
         state.save()
-        return _time_slots_list(session), state
+        return _time_slots_list(session, []), state
 
     elif state.step == 'select_slots':
-        # Doctor picks one slot at a time
-        # Find matching time slot
-        selected_time = None
-        text_clean = text.strip().upper()
+        session = context.get('session', 'full_day')
+        selected_times = list(context.get('selected_times', []))
+
+        if text_lower in ('done', '✅ done', 'cancel', '⏭️ cancel', 'finish', '✅ finish'):
+            if not selected_times:
+                # Abort cleanly — no slots picked yet
+                state.current_flow = 'doctor_menu'
+                state.step = ''
+                state.context = {}
+                state.save()
+                return _with_doctor_menu("No slots were added."), state
+            return _save_selected_availability(state), state
 
         # Match by ID (HH:MM) or title (HH:MM AM/PM)
+        text_upper = text_raw.upper()
+        matched = None
         for time_key, time_display in TIME_SLOTS:
-            if text_clean == time_key or text_clean == time_display.upper():
-                selected_time = time_key
+            if text_upper == time_key or text_upper == time_display.upper() \
+               or text_upper == ("✅ " + time_display).upper():
+                matched = time_key
                 break
 
-        if not selected_time:
-            return BotResponse.as_text("❌ Invalid time. Please select from the list."), state
+        if not matched:
+            return BotResponse.as_text("❌ Invalid time. Please tap from the list."), state
 
-        # Save this slot
-        doctor = Doctor.objects.get(whatsapp_number=state.whatsapp_number)
-        slot_date = datetime.strptime(context['date'], '%Y-%m-%d').date()
-        slot_time = datetime.strptime(selected_time, '%H:%M').time()
-
-        slot, created = AvailableSlot.objects.get_or_create(
-            doctor=doctor, date=slot_date, time=slot_time,
-            defaults={'is_booked': False}
-        )
-
-        # Track added slots
-        added = context.get('added_slots', [])
-        time_display = slot_time.strftime('%I:%M %p')
-        if time_display not in added:
-            added.append(time_display)
-        context['added_slots'] = added
+        if matched in selected_times:
+            selected_times.remove(matched)
+        else:
+            selected_times.append(matched)
+        context['selected_times'] = selected_times
         state.context = context
         state.save()
-
-        # Ask if they want to add more or finish
-        added_text = ", ".join(added)
-        state.step = 'add_more_or_done'
-        state.save()
-
-        return BotResponse.as_buttons(
-            f"✅ Added {time_display}\n\n"
-            f"Slots for {context['date_display']}: {added_text}\n\n"
-            f"Add more slots?",
-            [
-                {"id": "more", "title": "➕ Add More"},
-                {"id": "done", "title": "✅ Done"},
-            ]
-        ), state
-
-    elif state.step == 'add_more_or_done':
-        choice = text.strip().lower()
-        choice_map = {
-            'more': 'more', '➕ add more': 'more', 'add more': 'more', '1': 'more',
-            'done': 'done', '✅ done': 'done', '2': 'done',
-        }
-        choice = choice_map.get(choice, choice)
-
-        if choice == 'more':
-            state.step = 'select_slots'
-            state.save()
-            session = context.get('session', 'full_day')
-            return _time_slots_list(session), state
-        else:
-            # Done — show summary and return to menu
-            added = context.get('added_slots', [])
-            date_display = context.get('date_display', '')
-            slots_text = "\n".join(f"• {s}" for s in added)
-
-            state.current_flow = 'doctor_menu'
-            state.step = ''
-            state.context = {}
-            state.save()
-
-            return _with_doctor_menu(
-                f"✅ Availability set for {date_display}:\n{slots_text}\n\n"
-                f"Total: {len(added)} slots"
-            ), state
+        return _time_slots_list(session, selected_times), state
 
     # Fallback — also handle old text-based format for backward compat
     result = parse_availability_simple(text)
