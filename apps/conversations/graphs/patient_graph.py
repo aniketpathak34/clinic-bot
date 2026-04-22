@@ -63,7 +63,8 @@ def run_patient_graph(state, text: str):
             response, state = handle_language_select(state, text)
             return response
         # First message from a genuinely new user — show language buttons
-        return _language_buttons()
+        clinic_name = state.clinic.name if state.clinic else None
+        return _language_buttons(clinic_name)
 
     # Registration flow (lazy — only when booking)
     if flow == 'registration':

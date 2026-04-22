@@ -19,9 +19,13 @@ LANGUAGE_MAP = {
 
 # ─── Interactive Response Builders ───────────────────────────────
 
-def _language_buttons():
+def _language_buttons(clinic_name: str = None):
+    if clinic_name:
+        body = f"👋 Welcome to *{clinic_name}*!\nPlease choose your language:"
+    else:
+        body = "Welcome! Please choose your language:"
     return BotResponse.as_buttons(
-        "Welcome! Please choose your language:",
+        body,
         [
             {"id": "1", "title": "English"},
             {"id": "2", "title": "हिंदी"},
@@ -266,7 +270,8 @@ def handle_language_select(state, text):
     choice = text.strip().lower()
     lang = LANGUAGE_MAP.get(choice)
     if not lang:
-        return _language_buttons(), state
+        clinic_name = state.clinic.name if state.clinic else None
+        return _language_buttons(clinic_name), state
     state.language = lang
     state.current_flow = 'main_menu'
     state.step = ''
@@ -310,7 +315,8 @@ def handle_registration(state, text):
 
         pending_flow = context.get('pending_flow', 'main_menu')
         state.context = {}
-        welcome = get_msg(lang, 'registration_complete', name=patient.name)
+        clinic_name = state.clinic.name if state.clinic else 'our clinic'
+        welcome = get_msg(lang, 'registration_complete', name=patient.name, clinic_name=clinic_name)
 
         if pending_flow == 'booking':
             state.current_flow = 'booking_start'
@@ -360,7 +366,8 @@ def handle_main_menu(state, text):
         state.step = ''
         state.context = {}
         state.save()
-        return _language_buttons(), state
+        clinic_name = state.clinic.name if state.clinic else None
+        return _language_buttons(clinic_name), state
     else:
         return _main_menu_list(lang), state
 

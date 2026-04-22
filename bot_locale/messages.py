@@ -9,7 +9,7 @@ MESSAGES = {
         "need_registration": "To book an appointment, we need a few details first.",
         "ask_name": "What is your name?",
         "ask_age": "Nice to meet you, {name}! What is your age?",
-        "registration_complete": "Registration complete! Welcome, {name}.",
+        "registration_complete": "Registration complete! 🎉\nWelcome to *{clinic_name}*, {name}.",
 
         # Main menu
         "main_menu": (
@@ -107,7 +107,7 @@ MESSAGES = {
         "need_registration": "अपॉइंटमेंट बुक करने के लिए, हमें कुछ जानकारी चाहिए।",
         "ask_name": "आपका नाम क्या है?",
         "ask_age": "आपसे मिलकर अच्छा लगा, {name}! आपकी उम्र क्या है?",
-        "registration_complete": "पंजीकरण पूरा हुआ! स्वागत है, {name}।",
+        "registration_complete": "पंजीकरण पूरा हुआ! 🎉\n*{clinic_name}* में आपका स्वागत है, {name}।",
         "main_menu": (
             "मैं आपकी कैसे मदद कर सकता हूँ?\n\n"
             "1. 📅 अपॉइंटमेंट बुक करें\n"
@@ -148,7 +148,7 @@ MESSAGES = {
         "need_registration": "अपॉइंटमेंट बुक करण्यासाठी, आम्हाला काही माहिती हवी आहे.",
         "ask_name": "तुमचे नाव काय आहे?",
         "ask_age": "भेटून आनंद झाला, {name}! तुमचे वय किती आहे?",
-        "registration_complete": "नोंदणी पूर्ण! स्वागत, {name}.",
+        "registration_complete": "नोंदणी पूर्ण! 🎉\n*{clinic_name}* मध्ये स्वागत आहे, {name}.",
         "main_menu": (
             "मी तुम्हाला कशी मदत करू शकतो?\n\n"
             "1. 📅 अपॉइंटमेंट बुक करा\n"
