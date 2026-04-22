@@ -28,6 +28,13 @@ MESSAGES = {
         "no_slots": "Sorry, no available slots for Dr. {doctor} on {date}. Please try another date.",
         "booking_confirmed": "✅ Appointment booked!\n\nDoctor: Dr. {doctor}\nDate: {date}\nTime: {time}\n\nYou will receive a reminder before your appointment.",
         "no_doctors": "Sorry, no doctors are available at this clinic currently.",
+        "already_booked_same_day": (
+            "⚠️ You already have an appointment on {date}:\n"
+            "• Dr. {doctor} at {time}\n\n"
+            "To change the time, please cancel this appointment first:\n"
+            "Main Menu → *Cancel Appointment* → pick the one you want to drop.\n"
+            "Then come back to *Book Appointment* and choose your preferred slot."
+        ),
 
         # Cancel
         "select_appointment_cancel": "Your upcoming appointments:\n{appointments}\n\nReply with the number to cancel, or 0 to go back.",
@@ -115,6 +122,13 @@ MESSAGES = {
         "no_slots": "माफ़ कीजिए, Dr. {doctor} के पास {date} को कोई समय उपलब्ध नहीं है।",
         "booking_confirmed": "✅ अपॉइंटमेंट बुक हो गई!\n\nडॉक्टर: Dr. {doctor}\nतारीख: {date}\nसमय: {time}\n\nआपको अपॉइंटमेंट से पहले रिमाइंडर मिलेगा।",
         "no_doctors": "माफ़ कीजिए, अभी कोई डॉक्टर उपलब्ध नहीं हैं।",
+        "already_booked_same_day": (
+            "⚠️ आपकी {date} को पहले से अपॉइंटमेंट है:\n"
+            "• Dr. {doctor} - {time}\n\n"
+            "समय बदलने के लिए, पहले इसे रद्द करें:\n"
+            "मुख्य मेनू → *अपॉइंटमेंट रद्द करें* → जिसे हटाना है चुनें।\n"
+            "फिर *अपॉइंटमेंट बुक करें* पर जाकर नया समय चुनें।"
+        ),
         "select_appointment_cancel": "आपकी आगामी अपॉइंटमेंट:\n{appointments}\n\nरद्द करने के लिए नंबर भेजें, या वापस जाने के लिए 0 भेजें।",
         "cancel_confirmed": "✅ Dr. {doctor} के साथ {date} को {time} बजे की अपॉइंटमेंट रद्द कर दी गई।",
         "no_appointments": "आपकी कोई आगामी अपॉइंटमेंट नहीं है।",
@@ -149,6 +163,13 @@ MESSAGES = {
         "no_slots": "माफ करा, Dr. {doctor} यांच्याकडे {date} रोजी वेळ उपलब्ध नाही.",
         "booking_confirmed": "✅ अपॉइंटमेंट बुक झाली!\n\nडॉक्टर: Dr. {doctor}\nतारीख: {date}\nवेळ: {time}\n\nतुम्हाला अपॉइंटमेंटपूर्वी रिमाइंडर मिळेल.",
         "no_doctors": "माफ करा, सध्या कोणताही डॉक्टर उपलब्ध नाही.",
+        "already_booked_same_day": (
+            "⚠️ तुमची {date} रोजी आधीच अपॉइंटमेंट आहे:\n"
+            "• Dr. {doctor} - {time}\n\n"
+            "वेळ बदलण्यासाठी, प्रथम ती रद्द करा:\n"
+            "मुख्य मेनू → *अपॉइंटमेंट रद्द करा* → कोणती काढायची ते निवडा.\n"
+            "नंतर *अपॉइंटमेंट बुक करा* वर जाऊन नवीन वेळ निवडा."
+        ),
         "select_appointment_cancel": "तुमच्या आगामी अपॉइंटमेंट:\n{appointments}\n\nरद्द करण्यासाठी क्रमांक पाठवा, किंवा परत जाण्यासाठी 0 पाठवा.",
         "cancel_confirmed": "✅ Dr. {doctor} यांच्यासोबत {date} रोजी {time} वाजताची अपॉइंटमेंट रद्द झाली.",
         "no_appointments": "तुमची कोणतीही आगामी अपॉइंटमेंट नाही.",

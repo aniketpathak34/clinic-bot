@@ -423,6 +423,24 @@ def handle_booking(state, text):
         if not parsed_date:
             return get_msg(lang, 'invalid_input') + "\n" + get_msg(lang, 'select_date'), state
 
+        # One booked appointment per patient per day — guide them to Cancel first.
+        patient = Patient.objects.filter(whatsapp_number=state.whatsapp_number).first()
+        if patient:
+            existing = Appointment.objects.filter(
+                patient=patient, status='booked', slot__date=parsed_date
+            ).select_related('doctor', 'slot').first()
+            if existing:
+                state.current_flow = 'main_menu'
+                state.step = ''
+                state.context = {}
+                state.save()
+                return _with_menu(lang, get_msg(
+                    lang, 'already_booked_same_day',
+                    date=parsed_date.strftime('%d-%b-%Y'),
+                    doctor=existing.doctor.name,
+                    time=existing.slot.time.strftime('%I:%M %p'),
+                )), state
+
         slots = AvailableSlot.objects.filter(
             doctor_id=context.get('doctor_id'), date=parsed_date, is_booked=False
         ).order_by('time')
