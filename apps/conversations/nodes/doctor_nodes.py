@@ -40,6 +40,36 @@ TIME_SLOTS = [
 
 # ─── Interactive Response Builders ───────────────────────────────
 
+def _date_mode_buttons():
+    """Preset shortcuts so the doctor doesn't have to tap 7 dates one-by-one."""
+    return BotResponse.as_buttons(
+        "📅 *Set your availability — choose a preset:*\n\n"
+        "Pick a shortcut or set specific dates.",
+        [
+            {"id": "mode_next7", "title": "📅 Next 7 days"},
+            {"id": "mode_weekdays", "title": "💼 Weekdays only"},
+            {"id": "mode_custom_dates", "title": "🎯 Pick dates"},
+        ]
+    )
+
+
+def _time_mode_buttons(session: str, date_count: int):
+    """Preset shortcuts for times — apply ALL slots in the session or cherry-pick."""
+    session_label = {
+        'morning': 'morning',
+        'afternoon': 'afternoon',
+        'full_day': 'full day',
+    }.get(session, 'session')
+    return BotResponse.as_buttons(
+        f"🕐 *{date_count} date(s) picked.*\n\n"
+        f"Want every {session_label} slot, or pick specific times?",
+        [
+            {"id": "times_all", "title": "✅ All slots"},
+            {"id": "times_custom", "title": "🎯 Pick times"},
+        ]
+    )
+
+
 def _doctor_menu_list(doctor_name=None):
     body = f"Welcome, Dr. {doctor_name}! 👋\nWhat would you like to do?" if doctor_name else "Doctor Menu:"
     return BotResponse.as_list(
@@ -263,10 +293,10 @@ def handle_doctor_menu(state, text):
 
     if choice == '1':
         state.current_flow = 'set_availability'
-        state.step = 'select_dates'
-        state.context = {'selected_dates': []}
+        state.step = 'choose_date_mode'
+        state.context = {}
         state.save()
-        return _next_7_days_list([]), state
+        return _date_mode_buttons(), state
 
     elif choice == '2':
         return view_today_bookings(state)
@@ -279,10 +309,45 @@ def handle_doctor_menu(state, text):
 
 
 def handle_set_availability(state, text):
-    """Interactive availability setting flow — multi-select dates + times."""
+    """Interactive availability setting flow — presets + multi-select fallback."""
     context = state.context or {}
     text_raw = text.strip()
     text_lower = text_raw.lower()
+
+    # ── STEP 0: Date-mode preset (first screen after Set Availability) ──
+    if state.step == 'choose_date_mode':
+        today = date.today()
+        if text_lower in ('mode_next7', '📅 next 7 days', 'next 7 days', '1'):
+            dates = [(today + timedelta(days=i)).isoformat() for i in range(7)]
+            context['selected_dates'] = dates
+            state.context = context
+            state.step = 'select_session'
+            state.save()
+            return _morning_afternoon_buttons(), state
+
+        if text_lower in ('mode_weekdays', '💼 weekdays only', 'weekdays only', 'weekdays', '2'):
+            dates = []
+            for i in range(14):   # scan 2 weeks to find next 5 weekdays
+                d = today + timedelta(days=i)
+                if d.weekday() < 5:   # Mon-Fri
+                    dates.append(d.isoformat())
+                if len(dates) == 5:
+                    break
+            context['selected_dates'] = dates
+            state.context = context
+            state.step = 'select_session'
+            state.save()
+            return _morning_afternoon_buttons(), state
+
+        if text_lower in ('mode_custom_dates', '🎯 pick dates', 'pick dates', 'custom', '3'):
+            context['selected_dates'] = []
+            state.context = context
+            state.step = 'select_dates'
+            state.save()
+            return _next_7_days_list([]), state
+
+        # Fallback: re-show the preset buttons
+        return _date_mode_buttons(), state
 
     if state.step == 'select_dates':
         selected = list(context.get('selected_dates', []))
@@ -324,9 +389,31 @@ def handle_set_availability(state, text):
         context['session'] = session
         context['selected_times'] = []
         state.context = context
-        state.step = 'select_slots'
+        state.step = 'choose_time_mode'
         state.save()
-        return _time_slots_list(session, []), state
+        return _time_mode_buttons(session, len(context.get('selected_dates', []))), state
+
+    elif state.step == 'choose_time_mode':
+        session = context.get('session', 'full_day')
+        if text_lower in ('times_all', '✅ all slots', 'all slots', 'all', '1'):
+            # Pre-fill every slot for the chosen session
+            if session == 'morning':
+                all_slots = [k for k, v in TIME_SLOTS if int(k.split(':')[0]) < 13]
+            elif session == 'afternoon':
+                all_slots = [k for k, v in TIME_SLOTS if int(k.split(':')[0]) >= 13]
+            else:
+                all_slots = [k for k, v in TIME_SLOTS]
+            context['selected_times'] = all_slots
+            state.context = context
+            state.save()
+            return _save_selected_availability(state), state
+
+        if text_lower in ('times_custom', '🎯 pick times', 'pick times', 'custom', '2'):
+            state.step = 'select_slots'
+            state.save()
+            return _time_slots_list(session, []), state
+
+        return _time_mode_buttons(session, len(context.get('selected_dates', []))), state
 
     elif state.step == 'select_slots':
         session = context.get('session', 'full_day')
