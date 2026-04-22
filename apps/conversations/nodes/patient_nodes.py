@@ -354,15 +354,27 @@ def start_booking(state):
     lang = state.language or 'en'
     clinic_filter = {'clinic': state.clinic} if state.clinic else {}
 
-    doctors = Doctor.objects.filter(
+    doctors = list(Doctor.objects.filter(
         is_registered=True, slots__is_booked=False, slots__date__gte=date.today(), **clinic_filter
-    ).distinct()
-    if not doctors.exists():
-        doctors = Doctor.objects.filter(is_registered=True, **clinic_filter)
-    if not doctors.exists():
+    ).distinct())
+    if not doctors:
+        doctors = list(Doctor.objects.filter(is_registered=True, **clinic_filter))
+    if not doctors:
         return _with_menu(lang, get_msg(lang, 'no_doctors')), state
 
     state.current_flow = 'booking'
+
+    # Single-doctor clinic → skip the doctor-selection step entirely.
+    if len(doctors) == 1:
+        doctor = doctors[0]
+        state.step = 'select_date'
+        state.context = {'doctor_id': doctor.id, 'doctor_name': doctor.name}
+        state.save()
+        date_response = _date_list(lang, doctor.id, doctor.name)
+        if date_response:
+            return date_response, state
+        return _with_menu(lang, get_msg(lang, 'no_slots', doctor=doctor.name, date='any')), state
+
     state.step = 'select_doctor'
     state.context = {'doctor_ids': [d.id for d in doctors]}
     state.save()
