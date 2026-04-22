@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 def parse_menu_choice(text: str, language: str) -> str:
     """Parse natural language menu selection into a menu number.
 
-    Returns '1'-'5' if understood, or None if not.
+    Returns '1'-'6' if understood, or None if not.
     """
     text_lower = text.strip().lower()
 
     # Quick check — if it's already a number, return it
-    if text_lower in ('1', '2', '3', '4', '5'):
+    if text_lower in ('1', '2', '3', '4', '5', '6'):
         return text_lower
 
     # Keyword matching first (fast, no API call)
@@ -25,9 +25,9 @@ def parse_menu_choice(text: str, language: str) -> str:
                         'बुक करा', 'अपॉइंटमेंट बुक', 'नवीन',  # Marathi
                         'book karo', 'appointment lena', 'book karaychi',
                         'appointment book', 'book kara', 'navin']
-    reschedule_keywords = ['reschedule', 'change', 'shift', 'move',
-                           'बदलें', 'बदला', 'बदल',
-                           'badal', 'badla', 'change karo', 'shift karo']
+    reschedule_keywords = ['reschedule', 'shift', 'move',
+                           'बदलें', 'बदला',
+                           'badla', 'shift karo']
     cancel_keywords = ['cancel', 'delete', 'remove', 'hatao',
                        'रद्द', 'कैंसल', 'हटाओ',
                        'cancel karo', 'radd kara', 'radd', 'cancel kara']
@@ -38,7 +38,14 @@ def parse_menu_choice(text: str, language: str) -> str:
     enquiry_keywords = ['enquiry', 'query', 'question', 'ask', 'help', 'info',
                         'पूछताछ', 'सवाल', 'मदद', 'चौकशी', 'प्रश्न',
                         'puchho', 'sawal', 'madad', 'chaukashi', 'vichar']
+    language_keywords = ['language', 'change language', 'bhasha',
+                         '🌐', 'भाषा', 'bhasha badal', 'bhasha badla',
+                         'भाषा बदलें', 'भाषा बदला']
 
+    # Language first (catches "change language" before the generic "change" reschedule kw)
+    for kw in language_keywords:
+        if kw in text_lower:
+            return '6'
     # Check cancel/reschedule BEFORE booking (since "cancel appointment" contains "appointment")
     for kw in cancel_keywords:
         if kw in text_lower:
@@ -46,6 +53,9 @@ def parse_menu_choice(text: str, language: str) -> str:
     for kw in reschedule_keywords:
         if kw in text_lower:
             return '2'
+    # Generic "change" / "badal" matches reschedule (after language is ruled out)
+    if 'change' in text_lower or 'बदल' in text_lower or 'badal' in text_lower:
+        return '2'
     for kw in view_keywords:
         if kw in text_lower:
             return '4'
@@ -117,6 +127,7 @@ Determine which menu option they want:
 3 = Cancel appointment
 4 = View my appointments
 5 = Enquiry / ask a question
+6 = Change language
 
 User message: "{text}"
 
@@ -133,7 +144,7 @@ If you cannot determine the intent, reply: {{"choice": null}}"""
 
         result = json.loads(response.choices[0].message.content)
         choice = result.get('choice')
-        if choice in ('1', '2', '3', '4', '5'):
+        if choice in ('1', '2', '3', '4', '5', '6'):
             return choice
         return None
 

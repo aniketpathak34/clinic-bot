@@ -33,11 +33,14 @@ def _language_buttons():
 def _main_menu_list(lang):
     labels = {
         'en': {"body": "How can I help you today?", "btn": "Choose Option",
-               "opts": ["Book Appointment", "Reschedule", "Cancel Appointment", "My Appointments", "Enquiry"]},
+               "opts": ["Book Appointment", "Reschedule", "Cancel Appointment",
+                        "My Appointments", "Enquiry", "🌐 Change Language"]},
         'hi': {"body": "मैं आपकी कैसे मदद कर सकता हूँ?", "btn": "विकल्प चुनें",
-               "opts": ["अपॉइंटमेंट बुक करें", "अपॉइंटमेंट बदलें", "अपॉइंटमेंट रद्द करें", "मेरी अपॉइंटमेंट", "पूछताछ"]},
+               "opts": ["अपॉइंटमेंट बुक करें", "अपॉइंटमेंट बदलें", "अपॉइंटमेंट रद्द करें",
+                        "मेरी अपॉइंटमेंट", "पूछताछ", "🌐 भाषा बदलें"]},
         'mr': {"body": "मी तुम्हाला कशी मदत करू शकतो?", "btn": "पर्याय निवडा",
-               "opts": ["अपॉइंटमेंट बुक करा", "अपॉइंटमेंट बदला", "अपॉइंटमेंट रद्द करा", "माझ्या अपॉइंटमेंट", "चौकशी"]},
+               "opts": ["अपॉइंटमेंट बुक करा", "अपॉइंटमेंट बदला", "अपॉइंटमेंट रद्द करा",
+                        "माझ्या अपॉइंटमेंट", "चौकशी", "🌐 भाषा बदला"]},
     }
     l = labels.get(lang, labels['en'])
     rows = [{"id": str(i+1), "title": opt} for i, opt in enumerate(l["opts"])]
@@ -346,6 +349,12 @@ def handle_main_menu(state, text):
         state.step = 'ask_question'
         state.save()
         return get_msg(lang, 'enquiry_prompt'), state
+    elif choice == '6':
+        state.current_flow = 'language_select'
+        state.step = ''
+        state.context = {}
+        state.save()
+        return _language_buttons(), state
     else:
         return _main_menu_list(lang), state
 
