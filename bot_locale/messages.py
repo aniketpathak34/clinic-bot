@@ -79,6 +79,17 @@ MESSAGES = {
         "doctor_today_bookings": "Today's bookings:\n{bookings}",
         "doctor_no_bookings": "No bookings for today.",
         "doctor_upcoming_bookings": "Upcoming bookings:\n{bookings}",
+        "doctor_welcome_onboarded": (
+            "👋 Welcome, Dr. {name}!\n\n"
+            "You have been added to *{clinic_name}* on our WhatsApp booking bot.\n\n"
+            "From this number you can:\n"
+            "• 📅 Set your availability\n"
+            "• 📋 View today's bookings\n"
+            "• 📊 See upcoming appointments\n\n"
+            "Patients who book with {clinic_name} will automatically appear in your list, "
+            "and you'll get an instant alert here for every new booking.\n\n"
+            "Reply *hi* to see your menu."
+        ),
         "doctor_new_booking_notification": "🔔 New appointment!\nPatient: {patient}\nDate: {date}\nTime: {time}",
         "doctor_cancel_notification": "❌ Appointment cancelled!\nPatient: {patient}\nDate: {date}\nTime: {time}\n\nThe slot is now available again.",
         "call_confirmed": "✅ Your appointment with Dr. {doctor} on {date} at {time} is confirmed. See you there!",

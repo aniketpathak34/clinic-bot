@@ -46,6 +46,8 @@ class Doctor(models.Model):
     whatsapp_number = models.CharField(max_length=15, unique=True)
     specialty = models.CharField(max_length=50, choices=SPECIALTY_CHOICES, default='general')
     is_registered = models.BooleanField(default=False)
+    welcomed_at = models.DateTimeField(null=True, blank=True,
+                                       help_text="Set once the welcome WhatsApp is sent")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
