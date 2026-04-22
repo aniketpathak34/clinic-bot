@@ -61,8 +61,8 @@ def _with_doctor_menu(prefix_text):
 def _next_7_days_list(selected_dates: list = None):
     """Interactive list of next 7 days. Tap-to-toggle multi-select.
 
-    ✅ prefix marks already-selected dates; the last row is "✅ Done" to
-    finalize. WhatsApp hard-caps list rows at 10, so 7 days + Done fits.
+    ☑ prefix marks selected dates (checkbox look); unselected get ☐.
+    The last row is "✅ Done" to finalize. WhatsApp caps list rows at 10.
     """
     selected_dates = selected_dates or []
     selected_set = set(selected_dates)
@@ -70,28 +70,39 @@ def _next_7_days_list(selected_dates: list = None):
     day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     today = date.today()
     rows = []
+    friendly = {}   # iso -> "Fri 24 Apr"
     for i in range(7):
         d = today + timedelta(days=i)
         day = day_names[d.weekday()]
         label = "Today" if i == 0 else ("Tomorrow" if i == 1 else f"{day}, {d.strftime('%d %b')}")
-        prefix = "✅ " if d.isoformat() in selected_set else ""
+        friendly[d.isoformat()] = label.replace(', ', ' ')
+        marker = "☑️ " if d.isoformat() in selected_set else "☐ "
         rows.append({
             "id": d.isoformat(),
-            "title": (prefix + label)[:24],   # WhatsApp row title max 24 chars
+            "title": (marker + label)[:24],
             "description": d.strftime('%d %B %Y'),
         })
 
+    count = len(selected_set)
     rows.append({
         "id": "done",
-        "title": "✅ Done" if selected_set else "⏭️ Skip",
-        "description": f"{len(selected_set)} date(s) selected" if selected_set else "Pick at least one date first",
+        "title": f"✅ Done ({count})" if count else "⏭️ Skip",
+        "description": f"Save {count} date(s) and continue" if count else "Pick at least one date first",
     })
 
-    if selected_set:
-        summary = ", ".join(sorted(selected_set))
-        body = f"📅 Pick your available dates — tap to toggle.\n\n*Selected:* {summary}"
+    if count:
+        summary = ", ".join(friendly.get(d, d) for d in selected_dates)
+        body = (
+            f"📅 *{count} date{'s' if count != 1 else ''} picked:* {summary}\n\n"
+            f"👉 Tap more dates to add, tap again to remove, or tap *✅ Done ({count})* to continue."
+        )
     else:
-        body = "📅 Pick the dates you are available.\nTap a date to add it, then tap it again to remove.\nTap *Done* when finished."
+        body = (
+            "📅 *Pick the dates you are available.*\n\n"
+            "• Tap a date — you'll see ☑️ next to it.\n"
+            "• You can add as many as you want.\n"
+            "• Tap *✅ Done* when finished."
+        )
 
     return BotResponse.as_list(body, "Choose Dates", rows)
 
@@ -109,41 +120,50 @@ def _morning_afternoon_buttons():
 
 
 def _time_slots_list(session: str, selected_times: list = None):
-    """Interactive slot list with multi-select toggle + Done row."""
+    """Interactive slot list with multi-select toggle + Done row.
+
+    ☑ / ☐ visible prefix makes selection state obvious on WhatsApp.
+    """
     selected_times = selected_times or []
     selected_set = set(selected_times)
 
     if session == 'morning':
         slots = [(k, v) for k, v in TIME_SLOTS if int(k.split(':')[0]) < 13]
-        body_prefix = "🌅 Morning slots"
+        body_prefix = "🌅 *Morning slots*"
     elif session == 'afternoon':
         slots = [(k, v) for k, v in TIME_SLOTS if int(k.split(':')[0]) >= 13]
-        body_prefix = "🌇 Afternoon/evening slots"
+        body_prefix = "🌇 *Afternoon/evening slots*"
     else:
         slots = TIME_SLOTS
-        body_prefix = "📋 Slots"
+        body_prefix = "📋 *All slots*"
 
-    # Reserve one row for Done ⇒ max 9 time slots displayed on screen.
-    slots = slots[:9]
+    slots = slots[:9]   # reserve 1 row for Done
 
     rows = []
     for k, v in slots:
-        prefix = "✅ " if k in selected_set else ""
-        rows.append({"id": k, "title": (prefix + v)[:24]})
+        marker = "☑️ " if k in selected_set else "☐ "
+        rows.append({"id": k, "title": (marker + v)[:24]})
 
+    count = len(selected_set)
     rows.append({
         "id": "done",
-        "title": "✅ Done" if selected_set else "⏭️ Cancel",
-        "description": f"{len(selected_set)} time(s) selected" if selected_set else "Pick at least one slot first",
+        "title": f"✅ Done ({count})" if count else "⏭️ Cancel",
+        "description": f"Save {count} time(s)" if count else "Pick at least one slot first",
     })
 
-    if selected_set:
-        summary = ", ".join(
-            v for k, v in TIME_SLOTS if k in selected_set
+    if count:
+        summary = ", ".join(v for k, v in TIME_SLOTS if k in selected_set)
+        body = (
+            f"{body_prefix} — *{count} time{'s' if count != 1 else ''} picked:* {summary}\n\n"
+            f"👉 Tap more slots to add, tap again to remove, or tap *✅ Done ({count})* to continue."
         )
-        body = f"{body_prefix} — tap to toggle.\n\n*Selected:* {summary}"
     else:
-        body = f"{body_prefix}\nTap slots to add, tap again to remove.\nTap *Done* when finished."
+        body = (
+            f"{body_prefix}\n\n"
+            "• Tap a time — you'll see ☑️ next to it.\n"
+            "• Add as many slots as you want.\n"
+            "• Tap *✅ Done* when finished."
+        )
 
     return BotResponse.as_list(body, "Choose Times", rows)
 
@@ -153,11 +173,13 @@ def _time_slots_list(session: str, selected_times: list = None):
 def _parse_incoming_date(text: str):
     """Return a date from an ISO string, 'today'/'tomorrow', or a title like
     'Mon, 23 Apr'. Falls through common strptime formats. Returns None on fail.
-    Leading emoji checkmark from a toggled row is stripped.
+    Leading emoji checkmarks from a toggled row are stripped.
     """
     t = text.strip()
-    if t.startswith('✅ '):
-        t = t[2:].strip()
+    for marker in ('☑️ ', '☐ ', '✅ '):
+        if t.startswith(marker):
+            t = t[len(marker):].strip()
+            break
     # ISO — list row id format
     try:
         return datetime.strptime(t, '%Y-%m-%d').date()
@@ -320,12 +342,16 @@ def handle_set_availability(state, text):
                 return _with_doctor_menu("No slots were added."), state
             return _save_selected_availability(state), state
 
-        # Match by ID (HH:MM) or title (HH:MM AM/PM)
-        text_upper = text_raw.upper()
+        # Match by ID (HH:MM) or title (HH:MM AM/PM), stripping any checkbox marker
+        text_clean = text_raw
+        for marker in ('☑️ ', '☐ ', '✅ '):
+            if text_clean.startswith(marker):
+                text_clean = text_clean[len(marker):]
+                break
+        text_upper = text_clean.strip().upper()
         matched = None
         for time_key, time_display in TIME_SLOTS:
-            if text_upper == time_key or text_upper == time_display.upper() \
-               or text_upper == ("✅ " + time_display).upper():
+            if text_upper == time_key or text_upper == time_display.upper():
                 matched = time_key
                 break
 
