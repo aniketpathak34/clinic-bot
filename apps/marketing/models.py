@@ -20,8 +20,10 @@ class DemoVideo(models.Model):
         blank=True,
         help_text=(
             "YouTube / Vimeo link. Works on Render free tier (recommended). "
-            "Paste the full URL like https://youtu.be/xxxxx or "
-            "https://www.youtube.com/watch?v=xxxxx"
+            "Any of these works:<br>"
+            " • https://youtu.be/XXXXX<br>"
+            " • https://www.youtube.com/watch?v=XXXXX<br>"
+            " • https://www.youtube.com/shorts/XXXXX (portrait autoplayer)"
         ),
     )
     video_file = models.FileField(
@@ -54,11 +56,14 @@ class DemoVideo(models.Model):
 
     @property
     def youtube_id(self) -> str:
-        """Extract the YouTube video ID so we can build a clean embed URL."""
+        """Extract the YouTube video ID so we can build a clean embed URL.
+
+        Handles watch URLs, youtu.be short links, /embed/ and /shorts/ formats.
+        """
         if not self.embed_url:
             return ''
         url = self.embed_url.strip()
-        for marker in ('v=', 'youtu.be/', 'embed/'):
+        for marker in ('v=', 'youtu.be/', 'embed/', 'shorts/'):
             if marker in url:
                 rest = url.split(marker, 1)[1]
                 return rest.split('&')[0].split('?')[0].split('/')[0]
@@ -67,6 +72,11 @@ class DemoVideo(models.Model):
     @property
     def is_youtube(self) -> bool:
         return 'youtube.com' in (self.embed_url or '') or 'youtu.be' in (self.embed_url or '')
+
+    @property
+    def is_youtube_short(self) -> bool:
+        """True if the URL is a YouTube Short (portrait). Used for aspect ratio."""
+        return '/shorts/' in (self.embed_url or '')
 
     @property
     def embed_iframe_src(self) -> str:

@@ -1,10 +1,12 @@
-{# WhatsApp demos are usually portrait phone recordings.
-   - YouTube embeds stay 16:9 (landscape).
-   - Direct file uploads render at natural ratio, capped at ~400px wide and centered. #}
+{# Video card.
+   - YouTube Shorts        → vertical 9:16 embed, capped at 360px wide (portrait).
+   - Regular YouTube video → landscape 16:9 embed, full card width.
+   - Direct uploaded file  → portrait-safe, natural aspect, capped at 420px wide.
+#}
 <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 mx-auto"
-     style="max-width: {% if v.is_youtube %}100%{% else %}420px{% endif %};">
+     style="max-width: {% if v.is_youtube and v.is_youtube_short %}360px{% elif v.is_youtube %}100%{% else %}420px{% endif %};">
     {% if v.is_youtube and v.embed_iframe_src %}
-        <div class="aspect-video bg-slate-900">
+        <div class="bg-slate-900 {% if v.is_youtube_short %}aspect-[9/16]{% else %}aspect-video{% endif %}">
             <iframe class="w-full h-full"
                     src="{{ v.embed_iframe_src }}"
                     title="{{ v.title }}"
