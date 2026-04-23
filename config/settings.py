@@ -29,6 +29,9 @@ if _render_host:
 
 # Application definition
 INSTALLED_APPS = [
+    # Custom user app must be registered before django.contrib.auth/admin
+    # so AUTH_USER_MODEL resolves cleanly.
+    'apps.accounts',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,6 +45,8 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.marketing',
 ]
+
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
