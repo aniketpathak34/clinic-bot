@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'apps.conversations',
     'apps.whatsapp',
     'apps.notifications',
+    'apps.marketing',
 ]
 
 MIDDLEWARE = [
@@ -103,6 +104,13 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# User-uploaded files (demo videos, posters).
+# NOTE: Render free tier has an ephemeral filesystem — uploaded files are wiped
+# on every redeploy. Prefer YouTube/Vimeo URLs on DemoVideo.embed_url in prod.
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Groq (Llama 3.1)

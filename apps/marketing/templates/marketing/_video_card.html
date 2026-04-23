@@ -1,0 +1,31 @@
+<div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+    <div class="aspect-video bg-slate-900 relative">
+        {% if v.is_youtube and v.embed_iframe_src %}
+            <iframe class="absolute inset-0 w-full h-full"
+                    src="{{ v.embed_iframe_src }}"
+                    title="{{ v.title }}"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen></iframe>
+        {% elif v.file_url %}
+            <video class="absolute inset-0 w-full h-full object-cover"
+                   controls
+                   {% if v.poster %}poster="{{ v.poster.url }}"{% endif %}
+                   preload="metadata">
+                <source src="{{ v.file_url }}">
+                Your browser does not support video playback.
+            </video>
+        {% elif v.embed_url %}
+            <a href="{{ v.embed_url }}" target="_blank" rel="noopener"
+               class="absolute inset-0 flex items-center justify-center text-white hover:bg-slate-800 transition">
+                <span class="text-lg font-semibold">▶ Watch video</span>
+            </a>
+        {% endif %}
+    </div>
+    <div class="p-5">
+        <h3 class="font-semibold text-lg">{{ v.title }}</h3>
+        {% if v.description %}
+            <p class="mt-2 text-sm text-slate-600 whitespace-pre-line">{{ v.description }}</p>
+        {% endif %}
+    </div>
+</div>
