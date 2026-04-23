@@ -116,6 +116,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# WhiteNoise by default serves only STATIC_ROOT. Point it at MEDIA_ROOT too so
+# uploaded videos/posters are streamed directly by WhiteNoise (faster + correct
+# Content-Type headers) rather than Django's dev static() helper.
+WHITENOISE_ROOT = MEDIA_ROOT
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Groq (Llama 3.1)

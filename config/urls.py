@@ -22,6 +22,9 @@ urlpatterns = [
     path('', include('apps.marketing.urls')),
 ]
 
-# Serve uploaded media via the dev server (in prod, whitenoise handles it).
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve user-uploaded media.
+#
+# On Render free tier the filesystem is ephemeral and the dev-only static()
+# helper is fine for pilot-scale traffic. For real production volume switch to
+# S3 / Cloudinary / Render disk and remove the DEBUG check below.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
