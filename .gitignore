@@ -17,3 +17,6 @@ celerybeat.pid
 .env.prod
 db.sqlite3
 ssh-key*
+# Pre-encode backups of demo videos — keep only the web-optimized copy
+media/**/*.orig.mp4
+media/**/*.orig.mov
