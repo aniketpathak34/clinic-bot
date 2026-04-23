@@ -68,6 +68,21 @@ services:
         sync: false
       - key: DJANGO_SUPERUSER_PASSWORD
         sync: false
+      # Landing-page contact fields — populated on the superuser at first create
+      # (or backfilled if blank). Editable later at /admin/accounts/user/{id}/change/.
+      - key: DJANGO_SUPERUSER_BOT_NUMBER
+        sync: false
+      - key: DJANGO_SUPERUSER_CONTACT_NUMBER
+        sync: false
+      - key: DJANGO_SUPERUSER_CONTACT_NAME
+        sync: false
+      # Demo doctor for seed_demo command
+      - key: DEMO_DOCTOR_NAME
+        sync: false
+      - key: DEMO_DOCTOR_WHATSAPP_NUMBER
+        sync: false
+      - key: DEMO_DOCTOR_SPECIALTY
+        sync: false
 
   # ─── Celery worker (daily reminders + booking confirmations) ───
   - type: worker
