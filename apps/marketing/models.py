@@ -80,9 +80,19 @@ class DemoVideo(models.Model):
 
     @property
     def embed_iframe_src(self) -> str:
-        """YouTube iframe-safe URL. Empty string if not a YouTube link."""
+        """YouTube iframe-safe URL. Uses youtube-nocookie.com which is:
+         - Allowed by most ad-blockers / privacy extensions
+         - GDPR-friendly (no tracking cookies until playback)
+         - Drop-in compatible with regular /embed/ URLs
+        """
         vid = self.youtube_id
-        return f"https://www.youtube.com/embed/{vid}?rel=0" if vid else ''
+        return f"https://www.youtube-nocookie.com/embed/{vid}?rel=0" if vid else ''
+
+    @property
+    def watch_url(self) -> str:
+        """Plain YouTube watch URL — useful as a fallback link."""
+        vid = self.youtube_id
+        return f"https://www.youtube.com/watch?v={vid}" if vid else ''
 
     @property
     def file_url(self) -> str:
