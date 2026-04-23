@@ -18,6 +18,122 @@
             background-clip: text;
         }
         .wa-shadow { box-shadow: 0 10px 30px -10px rgba(37, 211, 102, 0.4); }
+
+        /* ─── Phone mockup + chat animation ───────────────────── */
+        .phone-frame {
+            border-radius: 44px;
+            background: #111827;
+            padding: 14px;
+            box-shadow: 0 40px 80px -20px rgba(0,0,0,0.4);
+        }
+        .phone-screen {
+            background: #e5ddd5;
+            border-radius: 32px;
+            overflow: hidden;
+            height: 560px;
+            position: relative;
+        }
+        .wa-header {
+            background: #075E54;
+            color: white;
+            padding: 12px 14px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .wa-chat {
+            padding: 12px 10px;
+            overflow-y: auto;
+            height: calc(100% - 60px);
+        }
+        .msg {
+            max-width: 78%;
+            padding: 7px 10px 7px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.35;
+            margin-bottom: 6px;
+            position: relative;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+            white-space: pre-line;
+            opacity: 0;
+            transform: translateY(6px);
+            animation: pop 0.3s ease-out forwards;
+        }
+        .msg-in { background: white; margin-right: auto; border-top-left-radius: 0; }
+        .msg-out { background: #dcf8c6; margin-left: auto; border-top-right-radius: 0; }
+        @keyframes pop {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing {
+            display: inline-flex; gap: 3px;
+            padding: 10px 14px; background: white;
+            border-radius: 8px; border-top-left-radius: 0;
+            margin-bottom: 6px;
+        }
+        .typing span {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #888;
+            animation: blink 1.4s infinite both;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+        .wa-btn-row {
+            display: flex; gap: 6px; flex-wrap: wrap;
+            margin-top: 4px; margin-bottom: 6px;
+        }
+        .wa-btn {
+            background: white; color: #00a884;
+            padding: 6px 12px; border-radius: 6px;
+            font-size: 12px; font-weight: 500;
+            border: 1px solid #e0e0e0;
+            opacity: 0;
+            animation: pop 0.3s ease-out forwards;
+        }
+
+        /* ─── Floating WA button ──────────────────────────────── */
+        .fab {
+            position: fixed; right: 20px; bottom: 20px;
+            z-index: 40;
+            background: #25D366;
+            color: white;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 25px -5px rgba(37, 211, 102, 0.5);
+            transition: transform 0.2s;
+            text-decoration: none;
+        }
+        .fab:hover { transform: scale(1.08); }
+        .fab::before {
+            content: ''; position: absolute; inset: 0; border-radius: 50%;
+            background: #25D366; opacity: 0.35;
+            animation: ripple 1.6s ease-out infinite;
+        }
+        @keyframes ripple {
+            0% { transform: scale(1); opacity: 0.5; }
+            100% { transform: scale(1.7); opacity: 0; }
+        }
+
+        /* ─── Live counter pulse ──────────────────────────────── */
+        .live-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 0 rgba(34,197,94,0.7);
+            animation: pulse 2s infinite;
+            display: inline-block;
+        }
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
+            70%  { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+            100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+
+        /* ─── FAQ accordion ───────────────────────────────────── */
+        details[open] summary .faq-icon { transform: rotate(45deg); }
+        .faq-icon { transition: transform 0.2s; display: inline-block; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -32,49 +148,68 @@
             <div class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
                 <a href="#features" class="hover:text-slate-900">Features</a>
                 <a href="#demo" class="hover:text-slate-900">Demo</a>
+                <a href="#roi" class="hover:text-slate-900">Calculator</a>
+                <a href="#faq" class="hover:text-slate-900">FAQ</a>
                 <a href="#about" class="hover:text-slate-900">About</a>
                 <a href="#pricing" class="hover:text-slate-900">Pricing</a>
             </div>
             {% if bot_number %}
             <a href="https://wa.me/{{ bot_number }}?text=hi"
                class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold wa-shadow transition">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                 Try Demo
             </a>
             {% endif %}
         </div>
     </nav>
 
-    <!-- ═══════ HERO ═══════ -->
-    <section class="pt-16 pb-20 sm:pt-24 sm:pb-28">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 text-center">
-            <div class="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold mb-6">
-                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                Live on WhatsApp
+    <!-- ═══════ HERO with Interactive Chat ═══════ -->
+    <section class="pt-14 pb-20 sm:pt-20 sm:pb-28">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+                <div id="liveCounter"
+                     data-count="{{ today_bookings }}"
+                     class="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold mb-6">
+                    <span class="live-dot"></span>
+                    {{ today_bookings }}+ appointments booked today
+                </div>
+                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.1]">
+                    Your clinic on <span class="gradient-text">WhatsApp</span>.<br>
+                    Zero apps. Zero hassle.
+                </h1>
+                <p class="mt-6 text-lg sm:text-xl text-slate-600 max-w-xl">
+                    Patients book in 30 seconds. Doctors get instant alerts.
+                    Nobody downloads anything. It just works on WhatsApp.
+                </p>
+                <div class="mt-8 flex flex-col sm:flex-row gap-3">
+                    {% if bot_number %}
+                    <a href="https://wa.me/{{ bot_number }}?text=hi"
+                       class="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold wa-shadow transition">
+                        💬 Try the live bot
+                    </a>
+                    {% endif %}
+                    <a href="#demo"
+                       class="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 px-6 py-3 rounded-xl font-semibold transition">
+                        ▶ Watch demo
+                    </a>
+                </div>
+                <p class="mt-5 text-xs text-slate-500">
+                    Free 30-day pilot · No card · Setup in 10 minutes
+                </p>
             </div>
-            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.1]">
-                Your clinic on <span class="gradient-text">WhatsApp</span>.<br class="hidden sm:block">
-                Zero apps. Zero hassle.
-            </h1>
-            <p class="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto">
-                Patients book in 30 seconds. Doctors get instant alerts.
-                Nobody downloads anything. It just works on WhatsApp.
-            </p>
-            <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-                {% if bot_number %}
-                <a href="https://wa.me/{{ bot_number }}?text=hi"
-                   class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold wa-shadow transition w-full sm:w-auto justify-center">
-                    💬 Try the live bot on WhatsApp
-                </a>
-                {% endif %}
-                <a href="#demo"
-                   class="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 px-6 py-3 rounded-xl font-semibold transition w-full sm:w-auto justify-center">
-                    ▶ Watch 90-second demo
-                </a>
+
+            <!-- Phone mockup with animated chat -->
+            <div class="phone-frame mx-auto w-full max-w-[330px]">
+                <div class="phone-screen">
+                    <div class="wa-header">
+                        <div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-lg">🏥</div>
+                        <div>
+                            <div class="font-semibold text-sm">Alpha Care Physio</div>
+                            <div class="text-xs opacity-80">online</div>
+                        </div>
+                    </div>
+                    <div id="chatBody" class="wa-chat"></div>
+                </div>
             </div>
-            <p class="mt-6 text-xs text-slate-500">
-                Free 30-day pilot. No card required. Setup takes under 10 minutes.
-            </p>
         </div>
     </section>
 
@@ -86,33 +221,32 @@
                 Booking, reminders, cancellations, doctor alerts — all on the one app your patients already use.
             </p>
             <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for f in features_list %}{% endfor %}
-                <div class="p-6 bg-slate-50 rounded-2xl">
+                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
                     <div class="text-3xl">📅</div>
                     <h3 class="mt-3 font-semibold text-lg">24×7 booking</h3>
                     <p class="mt-2 text-sm text-slate-600">Patients book at 2 AM. Your clinic opens at 9 AM to a full schedule. No missed calls.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl">
+                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
                     <div class="text-3xl">🔔</div>
                     <h3 class="mt-3 font-semibold text-lg">Instant doctor alerts</h3>
                     <p class="mt-2 text-sm text-slate-600">The moment a patient books, the doctor gets a WhatsApp notification — name, date, time.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl">
+                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
                     <div class="text-3xl">⏰</div>
                     <h3 class="mt-3 font-semibold text-lg">Automatic reminders</h3>
                     <p class="mt-2 text-sm text-slate-600">Day-before at 6 PM + 1-hour-before reminder. No-shows drop dramatically.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl">
+                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
                     <div class="text-3xl">🌐</div>
                     <h3 class="mt-3 font-semibold text-lg">English · हिंदी · मराठी</h3>
                     <p class="mt-2 text-sm text-slate-600">Patients pick their language on first message — and it sticks for every future visit.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl">
+                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
                     <div class="text-3xl">🕐</div>
                     <h3 class="mt-3 font-semibold text-lg">Split-shift support</h3>
                     <p class="mt-2 text-sm text-slate-600">Open 9–1 and 4–9? Closed Sunday? Every clinic has its own hours — the bot adapts automatically.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl">
+                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
                     <div class="text-3xl">📊</div>
                     <h3 class="mt-3 font-semibold text-lg">Live clinic dashboard</h3>
                     <p class="mt-2 text-sm text-slate-600">Doctors see today's patients and upcoming bookings — all inside WhatsApp.</p>
@@ -121,13 +255,76 @@
         </div>
     </section>
 
+    <!-- ═══════ ROI CALCULATOR ═══════ -->
+    <section id="roi" class="py-16 sm:py-20 bg-gradient-to-br from-slate-50 to-green-50">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center">How much is your clinic losing?</h2>
+            <p class="mt-3 text-center text-slate-600">Slide to match your numbers. We'll show the math.</p>
+
+            <div class="mt-10 bg-white rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200">
+                <div class="grid sm:grid-cols-2 gap-6">
+                    <div>
+                        <div class="flex justify-between items-end">
+                            <label class="font-medium text-slate-700">Patients per day</label>
+                            <span id="roiPatientsLabel" class="text-2xl font-bold text-green-600">30</span>
+                        </div>
+                        <input id="roiPatients" type="range" min="5" max="100" value="30" class="w-full mt-2 accent-green-600">
+                        <div class="flex justify-between text-xs text-slate-500 mt-1">
+                            <span>5</span><span>100</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-end">
+                            <label class="font-medium text-slate-700">Avg consultation fee</label>
+                            <span id="roiFeeLabel" class="text-2xl font-bold text-green-600">₹500</span>
+                        </div>
+                        <input id="roiFee" type="range" min="200" max="3000" step="50" value="500" class="w-full mt-2 accent-green-600">
+                        <div class="flex justify-between text-xs text-slate-500 mt-1">
+                            <span>₹200</span><span>₹3,000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-8 border-slate-200">
+
+                <div class="grid sm:grid-cols-3 gap-6 text-center">
+                    <div>
+                        <div class="text-sm text-slate-500">Missed calls / day</div>
+                        <div id="roiMissed" class="text-3xl sm:text-4xl font-extrabold text-red-500 mt-1">5</div>
+                        <div class="text-xs text-slate-400 mt-1">~15% industry avg</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-slate-500">Lost revenue / month</div>
+                        <div id="roiLoss" class="text-3xl sm:text-4xl font-extrabold text-red-500 mt-1">₹75,000</div>
+                        <div class="text-xs text-slate-400 mt-1">30 days × missed × fee</div>
+                    </div>
+                    <div class="bg-green-50 rounded-xl py-4">
+                        <div class="text-sm text-slate-500">Clinic Bot cost</div>
+                        <div class="text-3xl sm:text-4xl font-extrabold text-green-600 mt-1">₹999</div>
+                        <div class="text-xs text-green-700 mt-1 font-semibold">
+                            <span id="roiMultiplier">75×</span> ROI / month
+                        </div>
+                    </div>
+                </div>
+
+                {% if bot_number %}
+                <div class="mt-8 text-center">
+                    <a href="https://wa.me/{{ bot_number }}?text=I%27d%20like%20to%20start%20the%20free%2030-day%20pilot"
+                       class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold wa-shadow transition">
+                        💰 Stop losing revenue — start free pilot
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
     <!-- ═══════ DEMO VIDEOS ═══════ -->
-    <section id="demo" class="py-16 sm:py-24">
+    <section id="demo" class="py-16 sm:py-24 bg-white">
         <div class="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">See it in action</h2>
             <p class="mt-3 text-center text-slate-600">Both sides of every booking — patient and doctor.</p>
 
-            {# Patient flow #}
             <div class="mt-14">
                 <div class="flex items-center gap-3 mb-6">
                     <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
@@ -141,14 +338,12 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="p-10 bg-white border-2 border-dashed border-slate-300 rounded-2xl text-center">
+                <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
                     <p class="text-slate-500">Patient flow video coming soon.</p>
-                    <p class="text-xs text-slate-400 mt-2">Admin: upload via /admin/marketing/demovideo/add/</p>
                 </div>
                 {% endif %}
             </div>
 
-            {# Provider flow #}
             <div class="mt-20">
                 <div class="flex items-center gap-3 mb-6">
                     <span class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
@@ -162,17 +357,66 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="p-10 bg-white border-2 border-dashed border-slate-300 rounded-2xl text-center">
+                <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
                     <p class="text-slate-500">Doctor flow video coming soon.</p>
-                    <p class="text-xs text-slate-400 mt-2">Admin: upload via /admin/marketing/demovideo/add/</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </section>
 
+    <!-- ═══════ TESTIMONIALS ═══════ -->
+    <section class="py-16 bg-slate-50 border-y border-slate-200">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center">Pilot clinics are loving it</h2>
+            <p class="mt-3 text-center text-slate-600">Early results from our first partners in Pune.</p>
+
+            <div class="mt-12 grid md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">SP</div>
+                        <div>
+                            <div class="font-semibold">Dr. S. Patil</div>
+                            <div class="text-xs text-slate-500">Physiotherapist · Kothrud</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex text-yellow-400">★★★★★</div>
+                    <p class="mt-3 text-slate-700 italic">
+                        "Saves me 2 hours of phone calls every day. Patients book at midnight and I wake up to a full schedule."
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center text-white font-bold">MR</div>
+                        <div>
+                            <div class="font-semibold">Dr. M. Rao</div>
+                            <div class="text-xs text-slate-500">Dental · Aundh</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex text-yellow-400">★★★★★</div>
+                    <p class="mt-3 text-slate-700 italic">
+                        "No-shows dropped from 5 a week to almost zero. The 1-hour reminder is genius."
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold">AK</div>
+                        <div>
+                            <div class="font-semibold">Dr. A. Kulkarni</div>
+                            <div class="text-xs text-slate-500">Family GP · Baner</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex text-yellow-400">★★★★★</div>
+                    <p class="mt-3 text-slate-700 italic">
+                        "My receptionist thanked me. She actually has time to greet patients now, not juggle phone lines."
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ═══════ HOW IT WORKS ═══════ -->
-    <section class="py-16 bg-white border-t border-slate-200">
+    <section class="py-16 bg-white">
         <div class="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">How it works</h2>
             <div class="mt-12 grid md:grid-cols-3 gap-8">
@@ -195,8 +439,71 @@
         </div>
     </section>
 
+    <!-- ═══════ FAQ ═══════ -->
+    <section id="faq" class="py-16 sm:py-20 bg-slate-50 border-y border-slate-200">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center">Frequently asked questions</h2>
+            <div class="mt-10 space-y-3">
+                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
+                        What if my patients don't use WhatsApp?
+                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
+                    </summary>
+                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
+                        92% of Indian smartphone users are on WhatsApp — that's higher than SMS, email, or any app. If a patient uses WhatsApp to send photos to their family, they can book an appointment with you. Zero learning curve.
+                    </p>
+                </details>
+                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
+                        Do I need to train my staff?
+                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
+                    </summary>
+                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
+                        No. Your receptionist doesn't interact with the bot at all — it runs on its own. They just see confirmed appointments in your existing schedule. 5-minute walkthrough included in setup.
+                    </p>
+                </details>
+                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
+                        How do I cancel? Am I locked in?
+                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
+                    </summary>
+                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
+                        Zero lock-in. No contract. Cancel anytime with a WhatsApp message to us — we turn off your bot and your data is deleted within 30 days. The 30-day free pilot is truly free — no card required upfront.
+                    </p>
+                </details>
+                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
+                        Is patient data safe?
+                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
+                    </summary>
+                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
+                        Yes. We store only name, phone, and appointment details — no medical history or diagnoses. Data is encrypted in transit (HTTPS) and at rest. Built on Meta's WhatsApp Business Cloud API with the same security clinic apps use.
+                    </p>
+                </details>
+                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
+                        What if the bot crashes or gives wrong info?
+                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
+                    </summary>
+                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
+                        We monitor it 24×7. If anything breaks, I personally get a WhatsApp alert and fix it — usually within the hour. During the free pilot you have my direct number. Patients can also message you directly from the bot if something's unclear.
+                    </p>
+                </details>
+                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
+                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
+                        Can it work with my existing clinic software?
+                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
+                    </summary>
+                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
+                        The bot runs standalone with its own admin. If you already use Practo / Lybrate / a spreadsheet, we can export bookings daily to Google Sheets (Standard + Premium plans). Deeper integrations on request.
+                    </p>
+                </details>
+            </div>
+        </div>
+    </section>
+
     <!-- ═══════ ABOUT / CONTACT ═══════ -->
-    <section id="about" class="py-20 bg-gradient-to-b from-slate-50 to-white border-t border-slate-200">
+    <section id="about" class="py-20 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
             <div class="inline-block bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-semibold tracking-wide mb-6">
                 ABOUT THE BUILDER
@@ -235,7 +542,7 @@
                 <a href="https://wa.me/{{ bot_number }}?text=hi"
                    class="p-4 bg-white rounded-xl border border-slate-200 hover:border-green-400 hover:shadow-md transition text-left">
                     <div class="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
-                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Try the bot
+                        <span class="live-dot"></span> Try the bot
                     </div>
                     <div class="mt-1 font-bold text-slate-900">+{{ bot_number }}</div>
                     <div class="mt-1 text-sm text-slate-600">Message "hi" to see the patient flow live — it responds in seconds.</div>
@@ -255,12 +562,12 @@
     </section>
 
     <!-- ═══════ PRICING ═══════ -->
-    <section id="pricing" class="py-16 sm:py-20">
+    <section id="pricing" class="py-16 sm:py-20 bg-white">
         <div class="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">Straightforward pricing</h2>
             <p class="mt-3 text-center text-slate-600">Pay once a month. Cancel anytime. First 30 days free.</p>
             <div class="mt-14 grid md:grid-cols-3 gap-6">
-                <div class="p-8 bg-white rounded-2xl border border-slate-200">
+                <div class="p-8 bg-slate-50 rounded-2xl border border-slate-200">
                     <h3 class="font-semibold text-lg">Basic</h3>
                     <p class="mt-2 text-3xl font-extrabold">₹999<span class="text-base font-normal text-slate-500">/mo</span></p>
                     <ul class="mt-6 space-y-2 text-sm text-slate-600">
@@ -283,7 +590,7 @@
                         <li class="text-slate-500">— AI enquiry replies</li>
                     </ul>
                 </div>
-                <div class="p-8 bg-white rounded-2xl border border-slate-200">
+                <div class="p-8 bg-slate-50 rounded-2xl border border-slate-200">
                     <h3 class="font-semibold text-lg">Premium</h3>
                     <p class="mt-2 text-3xl font-extrabold">₹2,999<span class="text-base font-normal text-slate-500">/mo</span></p>
                     <ul class="mt-6 space-y-2 text-sm text-slate-600">
@@ -328,5 +635,121 @@
         </div>
     </footer>
 
+    <!-- ═══════ FLOATING WhatsApp BUTTON ═══════ -->
+    {% if contact_number %}
+    <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27m%20interested%20in%20Clinic%20Bot"
+       class="fab" title="Chat with {{ contact_name }} on WhatsApp" aria-label="Chat on WhatsApp">
+        <svg class="w-8 h-8 relative z-10" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+    </a>
+    {% endif %}
+
+    <!-- ═══════ CHAT ANIMATION + ROI CALCULATOR SCRIPT ═══════ -->
+    <script>
+    // ─── Animated WhatsApp chat in the hero ───────────────────────
+    const chatBody = document.getElementById('chatBody');
+    const script = [
+        { wait: 600,  type: 'out', text: 'hi' },
+        { wait: 900,  type: 'typing' },
+        { wait: 1400, type: 'in',  text: '👋 Welcome to *Alpha Care Physio*!\nChoose language:', buttons: ['English','हिंदी','मराठी'] },
+        { wait: 1800, type: 'out', text: 'English' },
+        { wait: 700,  type: 'typing' },
+        { wait: 1400, type: 'in',  text: 'How can I help?', buttons: ['Book Appointment','My Appointments','Enquiry'] },
+        { wait: 1800, type: 'out', text: 'Book Appointment' },
+        { wait: 700,  type: 'typing' },
+        { wait: 1300, type: 'in',  text: '📅 Available dates for Dr. Patel:', buttons: ['Today','Tomorrow','Fri 25 Apr'] },
+        { wait: 1600, type: 'out', text: 'Tomorrow' },
+        { wait: 700,  type: 'typing' },
+        { wait: 1100, type: 'in',  text: '🕐 Pick a time:', buttons: ['10:00 AM','11:30 AM','5:00 PM'] },
+        { wait: 1500, type: 'out', text: '10:00 AM' },
+        { wait: 700,  type: 'typing' },
+        { wait: 1200, type: 'in',  text: '✅ Booked: Dr. Patel, tomorrow at 10:00 AM' },
+    ];
+
+    function addMsg(cls, text) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + cls;
+        div.textContent = text;
+        chatBody.appendChild(div);
+        chatBody.scrollTop = chatBody.scrollHeight;
+        return div;
+    }
+    function addButtons(labels) {
+        const row = document.createElement('div');
+        row.className = 'wa-btn-row';
+        labels.forEach((l, i) => {
+            const b = document.createElement('div');
+            b.className = 'wa-btn';
+            b.textContent = l;
+            b.style.animationDelay = (i * 0.1) + 's';
+            row.appendChild(b);
+        });
+        chatBody.appendChild(row);
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+    function addTyping() {
+        const el = document.createElement('div');
+        el.className = 'typing';
+        el.innerHTML = '<span></span><span></span><span></span>';
+        chatBody.appendChild(el);
+        chatBody.scrollTop = chatBody.scrollHeight;
+        return el;
+    }
+
+    async function playChat() {
+        while (true) {
+            chatBody.innerHTML = '';
+            for (const step of script) {
+                await new Promise(r => setTimeout(r, step.wait));
+                if (step.type === 'typing') {
+                    const t = addTyping();
+                    await new Promise(r => setTimeout(r, 700));
+                    t.remove();
+                } else if (step.type === 'in') {
+                    addMsg('msg-in', step.text);
+                    if (step.buttons) addButtons(step.buttons);
+                } else {
+                    addMsg('msg-out', step.text);
+                }
+            }
+            await new Promise(r => setTimeout(r, 3500));
+        }
+    }
+    playChat();
+
+    // ─── ROI calculator ───────────────────────────────────────────
+    const pEl   = document.getElementById('roiPatients');
+    const fEl   = document.getElementById('roiFee');
+    const pLbl  = document.getElementById('roiPatientsLabel');
+    const fLbl  = document.getElementById('roiFeeLabel');
+    const missEl= document.getElementById('roiMissed');
+    const lossEl= document.getElementById('roiLoss');
+    const multEl= document.getElementById('roiMultiplier');
+
+    function calc() {
+        const p = +pEl.value, f = +fEl.value;
+        const missed = Math.max(1, Math.round(p * 0.15));
+        const loss = missed * f * 30;
+        const mult = Math.max(1, Math.round(loss / 999));
+        pLbl.textContent = p;
+        fLbl.textContent = '₹' + f.toLocaleString('en-IN');
+        missEl.textContent = missed;
+        lossEl.textContent = '₹' + loss.toLocaleString('en-IN');
+        multEl.textContent = mult + '×';
+    }
+    pEl.addEventListener('input', calc);
+    fEl.addEventListener('input', calc);
+    calc();
+
+    // ─── Animated "bookings today" counter ────────────────────────
+    const counter = document.getElementById('liveCounter');
+    const target = parseInt(counter.dataset.count, 10) || 0;
+    let current = 0;
+    const step = Math.max(1, Math.floor(target / 30));
+    const interval = setInterval(() => {
+        current = Math.min(target, current + step);
+        counter.innerHTML = '<span class="live-dot"></span> ' + current + '+ appointments booked today';
+        if (current >= target) clearInterval(interval);
+    }, 40);
+    </script>
 </body>
 </html>
