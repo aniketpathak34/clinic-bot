@@ -10,7 +10,22 @@ class ClinicAdmin(admin.ModelAdmin):
     search_fields = ('name', 'clinic_code', 'display_phone_number', 'phone_number_id')
     fieldsets = (
         (None, {
-            'fields': ('name', 'clinic_code', 'address', 'working_hours', 'working_days'),
+            'fields': ('name', 'clinic_code', 'address'),
+        }),
+        ('Operating hours', {
+            'fields': ('working_days', 'working_hours', 'operating_hours', 'slot_minutes'),
+            'description': (
+                "<b>working_days / working_hours</b> are free text for display "
+                "(e.g. 'Mon-Sat', '9am-1pm, 4pm-9pm').<br>"
+                "<b>operating_hours</b> is the structured schedule the bot uses. "
+                "Example:<br>"
+                "<code>{&quot;mon&quot;:[[&quot;09:00&quot;,&quot;13:00&quot;],[&quot;16:00&quot;,&quot;21:00&quot;]], "
+                "&quot;tue&quot;:[[&quot;09:00&quot;,&quot;13:00&quot;],[&quot;16:00&quot;,&quot;21:00&quot;]], "
+                "&quot;sat&quot;:[[&quot;09:00&quot;,&quot;13:00&quot;]], "
+                "&quot;sun&quot;:[]}</code><br>"
+                "Empty list = closed that day. Multiple pairs = split shifts.<br>"
+                "Leave empty to use the default (Mon-Sat 9-1 &amp; 4-9)."
+            ),
         }),
         ('WhatsApp (Meta Cloud API)', {
             'fields': ('display_phone_number', 'whatsapp_number', 'phone_number_id',

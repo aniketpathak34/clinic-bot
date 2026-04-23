@@ -1,4 +1,21 @@
+from datetime import datetime, time, timedelta
+
 from django.db import models
+
+
+# Sensible default if a clinic hasn't set its own hours yet:
+# Mon-Sat with split shifts 9am-1pm and 4pm-9pm; closed Sunday.
+DEFAULT_OPERATING_HOURS = {
+    "mon": [["09:00", "13:00"], ["16:00", "21:00"]],
+    "tue": [["09:00", "13:00"], ["16:00", "21:00"]],
+    "wed": [["09:00", "13:00"], ["16:00", "21:00"]],
+    "thu": [["09:00", "13:00"], ["16:00", "21:00"]],
+    "fri": [["09:00", "13:00"], ["16:00", "21:00"]],
+    "sat": [["09:00", "13:00"]],
+    "sun": [],
+}
+
+_WEEKDAY_KEY = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 class Clinic(models.Model):
@@ -12,8 +29,26 @@ class Clinic(models.Model):
     display_phone_number = models.CharField(max_length=20, blank=True, db_index=True)
     access_token = models.TextField(blank=True)
     owner_number = models.CharField(max_length=15, blank=True)
-    working_hours = models.CharField(max_length=100, blank=True)
-    working_days = models.CharField(max_length=50, blank=True)
+    working_hours = models.CharField(max_length=100, blank=True,
+                                     help_text="Display-only text like 'Mon-Sat 9am-1pm, 4pm-9pm'")
+    working_days = models.CharField(max_length=50, blank=True,
+                                    help_text="Display-only text like 'Mon-Sat'")
+
+    # Structured operating hours. Format:
+    # {"mon": [["09:00","13:00"], ["16:00","21:00"]], ..., "sun": []}
+    # Empty list = closed that day. Multiple pairs = split shifts.
+    operating_hours = models.JSONField(
+        default=dict, blank=True,
+        help_text=(
+            "Per-weekday shifts. Example: "
+            '{"mon":[["09:00","13:00"],["16:00","21:00"]], "sun":[]}. '
+            "Leave blank to use defaults (Mon-Sat 9-1 & 4-9)."
+        ),
+    )
+    slot_minutes = models.PositiveIntegerField(
+        default=30,
+        help_text="Slot granularity in minutes (usually 15 or 30)",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -27,6 +62,55 @@ class Clinic(models.Model):
         normalized = display_number.lstrip('+')
         return cls.objects.filter(display_phone_number=normalized).first() \
             or cls.objects.filter(whatsapp_number=normalized).first()
+
+    # ─── Operating-hours helpers ─────────────────────────────────
+
+    def _hours_map(self) -> dict:
+        """Return the per-weekday shift map, falling back to sane defaults."""
+        return self.operating_hours if self.operating_hours else DEFAULT_OPERATING_HOURS
+
+    def get_shifts(self, day) -> list:
+        """List of (open_time, close_time) tuples for the given date's weekday.
+        Empty list = clinic is closed that day.
+        """
+        key = _WEEKDAY_KEY[day.weekday()]
+        raw_shifts = self._hours_map().get(key, [])
+        out = []
+        for start_str, end_str in raw_shifts:
+            try:
+                out.append((
+                    datetime.strptime(start_str, "%H:%M").time(),
+                    datetime.strptime(end_str, "%H:%M").time(),
+                ))
+            except (ValueError, TypeError):
+                continue
+        return out
+
+    def is_open(self, day) -> bool:
+        return bool(self.get_shifts(day))
+
+    def get_slot_times(self, day) -> list:
+        """Every valid slot-start time for this date, at slot_minutes granularity.
+        Last slot start = close_time - slot_minutes so the slot fits before close.
+        """
+        step = max(5, int(self.slot_minutes or 30))
+        slots = []
+        today = day
+        for open_t, close_t in self.get_shifts(day):
+            cursor = datetime.combine(today, open_t)
+            close_dt = datetime.combine(today, close_t)
+            while cursor + timedelta(minutes=step) <= close_dt:
+                slots.append(cursor.time())
+                cursor += timedelta(minutes=step)
+        return slots
+
+    def get_morning_slots(self, day) -> list:
+        """Slots that start before 13:00 (noon session)."""
+        return [t for t in self.get_slot_times(day) if t.hour < 13]
+
+    def get_afternoon_slots(self, day) -> list:
+        """Slots that start at or after 13:00 (evening session)."""
+        return [t for t in self.get_slot_times(day) if t.hour >= 13]
 
 
 class Doctor(models.Model):

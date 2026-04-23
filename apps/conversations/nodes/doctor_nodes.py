@@ -12,30 +12,34 @@ from apps.conversations.response import BotResponse
 
 logger = logging.getLogger(__name__)
 
-# Common clinic time slots
-TIME_SLOTS = [
-    ("09:00", "09:00 AM"),
-    ("09:30", "09:30 AM"),
-    ("10:00", "10:00 AM"),
-    ("10:30", "10:30 AM"),
-    ("11:00", "11:00 AM"),
-    ("11:30", "11:30 AM"),
-    ("12:00", "12:00 PM"),
-    ("12:30", "12:30 PM"),
-    ("14:00", "02:00 PM"),
-    ("14:30", "02:30 PM"),
-    ("15:00", "03:00 PM"),
-    ("15:30", "03:30 PM"),
-    ("16:00", "04:00 PM"),
-    ("16:30", "04:30 PM"),
-    ("17:00", "05:00 PM"),
-    ("17:30", "05:30 PM"),
-    ("18:00", "06:00 PM"),
-    ("18:30", "06:30 PM"),
-    ("19:00", "07:00 PM"),
-    ("19:30", "07:30 PM"),
-    ("20:00", "08:00 PM"),
-]
+def _time_key(t: time) -> str:
+    return t.strftime('%H:%M')
+
+
+def _time_display(t: time) -> str:
+    return t.strftime('%I:%M %p').lstrip('0')
+
+
+def _clinic_session_slots(clinic, ref_date: date, session: str) -> list:
+    """Return (key, display) tuples for this clinic's slots on ref_date filtered by session.
+
+    session: 'morning' | 'afternoon' | 'full_day'
+    Uses the clinic's own operating_hours + slot granularity.
+    """
+    if not clinic:
+        return []
+    if session == 'morning':
+        times = clinic.get_morning_slots(ref_date)
+    elif session == 'afternoon':
+        times = clinic.get_afternoon_slots(ref_date)
+    else:
+        times = clinic.get_slot_times(ref_date)
+    return [(_time_key(t), _time_display(t)) for t in times]
+
+
+def _all_time_display_map(clinic, ref_date: date) -> dict:
+    """HH:MM -> "09:30 AM" for every time in the clinic's full-day slot set."""
+    return {_time_key(t): _time_display(t) for t in clinic.get_slot_times(ref_date)}
 
 
 # ─── Interactive Response Builders ───────────────────────────────
@@ -88,11 +92,11 @@ def _with_doctor_menu(prefix_text):
     return menu
 
 
-def _next_7_days_list(selected_dates: list = None):
-    """Interactive list of next 7 days. Tap-to-toggle multi-select.
+def _next_7_days_list(selected_dates: list = None, clinic=None):
+    """Interactive list of next 7 days — only shows days the clinic is open.
 
-    ☑ prefix marks selected dates (checkbox look); unselected get ☐.
-    The last row is "✅ Done" to finalize. WhatsApp caps list rows at 10.
+    Days when the clinic is closed (per operating_hours) are omitted entirely
+    so a doctor cannot set availability when the clinic has no shifts.
     """
     selected_dates = selected_dates or []
     selected_set = set(selected_dates)
@@ -100,9 +104,11 @@ def _next_7_days_list(selected_dates: list = None):
     day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     today = date.today()
     rows = []
-    friendly = {}   # iso -> "Fri 24 Apr"
+    friendly = {}
     for i in range(7):
         d = today + timedelta(days=i)
+        if clinic and not clinic.is_open(d):
+            continue
         day = day_names[d.weekday()]
         label = "Today" if i == 0 else ("Tomorrow" if i == 1 else f"{day}, {d.strftime('%d %b')}")
         friendly[d.isoformat()] = label.replace(', ', ' ')
@@ -112,6 +118,8 @@ def _next_7_days_list(selected_dates: list = None):
             "title": (marker + label)[:24],
             "description": d.strftime('%d %B %Y'),
         })
+        if len(rows) == 9:   # leave room for Done row within 10-row WhatsApp cap
+            break
 
     count = len(selected_set)
     rows.append({
@@ -131,7 +139,8 @@ def _next_7_days_list(selected_dates: list = None):
             "📅 *Pick the dates you are available.*\n\n"
             "• Tap a date — you'll see ☑️ next to it.\n"
             "• You can add as many as you want.\n"
-            "• Tap *✅ Done* when finished."
+            "• Tap *✅ Done* when finished.\n\n"
+            "_(Days when the clinic is closed are hidden.)_"
         )
 
     return BotResponse.as_list(body, "Choose Dates", rows)
@@ -149,25 +158,26 @@ def _morning_afternoon_buttons():
     )
 
 
-def _time_slots_list(session: str, selected_times: list = None):
-    """Interactive slot list with multi-select toggle + Done row.
+def _time_slots_list(clinic, ref_date: date, session: str, selected_times: list = None):
+    """Interactive slot list derived from this clinic's operating hours.
 
-    ☑ / ☐ visible prefix makes selection state obvious on WhatsApp.
+    ref_date is used to pick the right weekday's shifts. If the doctor has
+    selected several dates, we use the first one as the template (the UI
+    applies the same times across all selected dates).
     """
     selected_times = selected_times or []
     selected_set = set(selected_times)
 
-    if session == 'morning':
-        slots = [(k, v) for k, v in TIME_SLOTS if int(k.split(':')[0]) < 13]
-        body_prefix = "🌅 *Morning slots*"
-    elif session == 'afternoon':
-        slots = [(k, v) for k, v in TIME_SLOTS if int(k.split(':')[0]) >= 13]
-        body_prefix = "🌇 *Afternoon/evening slots*"
-    else:
-        slots = TIME_SLOTS
-        body_prefix = "📋 *All slots*"
+    slots = _clinic_session_slots(clinic, ref_date, session)
 
-    slots = slots[:9]   # reserve 1 row for Done
+    session_label = {
+        'morning': "🌅 *Morning slots*",
+        'afternoon': "🌇 *Afternoon/evening slots*",
+        'full_day': "📋 *All slots*",
+    }.get(session, "📋 *Slots*")
+
+    # Reserve 1 row for Done within WhatsApp's 10-row list cap
+    slots = slots[:9]
 
     rows = []
     for k, v in slots:
@@ -181,15 +191,16 @@ def _time_slots_list(session: str, selected_times: list = None):
         "description": f"Save {count} time(s)" if count else "Pick at least one slot first",
     })
 
+    display_map = _all_time_display_map(clinic, ref_date)
     if count:
-        summary = ", ".join(v for k, v in TIME_SLOTS if k in selected_set)
+        summary = ", ".join(display_map.get(k, k) for k in selected_times if k in display_map)
         body = (
-            f"{body_prefix} — *{count} time{'s' if count != 1 else ''} picked:* {summary}\n\n"
+            f"{session_label} — *{count} time{'s' if count != 1 else ''} picked:* {summary}\n\n"
             f"👉 Tap more slots to add, tap again to remove, or tap *✅ Done ({count})* to continue."
         )
     else:
         body = (
-            f"{body_prefix}\n\n"
+            f"{session_label}\n\n"
             "• Tap a time — you'll see ☑️ next to it.\n"
             "• Add as many slots as you want.\n"
             "• Tap *✅ Done* when finished."
@@ -199,6 +210,17 @@ def _time_slots_list(session: str, selected_times: list = None):
 
 
 # ─── Flow Handlers ───────────────────────────────────────────────
+
+def _first_selected_date(context: dict) -> date:
+    """Reference date for slot generation — use the first picked date or today."""
+    dates = context.get('selected_dates', [])
+    if dates:
+        try:
+            return datetime.strptime(dates[0], '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+    return date.today()
+
 
 def _parse_incoming_date(text: str):
     """Return a date from an ISO string, 'today'/'tomorrow', or a title like
@@ -238,10 +260,14 @@ def _parse_incoming_date(text: str):
 
 def _save_selected_availability(state):
     """Create AvailableSlot rows for every (selected_date × selected_time).
-    Resets state to doctor menu and returns a summary BotResponse.
+
+    Slots outside the clinic's operating hours for that specific date are
+    skipped silently (reported in the summary), so picking a Saturday + a
+    6 PM slot when the clinic closes Saturdays at 1 PM just drops that one.
     """
     context = state.context or {}
-    doctor = Doctor.objects.get(whatsapp_number=state.whatsapp_number)
+    doctor = Doctor.objects.select_related('clinic').get(whatsapp_number=state.whatsapp_number)
+    clinic = doctor.clinic
 
     selected_dates = [
         datetime.strptime(d, '%Y-%m-%d').date()
@@ -254,8 +280,13 @@ def _save_selected_availability(state):
 
     created = 0
     existed = 0
+    out_of_hours = 0
     for d in selected_dates:
+        valid_for_day = set(clinic.get_slot_times(d)) if clinic else None
         for t in selected_times:
+            if valid_for_day is not None and t not in valid_for_day:
+                out_of_hours += 1
+                continue
             _, was_created = AvailableSlot.objects.get_or_create(
                 doctor=doctor, date=d, time=t,
                 defaults={'is_booked': False},
@@ -273,12 +304,17 @@ def _save_selected_availability(state):
 
     date_labels = ", ".join(d.strftime('%d %b') for d in selected_dates)
     time_labels = ", ".join(t.strftime('%I:%M %p') for t in selected_times)
-    skipped = f" ({existed} already existed)" if existed else ""
+    notes = []
+    if existed:
+        notes.append(f"{existed} already existed")
+    if out_of_hours:
+        notes.append(f"{out_of_hours} skipped (outside clinic hours)")
+    suffix = f"\n_({'; '.join(notes)})_" if notes else ""
     return _with_doctor_menu(
         f"✅ *Availability saved*\n\n"
         f"📅 Dates: {date_labels}\n"
         f"🕐 Times: {time_labels}\n\n"
-        f"Total new slots: *{created}*{skipped}"
+        f"Total new slots: *{created}*{suffix}"
     )
 
 
@@ -314,11 +350,27 @@ def handle_set_availability(state, text):
     text_raw = text.strip()
     text_lower = text_raw.lower()
 
+    # Resolve the doctor's clinic once; we need it almost everywhere below.
+    clinic = None
+    try:
+        clinic = Doctor.objects.select_related('clinic').get(
+            whatsapp_number=state.whatsapp_number
+        ).clinic
+    except Doctor.DoesNotExist:
+        pass
+
     # ── STEP 0: Date-mode preset (first screen after Set Availability) ──
     if state.step == 'choose_date_mode':
         today = date.today()
         if text_lower in ('mode_next7', '📅 next 7 days', 'next 7 days', '1'):
-            dates = [(today + timedelta(days=i)).isoformat() for i in range(7)]
+            dates = []
+            for i in range(14):
+                d = today + timedelta(days=i)
+                if clinic and not clinic.is_open(d):
+                    continue
+                dates.append(d.isoformat())
+                if len(dates) == 7:
+                    break
             context['selected_dates'] = dates
             state.context = context
             state.step = 'select_session'
@@ -327,10 +379,13 @@ def handle_set_availability(state, text):
 
         if text_lower in ('mode_weekdays', '💼 weekdays only', 'weekdays only', 'weekdays', '2'):
             dates = []
-            for i in range(14):   # scan 2 weeks to find next 5 weekdays
+            for i in range(14):
                 d = today + timedelta(days=i)
-                if d.weekday() < 5:   # Mon-Fri
-                    dates.append(d.isoformat())
+                if d.weekday() >= 5:
+                    continue
+                if clinic and not clinic.is_open(d):
+                    continue
+                dates.append(d.isoformat())
                 if len(dates) == 5:
                     break
             context['selected_dates'] = dates
@@ -344,7 +399,7 @@ def handle_set_availability(state, text):
             state.context = context
             state.step = 'select_dates'
             state.save()
-            return _next_7_days_list([]), state
+            return _next_7_days_list([], clinic), state
 
         # Fallback: re-show the preset buttons
         return _date_mode_buttons(), state
@@ -366,6 +421,12 @@ def handle_set_availability(state, text):
         if not parsed_date:
             return BotResponse.as_text("❌ Couldn't understand the date. Please tap from the list."), state
 
+        if clinic and not clinic.is_open(parsed_date):
+            return BotResponse.as_text(
+                f"❌ {clinic.name} is closed on {parsed_date.strftime('%A %d %b')}. "
+                "Please pick another date."
+            ), state
+
         iso = parsed_date.isoformat()
         if iso in selected:
             selected.remove(iso)       # toggle off
@@ -374,7 +435,7 @@ def handle_set_availability(state, text):
         context['selected_dates'] = selected
         state.context = context
         state.save()
-        return _next_7_days_list(selected), state
+        return _next_7_days_list(selected, clinic), state
 
     elif state.step == 'select_session':
         session_map = {
@@ -395,14 +456,9 @@ def handle_set_availability(state, text):
 
     elif state.step == 'choose_time_mode':
         session = context.get('session', 'full_day')
+        ref_date = _first_selected_date(context)
         if text_lower in ('times_all', '✅ all slots', 'all slots', 'all', '1'):
-            # Pre-fill every slot for the chosen session
-            if session == 'morning':
-                all_slots = [k for k, v in TIME_SLOTS if int(k.split(':')[0]) < 13]
-            elif session == 'afternoon':
-                all_slots = [k for k, v in TIME_SLOTS if int(k.split(':')[0]) >= 13]
-            else:
-                all_slots = [k for k, v in TIME_SLOTS]
+            all_slots = [k for k, _ in _clinic_session_slots(clinic, ref_date, session)]
             context['selected_times'] = all_slots
             state.context = context
             state.save()
@@ -411,17 +467,17 @@ def handle_set_availability(state, text):
         if text_lower in ('times_custom', '🎯 pick times', 'pick times', 'custom', '2'):
             state.step = 'select_slots'
             state.save()
-            return _time_slots_list(session, []), state
+            return _time_slots_list(clinic, ref_date, session, []), state
 
         return _time_mode_buttons(session, len(context.get('selected_dates', []))), state
 
     elif state.step == 'select_slots':
         session = context.get('session', 'full_day')
         selected_times = list(context.get('selected_times', []))
+        ref_date = _first_selected_date(context)
 
         if text_lower in ('done', '✅ done', 'cancel', '⏭️ cancel', 'finish', '✅ finish'):
             if not selected_times:
-                # Abort cleanly — no slots picked yet
                 state.current_flow = 'doctor_menu'
                 state.step = ''
                 state.context = {}
@@ -429,7 +485,7 @@ def handle_set_availability(state, text):
                 return _with_doctor_menu("No slots were added."), state
             return _save_selected_availability(state), state
 
-        # Match by ID (HH:MM) or title (HH:MM AM/PM), stripping any checkbox marker
+        # Strip any checkbox marker, then match to this clinic's known slots
         text_clean = text_raw
         for marker in ('☑️ ', '☐ ', '✅ '):
             if text_clean.startswith(marker):
@@ -437,13 +493,15 @@ def handle_set_availability(state, text):
                 break
         text_upper = text_clean.strip().upper()
         matched = None
-        for time_key, time_display in TIME_SLOTS:
+        for time_key, time_display in _clinic_session_slots(clinic, ref_date, session):
             if text_upper == time_key or text_upper == time_display.upper():
                 matched = time_key
                 break
 
         if not matched:
-            return BotResponse.as_text("❌ Invalid time. Please tap from the list."), state
+            return BotResponse.as_text(
+                "❌ That time isn't in this clinic's hours. Please tap from the list."
+            ), state
 
         if matched in selected_times:
             selected_times.remove(matched)
@@ -452,7 +510,7 @@ def handle_set_availability(state, text):
         context['selected_times'] = selected_times
         state.context = context
         state.save()
-        return _time_slots_list(session, selected_times), state
+        return _time_slots_list(clinic, ref_date, session, selected_times), state
 
     # Fallback — also handle old text-based format for backward compat
     result = parse_availability_simple(text)
