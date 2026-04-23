@@ -1,6 +1,58 @@
 from django.db import models
 
 
+class SiteSettings(models.Model):
+    """Single-row config edited from Django admin.
+
+    Holds the two WhatsApp numbers shown on the landing page:
+    * bot_number     — what patients message to try the live demo
+    * contact_number — your personal WhatsApp, shown in the "About / Contact" block
+    """
+    bot_number = models.CharField(
+        max_length=20, blank=True,
+        help_text="Digits only, with country code. E.g. 15551773718 (Meta test bot).",
+    )
+    contact_number = models.CharField(
+        max_length=20, blank=True,
+        help_text="Digits only, with country code. Your personal WhatsApp for enquiries.",
+    )
+    contact_name = models.CharField(
+        max_length=80, default='Aniket',
+        help_text="Name shown in CTA text (e.g. \"Chat with {name}\").",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Site settings"
+        verbose_name_plural = "Site settings"
+
+    def __str__(self):
+        return "Landing page settings"
+
+    def save(self, *args, **kwargs):
+        # Singleton — force the primary key to 1 so admin users can't create duplicates.
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # No-op — prevent accidental deletion from admin.
+        pass
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    # Helpers — strip "+" and spaces so templates always get a clean digits-only form.
+    @property
+    def clean_bot_number(self) -> str:
+        return (self.bot_number or '').lstrip('+').replace(' ', '')
+
+    @property
+    def clean_contact_number(self) -> str:
+        return (self.contact_number or '').lstrip('+').replace(' ', '')
+
+
 class DemoVideo(models.Model):
     ROLE_CHOICES = [
         ('patient', 'Patient flow'),
