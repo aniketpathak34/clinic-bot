@@ -45,10 +45,8 @@ def _all_time_display_map(clinic, ref_date: date) -> dict:
 # ─── Interactive Response Builders ───────────────────────────────
 
 def _date_mode_buttons():
-    """Preset shortcuts so the doctor doesn't have to tap 7 dates one-by-one."""
     return BotResponse.as_buttons(
-        "📅 *Set your availability — choose a preset:*\n\n"
-        "Pick a shortcut or set specific dates.",
+        "📅 Set availability — pick a preset:",
         [
             {"id": "mode_next7", "title": "📅 Next 7 days"},
             {"id": "mode_weekdays", "title": "💼 Weekdays only"},
@@ -58,15 +56,9 @@ def _date_mode_buttons():
 
 
 def _time_mode_buttons(session: str, date_count: int):
-    """Preset shortcuts for times — apply ALL slots in the session or cherry-pick."""
-    session_label = {
-        'morning': 'morning',
-        'afternoon': 'afternoon',
-        'full_day': 'full day',
-    }.get(session, 'session')
+    session_label = {'morning': 'morning', 'afternoon': 'afternoon', 'full_day': 'full day'}.get(session, 'session')
     return BotResponse.as_buttons(
-        f"🕐 *{date_count} date(s) picked.*\n\n"
-        f"Want every {session_label} slot, or pick specific times?",
+        f"🕐 {date_count} date(s) picked — all {session_label} slots?",
         [
             {"id": "times_all", "title": "✅ All slots"},
             {"id": "times_custom", "title": "🎯 Pick times"},
@@ -75,7 +67,7 @@ def _time_mode_buttons(session: str, date_count: int):
 
 
 def _doctor_menu_list(doctor_name=None):
-    body = f"Welcome, Dr. {doctor_name}! 👋\nWhat would you like to do?" if doctor_name else "Doctor Menu:"
+    body = f"Hi Dr. {doctor_name} 👋" if doctor_name else "Doctor Menu"
     return BotResponse.as_list(
         body, "Choose Option",
         [
@@ -130,26 +122,16 @@ def _next_7_days_list(selected_dates: list = None, clinic=None):
 
     if count:
         summary = ", ".join(friendly.get(d, d) for d in selected_dates)
-        body = (
-            f"📅 *{count} date{'s' if count != 1 else ''} picked:* {summary}\n\n"
-            f"👉 Tap more dates to add, tap again to remove, or tap *✅ Done ({count})* to continue."
-        )
+        body = f"📅 {count} picked: {summary}"
     else:
-        body = (
-            "📅 *Pick the dates you are available.*\n\n"
-            "• Tap a date — you'll see ☑️ next to it.\n"
-            "• You can add as many as you want.\n"
-            "• Tap *✅ Done* when finished.\n\n"
-            "_(Days when the clinic is closed are hidden.)_"
-        )
+        body = "📅 Tap dates to pick (you can tap multiple). Then ✅ Done."
 
     return BotResponse.as_list(body, "Choose Dates", rows)
 
 
 def _morning_afternoon_buttons():
-    """Buttons to choose morning or afternoon session (single-select)."""
     return BotResponse.as_buttons(
-        "Which session do you want to set for the selected date(s)?",
+        "Which session?",
         [
             {"id": "morning", "title": "🌅 Morning"},
             {"id": "afternoon", "title": "🌇 Afternoon"},
@@ -194,17 +176,9 @@ def _time_slots_list(clinic, ref_date: date, session: str, selected_times: list 
     display_map = _all_time_display_map(clinic, ref_date)
     if count:
         summary = ", ".join(display_map.get(k, k) for k in selected_times if k in display_map)
-        body = (
-            f"{session_label} — *{count} time{'s' if count != 1 else ''} picked:* {summary}\n\n"
-            f"👉 Tap more slots to add, tap again to remove, or tap *✅ Done ({count})* to continue."
-        )
+        body = f"{session_label} — {count} picked: {summary}"
     else:
-        body = (
-            f"{session_label}\n\n"
-            "• Tap a time — you'll see ☑️ next to it.\n"
-            "• Add as many slots as you want.\n"
-            "• Tap *✅ Done* when finished."
-        )
+        body = f"{session_label} — tap times to pick, then ✅ Done."
 
     return BotResponse.as_list(body, "Choose Times", rows)
 
@@ -302,19 +276,14 @@ def _save_selected_availability(state):
     state.context = {}
     state.save()
 
-    date_labels = ", ".join(d.strftime('%d %b') for d in selected_dates)
-    time_labels = ", ".join(t.strftime('%I:%M %p') for t in selected_times)
     notes = []
     if existed:
         notes.append(f"{existed} already existed")
     if out_of_hours:
-        notes.append(f"{out_of_hours} skipped (outside clinic hours)")
-    suffix = f"\n_({'; '.join(notes)})_" if notes else ""
+        notes.append(f"{out_of_hours} skipped — outside hours")
+    suffix = f" ({'; '.join(notes)})" if notes else ""
     return _with_doctor_menu(
-        f"✅ *Availability saved*\n\n"
-        f"📅 Dates: {date_labels}\n"
-        f"🕐 Times: {time_labels}\n\n"
-        f"Total new slots: *{created}*{suffix}"
+        f"✅ Saved {created} new slot(s){suffix}"
     )
 
 

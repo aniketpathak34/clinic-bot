@@ -20,10 +20,7 @@ LANGUAGE_MAP = {
 # ─── Interactive Response Builders ───────────────────────────────
 
 def _language_buttons(clinic_name: str = None):
-    if clinic_name:
-        body = f"👋 Welcome to *{clinic_name}*!\nPlease choose your language:"
-    else:
-        body = "Welcome! Please choose your language:"
+    body = f"👋 Welcome to {clinic_name} — choose language:" if clinic_name else "Choose language:"
     return BotResponse.as_buttons(
         body,
         [
@@ -36,13 +33,13 @@ def _language_buttons(clinic_name: str = None):
 
 def _main_menu_list(lang):
     labels = {
-        'en': {"body": "How can I help you today?", "btn": "Choose Option",
+        'en': {"body": "How can I help?", "btn": "Choose Option",
                "opts": ["Book Appointment", "Reschedule", "Cancel Appointment",
                         "My Appointments", "Enquiry", "🌐 Change Language"]},
-        'hi': {"body": "मैं आपकी कैसे मदद कर सकता हूँ?", "btn": "विकल्प चुनें",
+        'hi': {"body": "कैसे मदद करूँ?", "btn": "विकल्प चुनें",
                "opts": ["अपॉइंटमेंट बुक करें", "अपॉइंटमेंट बदलें", "अपॉइंटमेंट रद्द करें",
                         "मेरी अपॉइंटमेंट", "पूछताछ", "🌐 भाषा बदलें"]},
-        'mr': {"body": "मी तुम्हाला कशी मदत करू शकतो?", "btn": "पर्याय निवडा",
+        'mr': {"body": "कशी मदत करू?", "btn": "पर्याय निवडा",
                "opts": ["अपॉइंटमेंट बुक करा", "अपॉइंटमेंट बदला", "अपॉइंटमेंट रद्द करा",
                         "माझ्या अपॉइंटमेंट", "चौकशी", "🌐 भाषा बदला"]},
     }

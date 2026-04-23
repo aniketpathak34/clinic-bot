@@ -9,7 +9,7 @@ MESSAGES = {
         "need_registration": "To book an appointment, we need a few details first.",
         "ask_name": "What is your name?",
         "ask_age": "Nice to meet you, {name}! What is your age?",
-        "registration_complete": "Registration complete! 🎉\nWelcome to *{clinic_name}*, {name}.",
+        "registration_complete": "✅ Welcome {name}!",
 
         # Main menu
         "main_menu": (
@@ -26,15 +26,9 @@ MESSAGES = {
         "select_date": "Please enter the date for your appointment (e.g., 25-march or 25-03-2026):",
         "select_slot": "Available slots for Dr. {doctor} on {date}:\n{slots}\n\nPlease reply with the slot number.",
         "no_slots": "Sorry, no available slots for Dr. {doctor} on {date}. Please try another date.",
-        "booking_confirmed": "✅ Appointment booked!\n\nDoctor: Dr. {doctor}\nDate: {date}\nTime: {time}\n\nYou will receive a reminder before your appointment.",
+        "booking_confirmed": "✅ Booked: Dr. {doctor}, {date} at {time}",
         "no_doctors": "Sorry, no doctors are available at this clinic currently.",
-        "already_booked_same_day": (
-            "⚠️ You already have an appointment on {date}:\n"
-            "• Dr. {doctor} at {time}\n\n"
-            "To change the time, please cancel this appointment first:\n"
-            "Main Menu → *Cancel Appointment* → pick the one you want to drop.\n"
-            "Then come back to *Book Appointment* and choose your preferred slot."
-        ),
+        "already_booked_same_day": "⚠️ Already booked on {date} with Dr. {doctor} at {time}. Cancel it first, then book again.",
         "reminder_hour_before": (
             "⏰ *Reminder — your appointment starts in ~1 hour!*\n\n"
             "👨‍⚕️ Doctor: Dr. {doctor}\n"
@@ -46,13 +40,13 @@ MESSAGES = {
 
         # Cancel
         "select_appointment_cancel": "Your upcoming appointments:\n{appointments}\n\nReply with the number to cancel, or 0 to go back.",
-        "cancel_confirmed": "✅ Your appointment with Dr. {doctor} on {date} at {time} has been cancelled.",
+        "cancel_confirmed": "✅ Cancelled: Dr. {doctor}, {date} at {time}",
         "no_appointments": "You have no upcoming appointments.",
 
         # Reschedule
         "select_appointment_reschedule": "Your upcoming appointments:\n{appointments}\n\nReply with the number to reschedule, or 0 to go back.",
         "reschedule_select_date": "Please enter the new date (e.g., 25-march or 25-03-2026):",
-        "reschedule_confirmed": "✅ Appointment rescheduled!\n\nDoctor: Dr. {doctor}\nNew Date: {date}\nNew Time: {time}",
+        "reschedule_confirmed": "✅ Rescheduled: Dr. {doctor}, {date} at {time}",
 
         # View appointments
         "upcoming_appointments": "Your upcoming appointments:\n{appointments}",
@@ -115,7 +109,7 @@ MESSAGES = {
         "need_registration": "अपॉइंटमेंट बुक करने के लिए, हमें कुछ जानकारी चाहिए।",
         "ask_name": "आपका नाम क्या है?",
         "ask_age": "आपसे मिलकर अच्छा लगा, {name}! आपकी उम्र क्या है?",
-        "registration_complete": "पंजीकरण पूरा हुआ! 🎉\n*{clinic_name}* में आपका स्वागत है, {name}।",
+        "registration_complete": "✅ स्वागत है, {name}!",
         "main_menu": (
             "मैं आपकी कैसे मदद कर सकता हूँ?\n\n"
             "1. 📅 अपॉइंटमेंट बुक करें\n"
@@ -128,15 +122,9 @@ MESSAGES = {
         "select_date": "कृपया अपॉइंटमेंट की तारीख बताएं (जैसे: 25-march या 25-03-2026):",
         "select_slot": "Dr. {doctor} की {date} को उपलब्ध समय:\n{slots}\n\nकृपया समय का नंबर भेजें।",
         "no_slots": "माफ़ कीजिए, Dr. {doctor} के पास {date} को कोई समय उपलब्ध नहीं है।",
-        "booking_confirmed": "✅ अपॉइंटमेंट बुक हो गई!\n\nडॉक्टर: Dr. {doctor}\nतारीख: {date}\nसमय: {time}\n\nआपको अपॉइंटमेंट से पहले रिमाइंडर मिलेगा।",
+        "booking_confirmed": "✅ बुक हुई: Dr. {doctor}, {date} को {time}",
         "no_doctors": "माफ़ कीजिए, अभी कोई डॉक्टर उपलब्ध नहीं हैं।",
-        "already_booked_same_day": (
-            "⚠️ आपकी {date} को पहले से अपॉइंटमेंट है:\n"
-            "• Dr. {doctor} - {time}\n\n"
-            "समय बदलने के लिए, पहले इसे रद्द करें:\n"
-            "मुख्य मेनू → *अपॉइंटमेंट रद्द करें* → जिसे हटाना है चुनें।\n"
-            "फिर *अपॉइंटमेंट बुक करें* पर जाकर नया समय चुनें।"
-        ),
+        "already_booked_same_day": "⚠️ {date} को Dr. {doctor} के साथ {time} पर पहले से बुक है। पहले रद्द करें, फिर नया बुक करें।",
         "reminder_hour_before": (
             "⏰ *रिमाइंडर — आपकी अपॉइंटमेंट 1 घंटे में है!*\n\n"
             "👨‍⚕️ डॉक्टर: Dr. {doctor}\n"
@@ -146,11 +134,11 @@ MESSAGES = {
             "जल्दी मिलते हैं! 🙏"
         ),
         "select_appointment_cancel": "आपकी आगामी अपॉइंटमेंट:\n{appointments}\n\nरद्द करने के लिए नंबर भेजें, या वापस जाने के लिए 0 भेजें।",
-        "cancel_confirmed": "✅ Dr. {doctor} के साथ {date} को {time} बजे की अपॉइंटमेंट रद्द कर दी गई।",
+        "cancel_confirmed": "✅ रद्द: Dr. {doctor}, {date} को {time}",
         "no_appointments": "आपकी कोई आगामी अपॉइंटमेंट नहीं है।",
         "select_appointment_reschedule": "आपकी आगामी अपॉइंटमेंट:\n{appointments}\n\nबदलने के लिए नंबर भेजें, या वापस जाने के लिए 0 भेजें।",
         "reschedule_select_date": "कृपया नई तारीख बताएं (जैसे: 25-march या 25-03-2026):",
-        "reschedule_confirmed": "✅ अपॉइंटमेंट बदल दी गई!\n\nडॉक्टर: Dr. {doctor}\nनई तारीख: {date}\nनया समय: {time}",
+        "reschedule_confirmed": "✅ बदली: Dr. {doctor}, {date} को {time}",
         "upcoming_appointments": "आपकी आगामी अपॉइंटमेंट:\n{appointments}",
         "enquiry_prompt": "आप क्या जानना चाहते हैं? अपना सवाल लिखें:",
         "enquiry_default": "अधिक जानकारी के लिए कृपया क्लिनिक से संपर्क करें। मेनू के लिए 'menu' भेजें।",
@@ -164,7 +152,7 @@ MESSAGES = {
         "need_registration": "अपॉइंटमेंट बुक करण्यासाठी, आम्हाला काही माहिती हवी आहे.",
         "ask_name": "तुमचे नाव काय आहे?",
         "ask_age": "भेटून आनंद झाला, {name}! तुमचे वय किती आहे?",
-        "registration_complete": "नोंदणी पूर्ण! 🎉\n*{clinic_name}* मध्ये स्वागत आहे, {name}.",
+        "registration_complete": "✅ स्वागत, {name}!",
         "main_menu": (
             "मी तुम्हाला कशी मदत करू शकतो?\n\n"
             "1. 📅 अपॉइंटमेंट बुक करा\n"
@@ -177,15 +165,9 @@ MESSAGES = {
         "select_date": "कृपया अपॉइंटमेंटची तारीख सांगा (उदा: 25-march किंवा 25-03-2026):",
         "select_slot": "Dr. {doctor} यांची {date} रोजी उपलब्ध वेळ:\n{slots}\n\nकृपया वेळेचा क्रमांक पाठवा.",
         "no_slots": "माफ करा, Dr. {doctor} यांच्याकडे {date} रोजी वेळ उपलब्ध नाही.",
-        "booking_confirmed": "✅ अपॉइंटमेंट बुक झाली!\n\nडॉक्टर: Dr. {doctor}\nतारीख: {date}\nवेळ: {time}\n\nतुम्हाला अपॉइंटमेंटपूर्वी रिमाइंडर मिळेल.",
+        "booking_confirmed": "✅ बुक झाली: Dr. {doctor}, {date} रोजी {time}",
         "no_doctors": "माफ करा, सध्या कोणताही डॉक्टर उपलब्ध नाही.",
-        "already_booked_same_day": (
-            "⚠️ तुमची {date} रोजी आधीच अपॉइंटमेंट आहे:\n"
-            "• Dr. {doctor} - {time}\n\n"
-            "वेळ बदलण्यासाठी, प्रथम ती रद्द करा:\n"
-            "मुख्य मेनू → *अपॉइंटमेंट रद्द करा* → कोणती काढायची ते निवडा.\n"
-            "नंतर *अपॉइंटमेंट बुक करा* वर जाऊन नवीन वेळ निवडा."
-        ),
+        "already_booked_same_day": "⚠️ {date} रोजी Dr. {doctor} सोबत {time} वाजता आधीच बुक आहे. प्रथम रद्द करा, मग नवीन बुक करा.",
         "reminder_hour_before": (
             "⏰ *आठवण — तुमची अपॉइंटमेंट 1 तासात आहे!*\n\n"
             "👨‍⚕️ डॉक्टर: Dr. {doctor}\n"
@@ -195,11 +177,11 @@ MESSAGES = {
             "लवकरच भेटू! 🙏"
         ),
         "select_appointment_cancel": "तुमच्या आगामी अपॉइंटमेंट:\n{appointments}\n\nरद्द करण्यासाठी क्रमांक पाठवा, किंवा परत जाण्यासाठी 0 पाठवा.",
-        "cancel_confirmed": "✅ Dr. {doctor} यांच्यासोबत {date} रोजी {time} वाजताची अपॉइंटमेंट रद्द झाली.",
+        "cancel_confirmed": "✅ रद्द: Dr. {doctor}, {date} रोजी {time}",
         "no_appointments": "तुमची कोणतीही आगामी अपॉइंटमेंट नाही.",
         "select_appointment_reschedule": "तुमच्या आगामी अपॉइंटमेंट:\n{appointments}\n\nबदलण्यासाठी क्रमांक पाठवा, किंवा परत जाण्यासाठी 0 पाठवा.",
         "reschedule_select_date": "कृपया नवीन तारीख सांगा (उदा: 25-march किंवा 25-03-2026):",
-        "reschedule_confirmed": "✅ अपॉइंटमेंट बदलली!\n\nडॉक्टर: Dr. {doctor}\nनवीन तारीख: {date}\nनवीन वेळ: {time}",
+        "reschedule_confirmed": "✅ बदलली: Dr. {doctor}, {date} रोजी {time}",
         "upcoming_appointments": "तुमच्या आगामी अपॉइंटमेंट:\n{appointments}",
         "enquiry_prompt": "तुम्हाला काय जाणून घ्यायचे आहे? तुमचा प्रश्न लिहा:",
         "enquiry_default": "अधिक माहितीसाठी कृपया क्लिनिकशी संपर्क साधा. मेनूसाठी 'menu' पाठवा.",
