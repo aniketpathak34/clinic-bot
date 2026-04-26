@@ -1,4 +1,65 @@
+from urllib.parse import quote
+
 from django.db import models
+
+
+class Lead(models.Model):
+    """Outbound prospect — a clinic discovered via Google Places API.
+
+    The lead-gen task scores each candidate on conversion likelihood and
+    keeps the top N as Lead rows the operator works manually.
+    """
+    STATUS_CHOICES = [
+        ('new', 'New — not contacted'),
+        ('sent', 'Sent — awaiting reply'),
+        ('replied', 'Replied — engaging'),
+        ('demo_booked', 'Demo booked'),
+        ('pilot', 'Pilot signed 🎉'),
+        ('not_interested', 'Not interested'),
+        ('invalid', 'Invalid / wrong number'),
+    ]
+
+    name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=20, db_index=True, unique=True,
+                             help_text="Digits only with country code, e.g. 919876543210")
+    address = models.CharField(max_length=300, blank=True)
+    rating = models.FloatField(null=True, blank=True)
+    reviews = models.PositiveIntegerField(default=0)
+    types = models.CharField(max_length=200, blank=True,
+                             help_text="Comma-separated Google Place types")
+    google_maps_url = models.URLField(blank=True)
+    place_id = models.CharField(max_length=100, blank=True, db_index=True,
+                                help_text="Google's stable Place ID")
+
+    # Our own attribution / pipeline
+    score = models.IntegerField(default=0, db_index=True,
+                                help_text="Higher = better fit for our pilot")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', db_index=True)
+    notes = models.TextField(blank=True)
+    contacted_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(auto_now=True,
+                                        help_text="Last time the scraper saw this place")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-score', '-created_at']
+
+    def __str__(self):
+        return f"[{self.get_status_display()}] {self.name} ({self.phone})"
+
+    @property
+    def whatsapp_link(self) -> str:
+        """Pre-filled wa.me link with the standard outreach message."""
+        msg = (
+            f"Namaste! I'm Aniket from Pune. Saw *{self.name}* online — great reviews! 🙏\n\n"
+            "I've built a WhatsApp bot that takes patient appointments 24×7 — "
+            "no app for your patients, no new software for your staff.\n\n"
+            "I'm offering a *free 30-day pilot to 3 clinics* in Pune — no card, no contract.\n\n"
+            "90-sec demo 👇\nhttps://clinic-bot-web.onrender.com\n\n"
+            "Would you be open to a 10-min chat this week?\n\n"
+            "— Aniket | +91 7030344210"
+        )
+        return f"https://wa.me/{self.phone}?text={quote(msg)}"
 
 
 class DemoVideo(models.Model):

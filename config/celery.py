@@ -29,4 +29,9 @@ app.conf.beat_schedule = {
         'task': 'apps.notifications.tasks.send_hour_before_reminders',
         'schedule': crontab(minute='*/5'),
     },
+    # Every morning at 9 AM IST: fetch 20 fresh clinic leads via Google Places API
+    'daily-lead-generation': {
+        'task': 'apps.notifications.tasks.fetch_daily_leads',
+        'schedule': crontab(hour=9, minute=0),
+    },
 }

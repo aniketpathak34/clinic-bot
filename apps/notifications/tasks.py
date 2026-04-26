@@ -302,3 +302,18 @@ def send_hour_before_reminders():
 
     logger.info(f"[hour-before] Sent {count} reminder(s) in window {window_start.time()}–{window_end.time()}")
     return count
+
+
+@shared_task
+def fetch_daily_leads(top_n: int = 10):
+    """Pull fresh clinic leads from Google Places API and save the top N as Lead rows.
+
+    Calls the seed_leads management command — keeps the lead-gen logic in one place.
+    Default 10 leads/day with strict score threshold for high conversion quality.
+    """
+    from django.core.management import call_command
+    try:
+        call_command('seed_leads', top=top_n)
+    except Exception as e:
+        logger.exception(f"[lead-gen] Failed: {e}")
+        raise

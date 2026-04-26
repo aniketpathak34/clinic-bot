@@ -126,6 +126,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Groq (Llama 3.1)
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
+# Google Places API (lead generation)
+GOOGLE_PLACES_API_KEY = os.getenv('GOOGLE_PLACES_API_KEY', '')
+
 # Meta WhatsApp Cloud API — per-clinic credentials live on the Clinic model.
 # These are fallbacks / defaults for admin tasks or when a clinic row doesn't
 # override the access token.
