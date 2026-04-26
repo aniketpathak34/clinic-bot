@@ -52,6 +52,9 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
+      # Google Places API — used by the daily lead-gen task at 9 AM IST
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
       # Test clinic seed (optional — used by build.sh to auto-create TEST01)
       - key: TEST_CLINIC_PHONE_NUMBER_ID
         sync: false
@@ -147,4 +150,6 @@ envVarGroups:
       - key: CALL_SERVICE_CLASS
         value: apps.notifications.call_service.MockCallService
       - key: GROQ_API_KEY
+        sync: false
+      - key: GOOGLE_PLACES_API_KEY
         sync: false
