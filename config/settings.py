@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Third-party — admin UI for editing/triggering Celery periodic tasks
+    'django_celery_beat',
     # Project apps
     'apps.clinic',
     'apps.conversations',
@@ -158,3 +160,7 @@ CALL_CALLBACK_URL = os.getenv('CALL_CALLBACK_URL', 'http://localhost:8000')
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TIMEZONE = 'Asia/Kolkata'
+
+# Periodic tasks live in the DB so admins can edit/disable them at
+# /admin/django_celery_beat/periodictask/  (instead of a code change).
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'

@@ -1,4 +1,6 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.http import HttpResponseRedirect
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
@@ -16,6 +18,37 @@ class LeadAdmin(admin.ModelAdmin):
     readonly_fields = ('place_id', 'last_seen_at', 'created_at')
     ordering = ('-score', '-created_at')
     actions = ['mark_as_sent', 'mark_as_replied', 'mark_as_not_interested']
+    change_list_template = 'admin/marketing/lead/change_list.html'
+
+    # ─── Custom admin URL: "Run lead-gen now" ─────────────────────
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                'run-leadgen-now/',
+                self.admin_site.admin_view(self.run_leadgen_view),
+                name='marketing_lead_run_leadgen',
+            ),
+        ]
+        return custom + urls
+
+    def run_leadgen_view(self, request):
+        """Synchronous trigger — runs Google Places scraper inline.
+        No Celery worker needed; takes ~5-10 seconds."""
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        try:
+            call_command('seed_leads', stdout=out, stderr=out)
+            self.message_user(
+                request,
+                f"✓ Lead-gen complete. {out.getvalue().splitlines()[-1] if out.getvalue() else ''}",
+                level=messages.SUCCESS,
+            )
+        except Exception as e:
+            self.message_user(request, f"❌ Lead-gen failed: {e}", level=messages.ERROR)
+        return HttpResponseRedirect(reverse('admin:marketing_lead_changelist'))
 
     fieldsets = (
         (None, {

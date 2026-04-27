@@ -55,3 +55,7 @@ PYEOF
 # Seed the full demo dataset (doctor + slots + patients + appointments).
 # Idempotent — safe to run on every deploy. No-ops if TEST01 clinic doesn't exist yet.
 python manage.py seed_demo || true
+
+# Seed django-celery-beat with the project's recurring tasks. Idempotent.
+# After this they're editable from /admin/django_celery_beat/periodictask/
+python manage.py setup_periodic_tasks || true
