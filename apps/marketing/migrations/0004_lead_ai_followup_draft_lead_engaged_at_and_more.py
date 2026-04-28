@@ -168,8 +168,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(setup_lead_engagement_fields, reverse_setup),
-        # Tell Django the 5 fields exist at model-state level — no DDL emitted.
+        # 1. Tell Django the 5 fields exist at model-state level FIRST
+        # (no DDL emitted). This way the historical model that RunPython
+        # gets via apps.get_model() already knows about `slug`, so
+        # Lead.objects.exclude(slug='') works during the backfill.
         migrations.SeparateDatabaseAndState(
             database_operations=[],
             state_operations=[
@@ -203,4 +205,6 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
+        # 2. Now do the actual schema work idempotently.
+        migrations.RunPython(setup_lead_engagement_fields, reverse_setup),
     ]
