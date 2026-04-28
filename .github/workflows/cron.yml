@@ -10,84 +10,36 @@
 #
 # Setup needed (one-time):
 #   • In your GitHub repo: Settings → Secrets and variables → Actions
-#       → New repository secret
+#       → New repository SECRET
 #       → Name:  CRON_SECRET
 #       → Value: <same string you set in Render env vars>
 #   • In your GitHub repo: Settings → Secrets and variables → Actions
-#       → New repository variable    (this is a *variable*, not a secret)
+#       → New repository VARIABLE  (under the Variables tab, not Secrets)
 #       → Name:  RENDER_BASE_URL
-#       → Value: https://clinic-bot-web.onrender.com
-#       (no trailing slash)
+#       → Value: https://clinic-bot-web.onrender.com   (no trailing slash)
 #
-# Free tier note:
-#   GitHub Actions gives 2,000 minutes/month free for private repos and
-#   unlimited for public repos. Each curl run is ~10-15 seconds. The 5-min
-#   reminder job uses ~1,500 min/month — close to the free cap on private
-#   repos. If you hit the cap: either bump to */10 minutes, or make the repo
-#   public.
+# Free tier note (current schedule):
+#   • daily-leadgen  → 30 runs/month → 30 min/mo
+#   • day-reminders  → 30 runs/month → 30 min/mo
+#   • TOTAL: ~60 min/month
+#   • Free tier on private repos = 2,000 min/mo  →  comfortably free, no billing.
 #
-# Manual triggering:
-#   You can fire any task on demand from the GitHub Actions tab → pick this
-#   workflow → "Run workflow" → choose which task to run. Useful for testing.
+# To trigger any task on demand (without waiting for the schedule):
+#   Just visit the webhook URL in your browser:
+#     https://clinic-bot-web.onrender.com/webhook/cron/<CRON_SECRET>/<task>/
+#   The view accepts both GET and POST.
 
 name: Scheduled Tasks
 
 on:
   schedule:
-    # Times below are in UTC. India Standard Time = UTC + 5:30
+    # Times below are in UTC. India Standard Time = UTC + 5:30 (no DST).
     #   9:00 AM IST = 03:30 UTC  (daily lead-gen)
     #   6:00 PM IST = 12:30 UTC  (day-before reminders)
-    #   every 5 min = every 5 min  (hour-before reminders)
-    #   every 10 min = keep-alive ping (Render free web sleeps after 15 min idle)
-    - cron: '*/5 * * * *'       # every 5 min — hour-before reminders
-    - cron: '*/10 * * * *'      # every 10 min — keep-alive ping
     - cron: '30 3 * * *'        # 09:00 IST daily — lead-gen
     - cron: '30 12 * * *'       # 18:00 IST daily — day-before reminders
 
-  # Allow manual runs from the Actions tab for testing
-  workflow_dispatch:
-    inputs:
-      task:
-        description: 'Which task to run (manual trigger only)'
-        required: true
-        default: 'fetch_daily_leads'
-        type: choice
-        options:
-          - fetch_daily_leads
-          - send_day_before_reminders
-          - send_hour_before_reminders
-
-
 jobs:
-  # ─── Every 10 minutes: keep Render free web service awake ──────────────
-  # Render free web sleeps after 15 min of inactivity. We GET the admin login
-  # page (cheap, no DB hit) just to bump the activity clock.
-  keep-alive:
-    if: github.event.schedule == '*/10 * * * *'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping admin login page
-        env:
-          BASE_URL: ${{ vars.RENDER_BASE_URL }}
-        run: |
-          curl --fail --show-error --silent --max-time 60 \
-            -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
-            "${BASE_URL}/admin/login/"
-
-  # ─── Every 5 minutes: hour-before reminders + keep-Render-awake ────────
-  hour-reminders:
-    if: github.event.schedule == '*/5 * * * *'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Hit hour-before-reminders webhook
-        env:
-          BASE_URL: ${{ vars.RENDER_BASE_URL }}
-          SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          curl --fail --show-error --silent --max-time 60 \
-            -X POST \
-            "${BASE_URL}/webhook/cron/${SECRET}/send_hour_before_reminders/"
-
   # ─── Daily 9 AM IST: pull fresh leads from Google Places ───────────────
   daily-leadgen:
     if: github.event.schedule == '30 3 * * *'
@@ -98,7 +50,9 @@ jobs:
           BASE_URL: ${{ vars.RENDER_BASE_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl --fail --show-error --silent --max-time 90 \
+          # --max-time 120 leaves room for Render cold-start (~30s) plus the
+          # Google Places API roundtrip (a few seconds per query × ~8 queries).
+          curl --fail --show-error --silent --max-time 120 \
             -X POST \
             "${BASE_URL}/webhook/cron/${SECRET}/fetch_daily_leads/"
 
@@ -112,21 +66,6 @@ jobs:
           BASE_URL: ${{ vars.RENDER_BASE_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl --fail --show-error --silent --max-time 60 \
-            -X POST \
-            "${BASE_URL}/webhook/cron/${SECRET}/send_day_before_reminders/"
-
-  # ─── Manual trigger from Actions tab ───────────────────────────────────
-  manual:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Hit ${{ inputs.task }} webhook
-        env:
-          BASE_URL: ${{ vars.RENDER_BASE_URL }}
-          SECRET: ${{ secrets.CRON_SECRET }}
-          TASK: ${{ inputs.task }}
-        run: |
           curl --fail --show-error --silent --max-time 90 \
             -X POST \
-            "${BASE_URL}/webhook/cron/${SECRET}/${TASK}/"
+            "${BASE_URL}/webhook/cron/${SECRET}/send_day_before_reminders/"
