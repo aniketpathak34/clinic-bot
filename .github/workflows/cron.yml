@@ -8,44 +8,70 @@
 #   3. The Django view (apps/notifications/views.py) verifies the secret
 #      and runs the task synchronously, then returns a JSON result.
 #
-# Setup needed (one-time):
-#   • In your GitHub repo: Settings → Secrets and variables → Actions
-#       → New repository SECRET
+# ─── Schedule overview (visible in the GitHub Actions tab as past runs) ──
+#   ┌────────────────────────────┬──────────────┬─────────┐
+#   │ Job                        │ When (IST)   │ Cron UTC│
+#   ├────────────────────────────┼──────────────┼─────────┤
+#   │ daily-leadgen              │ 09:00 daily  │ 30 3    │
+#   │ day-reminders              │ 18:00 daily  │ 30 12   │
+#   └────────────────────────────┴──────────────┴─────────┘
+#
+# ─── Manual triggering (from this Actions tab) ──────────────────────────
+#   Click "Run workflow" at the top right of the workflow page, pick which
+#   task to run from the dropdown, and click the green button. Useful for
+#   testing or firing a one-off without waiting for the schedule.
+#
+# ─── Setup needed (one-time) ────────────────────────────────────────────
+#   • Repo Settings → Secrets and variables → Actions → New repository SECRET
 #       → Name:  CRON_SECRET
 #       → Value: <same string you set in Render env vars>
-#   • In your GitHub repo: Settings → Secrets and variables → Actions
-#       → New repository VARIABLE  (under the Variables tab, not Secrets)
+#   • Repo Settings → Secrets and variables → Actions → Variables tab →
+#     New repository VARIABLE
 #       → Name:  RENDER_BASE_URL
 #       → Value: https://clinic-bot-web.onrender.com   (no trailing slash)
 #
-# Free tier note (current schedule):
+# ─── Free tier note (current schedule) ──────────────────────────────────
 #   • daily-leadgen  → 30 runs/month → 30 min/mo
 #   • day-reminders  → 30 runs/month → 30 min/mo
-#   • TOTAL: ~60 min/month
-#   • Free tier on private repos = 2,000 min/mo  →  comfortably free, no billing.
+#   • Manual runs   → only when you click — ~0 min/mo
+#   • TOTAL: ~60 min/month   (free tier private repo cap = 2,000 min/mo)
+#   → Comfortably free, zero billing risk.
 #
-# To trigger any task on demand (without waiting for the schedule):
-#   Just visit the webhook URL in your browser:
+# ─── On-demand via browser (no GitHub at all) ───────────────────────────
+#   You can also trigger any task by just visiting the webhook URL:
 #     https://clinic-bot-web.onrender.com/webhook/cron/<CRON_SECRET>/<task>/
 #   The view accepts both GET and POST.
 
 name: Scheduled Tasks
 
 on:
+  # ── Automatic schedules (UTC) ─────────────────────────────────────────
   schedule:
-    # Times below are in UTC. India Standard Time = UTC + 5:30 (no DST).
-    #   9:00 AM IST = 03:30 UTC  (daily lead-gen)
-    #   6:00 PM IST = 12:30 UTC  (day-before reminders)
     - cron: '30 3 * * *'        # 09:00 IST daily — lead-gen
     - cron: '30 12 * * *'       # 18:00 IST daily — day-before reminders
 
+  # ── Manual trigger from the Actions tab ───────────────────────────────
+  # Pick which task to run from the "task" dropdown, then click "Run workflow".
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Which task to run'
+        required: true
+        default: 'fetch_daily_leads'
+        type: choice
+        options:
+          - fetch_daily_leads
+          - send_day_before_reminders
+
+
 jobs:
-  # ─── Daily 9 AM IST: pull fresh leads from Google Places ───────────────
+  # ─── 09:00 IST daily: pull fresh leads from Google Places ─────────────
   daily-leadgen:
+    name: Daily lead-gen (09:00 IST)
     if: github.event.schedule == '30 3 * * *'
     runs-on: ubuntu-latest
     steps:
-      - name: Hit fetch_daily_leads webhook
+      - name: POST fetch_daily_leads
         env:
           BASE_URL: ${{ vars.RENDER_BASE_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
@@ -56,12 +82,13 @@ jobs:
             -X POST \
             "${BASE_URL}/webhook/cron/${SECRET}/fetch_daily_leads/"
 
-  # ─── Daily 6 PM IST: tomorrow's appointment reminders ──────────────────
+  # ─── 18:00 IST daily: tomorrow's appointment reminders ────────────────
   day-reminders:
+    name: Day-before reminders (18:00 IST)
     if: github.event.schedule == '30 12 * * *'
     runs-on: ubuntu-latest
     steps:
-      - name: Hit send_day_before_reminders webhook
+      - name: POST send_day_before_reminders
         env:
           BASE_URL: ${{ vars.RENDER_BASE_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
@@ -69,3 +96,20 @@ jobs:
           curl --fail --show-error --silent --max-time 90 \
             -X POST \
             "${BASE_URL}/webhook/cron/${SECRET}/send_day_before_reminders/"
+
+  # ─── Manual trigger — runs whichever task was picked from the UI ──────
+  manual:
+    name: Manual run — ${{ inputs.task }}
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST ${{ inputs.task }}
+        env:
+          BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+          TASK: ${{ inputs.task }}
+        run: |
+          echo "Triggering task: ${TASK}"
+          curl --fail --show-error --silent --max-time 120 \
+            -X POST \
+            "${BASE_URL}/webhook/cron/${SECRET}/${TASK}/"
