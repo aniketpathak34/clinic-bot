@@ -1,4 +1,4 @@
-{# Shared layout for the public legal pages — Privacy, Terms, Data Deletion. #}
+{% load static %}{# Shared layout for the public legal pages — Privacy, Terms, Data Deletion. #}
 {# Kept ad-blocker-friendly: no analytics, no tracking, no embeds. #}
 <!DOCTYPE html>
 <html lang="en">
@@ -6,7 +6,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
-  <title>{% block title %}Clinic Bot{% endblock %}</title>
+  <title>{% block title %}MediSetu{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'marketing/brand/medisetu-icon.svg' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -51,8 +52,9 @@
 
     {# Header #}
     <div class="flex items-center justify-between mb-10">
-      <a href="/" class="flex items-center gap-2 text-sm font-semibold text-zinc-300 hover:text-cyan-400 transition-colors">
-        <span>← Clinic Bot</span>
+      <a href="/" class="flex items-center gap-2.5 group">
+        <img src="{% static 'marketing/brand/medisetu-icon.svg' %}" alt="" width="32" height="32" class="rounded-lg">
+        <span class="font-bold text-sm tracking-tight text-zinc-200 group-hover:text-white transition-colors">Medi<span class="text-cyan-400">Setu</span></span>
       </a>
       <div class="text-xs mono text-zinc-600">{% block doc_id %}{% endblock %}</div>
     </div>
@@ -82,7 +84,7 @@
         <span class="text-zinc-700">·</span>
         <a href="/data-deletion/" class="hover:text-cyan-400 transition-colors">Data deletion</a>
       </div>
-      <div>Clinic Bot · Pune, India · Built by Aniket Pathak</div>
+      <div>MediSetu · Pune, India · Built by Aniket Pathak</div>
     </div>
 
   </div>

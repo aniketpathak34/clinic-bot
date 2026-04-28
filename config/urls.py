@@ -8,10 +8,15 @@ from apps.whatsapp.views import router as webhook_router
 from apps.whatsapp.test_views import router as test_router
 
 api = NinjaAPI(
-    title="WhatsApp Clinic Bot API",
+    title="MediSetu API",
     version="1.0.0",
     docs_url="/docs",
 )
+
+# Brand the Django admin so reviewers and operators see "MediSetu" everywhere.
+admin.site.site_header = "MediSetu admin"
+admin.site.site_title = "MediSetu"
+admin.site.index_title = "Operations"
 
 api.add_router("/webhook", webhook_router, tags=["Webhook"])
 api.add_router("/test", test_router, tags=["Test/Dev"])

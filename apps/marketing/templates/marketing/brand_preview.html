@@ -1,0 +1,171 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="robots" content="noindex,nofollow">
+  <title>MediSetu — Brand Concepts</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f7f7f9; color: #0f172a; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .panel { background: white; border: 1px solid #e5e7eb; border-radius: 16px; }
+    .label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: #71717a; }
+    .vibe { font-size: 12px; color: #0891b2; font-weight: 500; }
+  </style>
+</head>
+<body class="py-10">
+  <div class="max-w-5xl mx-auto px-6">
+
+    <h1 class="text-3xl font-extrabold mb-1 tracking-tight">MediSetu — 2026-modern logo concepts</h1>
+    <p class="mono text-xs text-zinc-500 mb-10">Pick one and I'll lock the brand in everywhere.</p>
+
+    <!-- Side-by-side at favicon size -->
+    <div class="panel p-8 mb-8">
+      <div class="label mb-4">Quick scan — all 4 at favicon size</div>
+      <div class="flex justify-around items-center">
+        <div class="text-center">
+          <img src="{% static 'marketing/brand/v2-a-wordmark.svg' %}" width="48" height="48" alt="A"/>
+          <div class="mono text-xs mt-2">A</div>
+        </div>
+        <div class="text-center">
+          <img src="{% static 'marketing/brand/v2-b-link.svg' %}" width="48" height="48" alt="B"/>
+          <div class="mono text-xs mt-2">B</div>
+        </div>
+        <div class="text-center">
+          <img src="{% static 'marketing/brand/v2-c-orbit.svg' %}" width="48" height="48" alt="C"/>
+          <div class="mono text-xs mt-2">C</div>
+        </div>
+        <div class="text-center">
+          <img src="{% static 'marketing/brand/v2-d-ms.svg' %}" width="48" height="48" alt="D"/>
+          <div class="mono text-xs mt-2">D</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option A — Wordmark -->
+    <div class="panel p-8 mb-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <div class="vibe">A · Pure wordmark — Stripe / Substack / Linear</div>
+          <h2 class="text-xl font-bold mt-1">Wordmark only</h2>
+          <p class="text-sm text-zinc-600 mt-2 max-w-md">
+            No icon. The wordmark IS the logo. Confidence in pure typography.
+            "Setu" highlighted in cyan to make the brand-distinctive part pop.
+          </p>
+        </div>
+        <img src="{% static 'marketing/brand/v2-a-wordmark.svg' %}" width="180" height="180" alt="A">
+      </div>
+      <div class="flex gap-4 items-center justify-center pt-4 border-t border-zinc-100">
+        <img src="{% static 'marketing/brand/v2-a-wordmark.svg' %}" width="128" alt=""/>
+        <img src="{% static 'marketing/brand/v2-a-wordmark.svg' %}" width="64" alt=""/>
+        <img src="{% static 'marketing/brand/v2-a-wordmark.svg' %}" width="32" alt=""/>
+        <img src="{% static 'marketing/brand/v2-a-wordmark.svg' %}" width="16" alt=""/>
+      </div>
+    </div>
+
+    <!-- Option B — Linked squares -->
+    <div class="panel p-8 mb-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <div class="vibe">B · Linked squares — Linear / Vercel / Notion</div>
+          <h2 class="text-xl font-bold mt-1">Two squares, slight overlap</h2>
+          <p class="text-sm text-zinc-600 mt-2 max-w-md">
+            Two cyan rounded-squares slightly overlapping. The overlap creates a
+            third darker zone — that's the "Setu" (bridge / connection) idea
+            done as pure geometry. No metaphor. No clichés.
+          </p>
+        </div>
+        <img src="{% static 'marketing/brand/v2-b-link.svg' %}" width="180" height="180" alt="B">
+      </div>
+      <div class="flex gap-4 items-center justify-center pt-4 border-t border-zinc-100">
+        <img src="{% static 'marketing/brand/v2-b-link.svg' %}" width="128" alt=""/>
+        <img src="{% static 'marketing/brand/v2-b-link.svg' %}" width="64" alt=""/>
+        <img src="{% static 'marketing/brand/v2-b-link.svg' %}" width="32" alt=""/>
+        <img src="{% static 'marketing/brand/v2-b-link.svg' %}" width="16" alt=""/>
+      </div>
+    </div>
+
+    <!-- Option C — Orbit -->
+    <div class="panel p-8 mb-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <div class="vibe">C · Orbit dot — Cursor / Vercel / Loom</div>
+          <h2 class="text-xl font-bold mt-1">Solid disc + thin orbit</h2>
+          <p class="text-sm text-zinc-600 mt-2 max-w-md">
+            A bold cyan disc with a thin orbiting ring and a single dot on the
+            ring. Reads as "always-on, live, connected" without using any
+            healthcare cliché. Iconic at any size.
+          </p>
+        </div>
+        <img src="{% static 'marketing/brand/v2-c-orbit.svg' %}" width="180" height="180" alt="C">
+      </div>
+      <div class="flex gap-4 items-center justify-center pt-4 border-t border-zinc-100">
+        <img src="{% static 'marketing/brand/v2-c-orbit.svg' %}" width="128" alt=""/>
+        <img src="{% static 'marketing/brand/v2-c-orbit.svg' %}" width="64" alt=""/>
+        <img src="{% static 'marketing/brand/v2-c-orbit.svg' %}" width="32" alt=""/>
+        <img src="{% static 'marketing/brand/v2-c-orbit.svg' %}" width="16" alt=""/>
+      </div>
+    </div>
+
+    <!-- Option D — MS monogram -->
+    <div class="panel p-8 mb-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <div class="vibe">D · MS monogram — Anthropic / Asana / Notion</div>
+          <h2 class="text-xl font-bold mt-1">Geometric MS letterform</h2>
+          <p class="text-sm text-zinc-600 mt-2 max-w-md">
+            Custom-built "MS" geometry. Sharp, ownable, scaleable. The white
+            "M" anchors the brand; the cyan "S" carries the identity. Works
+            everywhere — favicon, app icon, email signature, business card.
+          </p>
+        </div>
+        <img src="{% static 'marketing/brand/v2-d-ms.svg' %}" width="180" height="180" alt="D">
+      </div>
+      <div class="flex gap-4 items-center justify-center pt-4 border-t border-zinc-100">
+        <img src="{% static 'marketing/brand/v2-d-ms.svg' %}" width="128" alt=""/>
+        <img src="{% static 'marketing/brand/v2-d-ms.svg' %}" width="64" alt=""/>
+        <img src="{% static 'marketing/brand/v2-d-ms.svg' %}" width="32" alt=""/>
+        <img src="{% static 'marketing/brand/v2-d-ms.svg' %}" width="16" alt=""/>
+      </div>
+    </div>
+
+    <!-- What I'd pick -->
+    <div class="panel p-8 mb-6 bg-cyan-50 border-cyan-200">
+      <div class="label text-cyan-700 mb-2">My recommendation</div>
+      <p class="text-sm text-zinc-700 leading-relaxed">
+        For a B2B SaaS targeting Indian medical practices in 2026, I'd pick
+        <strong>Option B (Linked squares)</strong> or <strong>Option D (MS monogram)</strong>.
+        Both are sharp, modern, ownable, and work at every size. Option B is
+        more abstract / "Linear" feel. Option D is a stronger brand letter you
+        can grow into. Pure wordmark (A) is risky for a healthcare brand
+        because patients pattern-match logos faster than typography.
+      </p>
+    </div>
+
+    <!-- Brand colours -->
+    <div class="panel p-8 mb-6">
+      <div class="label mb-4">Brand colours (unchanged across all options)</div>
+      <div class="grid grid-cols-4 gap-4">
+        <div>
+          <div class="rounded-lg h-24" style="background:#0a0a0f"></div>
+          <div class="mono text-xs mt-2"><b>#0a0a0f</b> Surface</div>
+        </div>
+        <div>
+          <div class="rounded-lg h-24" style="background:#22d3ee"></div>
+          <div class="mono text-xs mt-2"><b>#22d3ee</b> Brand cyan</div>
+        </div>
+        <div>
+          <div class="rounded-lg h-24" style="background:#0e7490"></div>
+          <div class="mono text-xs mt-2"><b>#0e7490</b> Deep cyan (overlap)</div>
+        </div>
+        <div>
+          <div class="rounded-lg h-24" style="background:#fafafa;border:1px solid #e5e7eb"></div>
+          <div class="mono text-xs mt-2"><b>#fafafa</b> Text light</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,10 +1,11 @@
-{% load humanize %}<!DOCTYPE html>
+{% load humanize static %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex,nofollow">
-  <title>For {{ lead.name }} — Clinic Bot</title>
+  <title>For {{ lead.name }} — MediSetu</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'marketing/brand/medisetu-icon.svg' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -75,14 +76,14 @@
 
     {# ─── Header strip ───────────────────────────────────── #}
     <div class="flex items-center justify-between mb-10">
+      <a href="/?from={{ lead.slug }}" class="flex items-center gap-2.5 group">
+        <img src="{% static 'marketing/brand/medisetu-icon.svg' %}" alt="" width="32" height="32" class="rounded-lg">
+        <span class="font-bold text-sm tracking-tight text-zinc-200 group-hover:text-white transition-colors">Medi<span class="text-cyan-400">Setu</span></span>
+      </a>
       <div class="flex items-center gap-2 text-xs mono uppercase tracking-wider text-zinc-500">
         <span class="pulse-dot"></span>
         <span>built specifically for</span>
       </div>
-      <a href="/?from={{ lead.slug }}"
-         class="text-xs mono text-zinc-500 hover:text-cyan-400 transition-colors flex items-center gap-1.5">
-        <span>← Home</span>
-      </a>
     </div>
 
     {# ─── Hero: clinic name + personalised greeting ─────── #}
