@@ -73,7 +73,7 @@ jobs:
     steps:
       - name: POST fetch_daily_leads
         env:
-          BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          BASE_URL: ${{ secrets.RENDER_BASE_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           # --max-time 120 leaves room for Render cold-start (~30s) plus the
@@ -90,7 +90,7 @@ jobs:
     steps:
       - name: POST send_day_before_reminders
         env:
-          BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          BASE_URL: ${{ secrets.RENDER_BASE_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           curl --fail --show-error --silent --max-time 90 \
@@ -105,7 +105,7 @@ jobs:
     steps:
       - name: POST ${{ inputs.task }}
         env:
-          BASE_URL: ${{ vars.RENDER_BASE_URL }}
+          BASE_URL: ${{ secrets.RENDER_BASE_URL }}
           SECRET: ${{ secrets.CRON_SECRET }}
           TASK: ${{ inputs.task }}
         run: |
