@@ -1,0 +1,192 @@
+{% extends "marketing/legal_base.html" %}
+
+{% block title %}Privacy Policy — Clinic Bot{% endblock %}
+{% block doc_id %}DOC: PRIVACY-V1{% endblock %}
+{% block kicker %}Privacy Policy{% endblock %}
+{% block heading %}How we handle your data{% endblock %}
+
+{% block content %}
+<p>
+  Clinic Bot ("we", "us", "our") is a WhatsApp-based appointment booking
+  service for clinics in India, operated by Aniket Pathak from Pune,
+  Maharashtra. This Privacy Policy explains what personal data we collect,
+  why we collect it, how we use it, and your rights under India's
+  <strong>Digital Personal Data Protection Act, 2023 (DPDP Act)</strong>.
+</p>
+
+<p>
+  By messaging our WhatsApp bot or visiting any clinic page hosted by us,
+  you consent to the practices described below. If you do not agree, please
+  do not use the service.
+</p>
+
+<h2>1. Who is the data fiduciary</h2>
+<p>
+  <strong>Aniket Pathak</strong>, operating as <strong>Clinic Bot</strong>,
+  is the data fiduciary under the DPDP Act for personal data collected
+  through this service.
+</p>
+<p>
+  Contact for privacy matters: <a href="mailto:aniketpathak34@gmail.com">aniketpathak34@gmail.com</a><br>
+  WhatsApp: +91 70303 44210<br>
+  Address: Pune, Maharashtra, India
+</p>
+
+<h2>2. What data we collect</h2>
+<p>We only collect the minimum information needed to book and manage clinic appointments:</p>
+<table>
+  <thead>
+    <tr><th>Category</th><th>Examples</th><th>Source</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Identity</td>
+      <td>Name, WhatsApp phone number, preferred language</td>
+      <td>You, when you message the bot</td>
+    </tr>
+    <tr>
+      <td>Appointment</td>
+      <td>Doctor selected, date, time slot, clinic visited</td>
+      <td>You, during the booking flow</td>
+    </tr>
+    <tr>
+      <td>Communication</td>
+      <td>Messages sent to/from the bot, reminders received</td>
+      <td>You + WhatsApp Business API</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  We <strong>do not</strong> collect: medical history, diagnosis, prescriptions,
+  payment details, biometric data, or location data.
+</p>
+
+<h2>3. Why we use your data (purpose of processing)</h2>
+<ul>
+  <li>To book, reschedule, or cancel clinic appointments you request</li>
+  <li>To send you reminders about your upcoming appointment (one day and one hour before)</li>
+  <li>To notify the clinic provider about your booking</li>
+  <li>To respond to enquiries you send to the bot</li>
+  <li>To improve the bot's accuracy in understanding your preferred language</li>
+</ul>
+<p>
+  We do <strong>not</strong> sell your data, do <strong>not</strong> use it
+  for advertising, and do <strong>not</strong> share it with insurers,
+  pharmaceutical companies, or marketing networks.
+</p>
+
+<h2>4. Lawful basis (DPDP Act)</h2>
+<ul>
+  <li><strong>Consent</strong> — when you message the bot, you give consent to process your data for the purpose of booking your appointment.</li>
+  <li><strong>Legitimate use</strong> (Sec 7 DPDP Act) — sending appointment reminders is a legitimate use directly tied to the service you requested.</li>
+</ul>
+
+<h2>5. Third parties we share data with</h2>
+<p>We share the minimum necessary data with the following processors:</p>
+<table>
+  <thead>
+    <tr><th>Service</th><th>What they receive</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Meta WhatsApp Business API</td>
+      <td>Phone number, message content</td>
+      <td>To deliver your messages</td>
+    </tr>
+    <tr>
+      <td>Render (hosting)</td>
+      <td>Encrypted data at rest</td>
+      <td>To run the application</td>
+    </tr>
+    <tr>
+      <td>The clinic you book at</td>
+      <td>Your name, phone, appointment details</td>
+      <td>So the clinic can prepare for your visit</td>
+    </tr>
+  </tbody>
+</table>
+<p>
+  We have data-processing agreements or equivalent contractual protections
+  with each third-party processor.
+</p>
+
+<h2>6. Where your data is stored</h2>
+<p>
+  Personal data is stored on servers operated by Render, with database
+  replication in their managed PostgreSQL service. Render's data centers
+  are located in the United States and Europe. We rely on standard contractual
+  clauses for cross-border transfer as permitted under the DPDP Act and
+  the Indian Information Technology Act.
+</p>
+
+<h2>7. How long we keep your data</h2>
+<table>
+  <thead>
+    <tr><th>Data</th><th>Retention</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Active appointment records</td><td>Until completed + 12 months for support</td></tr>
+    <tr><td>WhatsApp conversation history</td><td>90 days, then auto-deleted</td></tr>
+    <tr><td>Patient profile (name, phone)</td><td>Deleted within 30 days of your written request</td></tr>
+    <tr><td>Clinic prospect data (public)</td><td>Until the clinic asks to be removed</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Your rights under the DPDP Act</h2>
+<p>You have the right to:</p>
+<ul>
+  <li><strong>Access</strong> a copy of all personal data we hold about you</li>
+  <li><strong>Correct</strong> inaccurate or outdated data</li>
+  <li><strong>Erase</strong> ("be forgotten") your data — see our <a href="/data-deletion/">data deletion page</a></li>
+  <li><strong>Withdraw consent</strong> at any time (you can stop messaging the bot or block its number on WhatsApp)</li>
+  <li><strong>Grievance redressal</strong> — file a complaint with the Data Protection Board of India if we don't respond within 30 days</li>
+</ul>
+<p>
+  To exercise any of these rights, email
+  <a href="mailto:aniketpathak34@gmail.com">aniketpathak34@gmail.com</a>
+  with the subject line <strong>"DPDP Request — &lt;your name&gt;"</strong>. We
+  will respond within 30 days as required by law.
+</p>
+
+<h2>9. Children</h2>
+<p>
+  Our service is not directed at children under 18. If a parent or guardian
+  books an appointment for a minor, only the booking details (date, doctor,
+  time) are stored — no health data. If you believe we hold data about a
+  minor without parental consent, contact us and we will delete it
+  immediately.
+</p>
+
+<h2>10. Security</h2>
+<p>
+  We use TLS 1.2+ for all connections, encrypt data at rest in our database,
+  scope database access to authorised personnel only, and use rotating API
+  keys for third-party integrations. No system is perfectly secure; in the
+  event of a breach we will notify affected users and the Data Protection
+  Board within 72 hours.
+</p>
+
+<h2>11. Cookies and tracking</h2>
+<p>
+  Our public website uses a <strong>session cookie</strong> for the admin
+  login only. The marketing landing pages and the WhatsApp bot do not use
+  any tracking cookies, analytics, or third-party advertising pixels.
+</p>
+
+<h2>12. Changes to this policy</h2>
+<p>
+  We may update this Privacy Policy from time to time. The "last updated"
+  date at the top reflects the most recent revision. Material changes will
+  be communicated to active users via WhatsApp.
+</p>
+
+<h2>13. Contact</h2>
+<p>
+  If you have questions about this policy, our practices, or want to file a
+  privacy complaint:<br>
+  <strong>Email:</strong> <a href="mailto:aniketpathak34@gmail.com">aniketpathak34@gmail.com</a><br>
+  <strong>WhatsApp:</strong> +91 70303 44210<br>
+  <strong>Postal:</strong> Aniket Pathak, Pune, Maharashtra, India
+</p>
+{% endblock %}

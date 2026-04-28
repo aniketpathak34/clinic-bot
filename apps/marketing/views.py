@@ -83,6 +83,25 @@ def landing(request):
 
 
 # ────────────────────────────────────────────────────────────────
+# Public legal pages — required for Meta App "Live" mode
+# ────────────────────────────────────────────────────────────────
+
+@require_GET
+def privacy(request):
+    return render(request, 'marketing/privacy.html')
+
+
+@require_GET
+def terms(request):
+    return render(request, 'marketing/terms.html')
+
+
+@require_GET
+def data_deletion(request):
+    return render(request, 'marketing/data_deletion.html')
+
+
+# ────────────────────────────────────────────────────────────────
 # Personalised outreach landing page
 # ────────────────────────────────────────────────────────────────
 

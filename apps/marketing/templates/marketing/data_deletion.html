@@ -1,0 +1,126 @@
+{% extends "marketing/legal_base.html" %}
+
+{% block title %}Data Deletion — Clinic Bot{% endblock %}
+{% block doc_id %}DOC: DELETE-V1{% endblock %}
+{% block kicker %}Data Deletion{% endblock %}
+{% block heading %}How to delete your data{% endblock %}
+
+{% block content %}
+<p>
+  You have the right to erase ("be forgotten") personal data we hold about
+  you, under India's <strong>Digital Personal Data Protection Act, 2023</strong>
+  and the WhatsApp Business policy. This page explains exactly how to do
+  that.
+</p>
+
+<h2>Two ways to request deletion</h2>
+
+<h3>Option 1 — WhatsApp (fastest)</h3>
+<p>
+  Send the following message to our bot or to
+  <strong>+91 70303 44210</strong>:
+</p>
+<div style="background:#14141b;border:1px solid #26262f;border-radius:10px;padding:14px 18px;margin:14px 0;font-family:'JetBrains Mono',monospace;font-size:13px;color:#22d3ee;">
+  DELETE MY DATA
+</div>
+<p>
+  Our team will acknowledge within 24 hours and complete deletion within
+  <strong>30 days</strong> (the maximum the DPDP Act allows).
+</p>
+
+<h3>Option 2 — Email</h3>
+<p>
+  Email <a href="mailto:aniketpathak34@gmail.com?subject=DPDP%20Deletion%20Request">aniketpathak34@gmail.com</a>
+  with:
+</p>
+<ul>
+  <li>Subject line: <strong>"DPDP Deletion Request — &lt;your name&gt;"</strong></li>
+  <li>Body must include: your full name, the WhatsApp number you used, and the clinic you booked at (if applicable)</li>
+  <li>Optional: a screenshot of any conversation with the bot to help us locate your record</li>
+</ul>
+<p>
+  We will reply within 24 hours to confirm receipt and send a final
+  confirmation once deletion is complete (typically within 7 days, never
+  more than 30).
+</p>
+
+<h2>What gets deleted</h2>
+<table>
+  <thead>
+    <tr><th>Data</th><th>Action</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Your patient profile (name, phone, language)</td><td>Permanently erased</td></tr>
+    <tr><td>Your past appointments at clinics</td><td>Anonymised — your identifying fields are stripped, but the slot metadata is kept for the clinic's own records</td></tr>
+    <tr><td>WhatsApp conversation history with the bot</td><td>Permanently erased from our servers</td></tr>
+    <tr><td>AI-generated draft notes referencing you</td><td>Permanently erased</td></tr>
+    <tr><td>Lead-page visit logs (if you are a clinic prospect)</td><td>Permanently erased</td></tr>
+  </tbody>
+</table>
+
+<h2>What we cannot delete (and why)</h2>
+<ul>
+  <li>
+    <strong>Backups</strong> — encrypted database backups may retain your
+    data for up to <strong>90 days</strong> after deletion. They are
+    automatically purged on rolling schedule and are never accessed except
+    for disaster recovery.
+  </li>
+  <li>
+    <strong>Data the clinic has copied to its own systems</strong> — once a
+    clinic exports your booking to their own records (Excel, EMR, paper
+    diary), that data is no longer under our control. You will need to
+    contact the clinic directly. We can help you do this if you ask.
+  </li>
+  <li>
+    <strong>Data WhatsApp/Meta retains</strong> — Meta keeps message metadata
+    on its own infrastructure per its privacy policy; we cannot delete that
+    on their side. Refer to
+    <a href="https://www.whatsapp.com/legal/privacy-policy" target="_blank" rel="noopener">WhatsApp's privacy policy</a>.
+  </li>
+  <li>
+    <strong>Records we are legally required to keep</strong> — for example,
+    if a regulator orders us to preserve specific records. We will tell you
+    if this applies to your request.
+  </li>
+</ul>
+
+<h2>Account deactivation vs deletion</h2>
+<p>
+  If you don't need permanent deletion but want to stop receiving messages,
+  you can simply <strong>block the bot's number on WhatsApp</strong>. You
+  will not receive any further messages, and your record will remain dormant
+  in our system. Send "DELETE MY DATA" any time later if you want it
+  permanently erased.
+</p>
+
+<h2>If you don't hear back from us</h2>
+<p>
+  Under the DPDP Act we are required to respond within 30 days. If we miss
+  that window, you can:
+</p>
+<ul>
+  <li>Send a follow-up email to <a href="mailto:aniketpathak34@gmail.com">aniketpathak34@gmail.com</a></li>
+  <li>File a complaint with the
+    <strong>Data Protection Board of India</strong> at
+    <a href="https://www.meity.gov.in/" target="_blank" rel="noopener">meity.gov.in</a>
+  </li>
+</ul>
+
+<h2>For Meta / Facebook app reviewers</h2>
+<p>
+  This page also serves as the official <strong>data deletion endpoint</strong>
+  required for our Meta App (App ID 4472222859720845). User data deletion
+  requests are processed manually within 30 days as described above. There
+  is no automated deletion API endpoint at this time; all requests go through
+  the email or WhatsApp channels listed above.
+</p>
+
+<h2>Contact</h2>
+<p>
+  For deletion requests or questions about this process:<br>
+  <strong>Email:</strong> <a href="mailto:aniketpathak34@gmail.com">aniketpathak34@gmail.com</a><br>
+  <strong>WhatsApp:</strong> +91 70303 44210<br>
+  <strong>Postal:</strong> Aniket Pathak, Pune, Maharashtra, India
+</p>
+{% endblock %}
