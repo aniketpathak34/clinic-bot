@@ -1,5 +1,7 @@
+import secrets
 from urllib.parse import quote
 
+from django.conf import settings
 from django.db import models
 
 
@@ -41,11 +43,49 @@ class Lead(models.Model):
                                         help_text="Last time the scraper saw this place")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ─── Personalised-outreach tracking ──────────────────────────
+    slug = models.CharField(
+        max_length=12, unique=True, db_index=True, blank=True,
+        help_text="Random hex used in the personalised landing URL /p/<slug>/",
+    )
+    engaged_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text="First time the prospect opened their personalised landing page",
+    )
+    last_visited_at = models.DateTimeField(null=True, blank=True)
+    visit_count = models.PositiveIntegerField(default=0)
+    ai_followup_draft = models.TextField(
+        blank=True,
+        help_text="Most recent AI-drafted follow-up message (Groq); operator reviews then sends",
+    )
+
     class Meta:
         ordering = ['-score', '-created_at']
 
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            for _ in range(8):
+                candidate = secrets.token_hex(5)  # 10 chars
+                if not Lead.objects.filter(slug=candidate).exists():
+                    self.slug = candidate
+                    break
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"[{self.get_status_display()}] {self.name} ({self.phone})"
+
+    # ─── Outreach helpers ────────────────────────────────────────
+
+    @property
+    def landing_url(self) -> str:
+        """Public, prospect-specific landing page URL.
+
+        Uses MARKETING_PUBLIC_HOST (settable via env) and falls back to the
+        Render-hosted URL so wa.me messages work even if SITE_URL isn't set.
+        """
+        host = getattr(settings, 'MARKETING_PUBLIC_HOST', '') \
+               or 'https://clinic-bot-web.onrender.com'
+        return f"{host.rstrip('/')}/p/{self.slug or 'demo'}/"
 
     @property
     def whatsapp_link(self) -> str:
@@ -54,12 +94,68 @@ class Lead(models.Model):
             f"Namaste! I'm Aniket from Pune. Saw *{self.name}* online — great reviews! 🙏\n\n"
             "I've built a WhatsApp bot that takes patient appointments 24×7 — "
             "no app for your patients, no new software for your staff.\n\n"
+            "I put together a quick page just for your clinic 👇\n"
+            f"{self.landing_url}\n\n"
             "I'm offering a *free 30-day pilot to 3 clinics* in Pune — no card, no contract.\n\n"
-            "90-sec demo 👇\nhttps://clinic-bot-web.onrender.com\n\n"
             "Would you be open to a 10-min chat this week?\n\n"
             "— Aniket | +91 7030344210"
         )
         return f"https://wa.me/{self.phone}?text={quote(msg)}"
+
+    # ─── Specialty inference (for landing personalisation) ─────
+
+    SPECIALTY_KEYWORDS = (
+        ('physiotherapist', 'physio'),
+        ('physical_therapy', 'physio'),
+        ('dentist',         'dental'),
+        ('dental_clinic',   'dental'),
+        ('chiropractor',    'chiro'),
+        ('orthopedic',      'ortho'),
+        ('gynecologist',    'gynae'),
+        ('pediatrician',    'paeds'),
+        ('dermatologist',   'derm'),
+        ('hospital',        'general'),
+        ('doctor',          'general'),
+    )
+
+    @property
+    def specialty(self) -> str:
+        """Best-effort specialty key inferred from Google Place types.
+
+        Returns one of: physio / dental / chiro / ortho / gynae / paeds / derm
+        / general / clinic (default).
+        """
+        types = (self.types or '').lower()
+        name = (self.name or '').lower()
+        for needle, label in self.SPECIALTY_KEYWORDS:
+            if needle in types or needle in name:
+                return label
+        return 'clinic'
+
+    @property
+    def estimated_calls_per_day(self) -> int:
+        """Rough heuristic: review count → daily booking calls.
+
+        Most clinics get a Google review for ~1 in 25 patient interactions.
+        Reviews accumulate over years (assume ~24 months active history).
+        Return is a conservative integer ≥ 3.
+        """
+        if not self.reviews:
+            return 5
+        monthly = self.reviews / 24
+        # 1 review per ~25 interactions → daily calls ≈ monthly_reviews * 25 / 30
+        per_day = round(monthly * 25 / 30)
+        return max(3, min(per_day, 40))
+
+    @property
+    def estimated_monthly_recovery(self) -> int:
+        """Rupees recoverable per month if our bot captures missed bookings.
+
+        Assumes ~30% of booking calls are missed (after-hours, holds, busy)
+        and avg consultation revenue ₹500.
+        """
+        missed_per_day = max(1, round(self.estimated_calls_per_day * 0.3))
+        return missed_per_day * 500 * 30  # 30 days
 
 
 class DemoVideo(models.Model):

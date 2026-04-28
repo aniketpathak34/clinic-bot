@@ -55,6 +55,10 @@ services:
       # Google Places API — used by the daily lead-gen task at 9 AM IST
       - key: GOOGLE_PLACES_API_KEY
         sync: false
+      # Shared secret for the GitHub Actions cron webhook
+      # (POST /webhook/cron/<CRON_SECRET>/<task>/)
+      - key: CRON_SECRET
+        sync: false
       # Test clinic seed (optional — used by build.sh to auto-create TEST01)
       - key: TEST_CLINIC_PHONE_NUMBER_ID
         sync: false
@@ -87,49 +91,59 @@ services:
       - key: DEMO_DOCTOR_SPECIALTY
         sync: false
 
-  # ─── Celery worker (daily reminders + booking confirmations) ───
-  - type: worker
-    name: clinic-bot-worker
-    runtime: python
-    plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "celery -A config worker -l info --concurrency=1"
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - fromGroup: clinic-bot-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: clinic-bot-db
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: clinic-bot-redis
-          property: connectionString
+  # ─────────────────────────────────────────────────────────────────
+  # Celery worker + beat are DISABLED on free tier (Render doesn't offer
+  # free `type: worker` anymore). Scheduling is currently handled by a
+  # GitHub Actions workflow (.github/workflows/cron.yml) that POSTs to
+  # /webhook/cron/<CRON_SECRET>/<task>/ on schedule.
+  #
+  # When you upgrade to a paid plan ($7/mo per worker as of 2026), just
+  # un-comment the two blocks below and change `plan: free` → `plan: starter`.
+  # Then optionally disable the GitHub Actions cron job.
+  # ─────────────────────────────────────────────────────────────────
 
-  # ─── Celery beat (scheduler for daily summary at 7pm IST) ───
-  - type: worker
-    name: clinic-bot-beat
-    runtime: python
-    plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "celery -A config beat -l info"
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - fromGroup: clinic-bot-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: clinic-bot-db
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: clinic-bot-redis
-          property: connectionString
+  # - type: worker
+  #   name: clinic-bot-worker
+  #   runtime: python
+  #   plan: starter        # free tier no longer supported for workers
+  #   buildCommand: "pip install -r requirements.txt"
+  #   startCommand: "celery -A config worker -l info --concurrency=1"
+  #   envVars:
+  #     - key: PYTHON_VERSION
+  #       value: 3.11.9
+  #     - fromGroup: clinic-bot-shared
+  #     - key: DATABASE_URL
+  #       fromDatabase:
+  #         name: clinic-bot-db
+  #         property: connectionString
+  #     - key: CELERY_BROKER_URL
+  #       fromService:
+  #         type: redis
+  #         name: clinic-bot-redis
+  #         property: connectionString
 
-# Shared secrets so worker + beat pick them up from the web service.
+  # - type: worker
+  #   name: clinic-bot-beat
+  #   runtime: python
+  #   plan: starter
+  #   buildCommand: "pip install -r requirements.txt"
+  #   startCommand: "celery -A config beat -l info"
+  #   envVars:
+  #     - key: PYTHON_VERSION
+  #       value: 3.11.9
+  #     - fromGroup: clinic-bot-shared
+  #     - key: DATABASE_URL
+  #       fromDatabase:
+  #         name: clinic-bot-db
+  #         property: connectionString
+  #     - key: CELERY_BROKER_URL
+  #       fromService:
+  #         type: redis
+  #         name: clinic-bot-redis
+  #         property: connectionString
+
+# Shared secrets so worker + beat pick them up from the web service when
+# they're enabled (commented out above for free tier).
 envVarGroups:
   - name: clinic-bot-shared
     envVars:

@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     # Third-party — admin UI for editing/triggering Celery periodic tasks
     'django_celery_beat',
     # Project apps
@@ -127,6 +128,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Groq (Llama 3.1)
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+
+# Shared secret for the external cron webhook (GitHub Actions hits us with this
+# in the URL path: /webhook/cron/<CRON_SECRET>/<task>/). See apps/notifications/views.py
+CRON_SECRET = os.getenv('CRON_SECRET', '')
 
 # Google Places API (lead generation)
 GOOGLE_PLACES_API_KEY = os.getenv('GOOGLE_PLACES_API_KEY', '')

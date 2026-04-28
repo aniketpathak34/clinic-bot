@@ -1,18 +1,1250 @@
 {% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* ─── Theme tokens ──────────────────────────────────────────── */
+  :root {
+    --bg: #0a0a0f;
+    --surface: #14141b;
+    --surface-2: #1c1c25;
+    --border: #26262f;
+    --border-strong: #36364a;
+    --text: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --text-dim: #71717a;
+    --accent: #22d3ee;
+    --accent-hover: #67e8f9;
+    --accent-bg: rgba(34,211,238,.08);
+    --green: #10b981;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --violet: #a855f7;
+    --blue: #3b82f6;
+  }
+
+  /* ─── Base ──────────────────────────────────────────────────── */
+  body.change-list,
+  body.change-list * {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  }
+  body.change-list {
+    background: var(--bg) !important;
+    color: var(--text) !important;
+    position: relative;
+  }
+  /* Ambient cyan glow at top-right */
+  body.change-list::before {
+    content: ""; position: fixed; top: -200px; right: -200px;
+    width: 600px; height: 600px; pointer-events: none; z-index: 0;
+    background: radial-gradient(circle, rgba(34,211,238,.08), transparent 60%);
+    filter: blur(40px);
+  }
+  body.change-list #header, body.change-list #content { position: relative; z-index: 1; }
+
+  /* Top admin bar — make it feel part of the dark theme */
+  body.change-list #header {
+    background: #06060a !important; border-bottom: 1px solid var(--border) !important;
+    box-shadow: none !important;
+  }
+  body.change-list #header * { color: var(--text-muted) !important; }
+  body.change-list #branding h1, body.change-list #branding h1 a { color: var(--text) !important; }
+  body.change-list #user-tools a { color: var(--text-muted) !important; border-bottom: 0 !important; }
+  body.change-list #user-tools a:hover { color: var(--accent) !important; }
+
+  body.change-list div.breadcrumbs {
+    background: transparent !important; color: var(--text-dim) !important;
+    padding: 14px 28px !important; border: 0 !important; font-size: 12px !important;
+  }
+  body.change-list div.breadcrumbs a { color: var(--text-muted) !important; }
+  body.change-list div.breadcrumbs a:hover { color: var(--accent) !important; }
+
+  body.change-list #content { padding: 0 28px 40px !important; background: var(--bg) !important; }
+  body.change-list #content-main { background: transparent !important; max-width: 1500px; }
+  body.change-list #content > h1 { display: none !important; }
+
+  /* Messages */
+  body.change-list .messagelist li {
+    background: var(--surface) !important; color: var(--text) !important;
+    border: 1px solid var(--border) !important; border-left: 3px solid var(--green) !important;
+    border-radius: 8px !important; padding: 12px 16px !important;
+  }
+  body.change-list .messagelist li.error { border-left-color: var(--red) !important; }
+
+  /* ─── Page header ───────────────────────────────────────────── */
+  .lp-hd {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin: 8px 0 24px;
+  }
+  .lp-hd h1 {
+    font-size: 28px !important; font-weight: 700 !important;
+    letter-spacing: -0.025em; color: var(--text) !important; margin: 0 !important;
+    line-height: 1.15;
+    background: linear-gradient(180deg, #fafafa, #a1a1aa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .lp-hd .sub {
+    color: var(--text-dim); font-size: 13px; margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+  .lp-hd .sub .dot { color: var(--accent); margin: 0 6px; }
+  .lp-live {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; background: rgba(16,185,129,.08);
+    border: 1px solid rgba(16,185,129,.25);
+    border-radius: 999px; font-size: 11px; font-weight: 600;
+    color: #34d399; margin-left: 12px; vertical-align: middle;
+    font-family: 'JetBrains Mono', monospace !important;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .lp-live .pulse {
+    width: 6px; height: 6px; border-radius: 50%; background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16,185,129,.7);
+    animation: lp-pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes lp-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.7); }
+    70%  { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+  }
+
+  /* ─── Lead detail drawer ───────────────────────────────────── */
+  .lp-dr-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    backdrop-filter: blur(4px); z-index: 9997;
+    display: none; opacity: 0; transition: opacity .2s ease;
+  }
+  .lp-dr-overlay.open { display: block; opacity: 1; }
+  .lp-dr {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 520px;
+    max-width: calc(100vw - 32px); background: var(--surface);
+    border-left: 1px solid var(--border-strong);
+    box-shadow: -16px 0 60px rgba(0,0,0,.5);
+    z-index: 9998; transform: translateX(100%);
+    transition: transform .26s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column;
+    font-family: 'Inter', sans-serif;
+  }
+  .lp-dr.open { transform: translateX(0); }
+  .lp-dr-loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 13px; opacity: 0; pointer-events: none;
+    transition: opacity .15s ease;
+  }
+  .lp-dr-loading.show { opacity: 1; }
+  .lp-dr-loading::before {
+    content: ""; width: 14px; height: 14px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: lp-spin .7s linear infinite; margin-right: 10px;
+  }
+  @keyframes lp-spin { to { transform: rotate(360deg); } }
+
+  .lp-dr-head {
+    display: flex; align-items: center; gap: 14px;
+    padding: 22px 24px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  }
+  .lp-dr-avatar {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px; border: 1px solid;
+    flex-shrink: 0;
+  }
+  .lp-dr-title { flex: 1; min-width: 0; }
+  .lp-dr-title .name {
+    font-size: 17px; font-weight: 700; color: var(--text);
+    letter-spacing: -.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lp-dr-title .meta {
+    font-size: 12px; color: var(--text-muted); margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .lp-dr-title .meta .dot { color: var(--text-dim); }
+  .lp-dr-close {
+    background: transparent; border: 0; color: var(--text-dim);
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+    font-size: 22px; line-height: 1; transition: all .15s ease;
+  }
+  .lp-dr-close:hover { background: var(--surface-2); color: var(--text); }
+
+  .lp-dr-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .lp-dr-body::-webkit-scrollbar { width: 8px; }
+  .lp-dr-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .lp-dr-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .lp-dr-btn {
+    flex: 1; min-width: 140px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 14px; border-radius: 8px;
+    text-decoration: none; font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; justify-content: space-between; gap: 8px;
+    cursor: pointer; transition: all .15s ease; font-family: inherit;
+  }
+  .lp-dr-btn:hover { border-color: var(--border-strong); background: var(--surface); }
+  .lp-dr-btn.primary {
+    background: var(--accent) !important; color: #06060a !important;
+    border-color: var(--accent) !important; font-weight: 600;
+  }
+  .lp-dr-btn.primary:hover {
+    background: var(--accent-hover) !important; border-color: var(--accent-hover) !important;
+    box-shadow: 0 0 0 4px var(--accent-bg);
+  }
+  .lp-dr-btn.copied { background: rgba(16,185,129,.1); color: #34d399; border-color: rgba(16,185,129,.3); }
+  .lp-dr-btn .arr { color: var(--accent); font-weight: 700; }
+  .lp-dr-btn.primary .arr { color: #06060a; }
+
+  .lp-dr-section { margin-bottom: 22px; }
+  .lp-dr-lbl {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-dim); font-weight: 600; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .lp-dr-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .lp-dr-text.mono { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+  .lp-dr-saved {
+    font-size: 10px; color: var(--green); opacity: 0;
+    transition: opacity .25s ease; text-transform: lowercase;
+    letter-spacing: 0; font-weight: 500;
+  }
+  .lp-dr-saved.show { opacity: 1; }
+
+  .lp-dr-status-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  .lp-dr-st {
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-muted); padding: 8px 12px; border-radius: 6px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; text-align: left;
+    transition: all .15s ease; font-family: inherit;
+  }
+  .lp-dr-st:hover { border-color: var(--border-strong); color: var(--text); }
+  .lp-dr-st.active {
+    background: var(--accent-bg); color: var(--accent);
+    border-color: rgba(34,211,238,.4);
+  }
+  .lp-dr-st-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .lp-dr-st-dot.s-new           { background: #71717a; }
+  .lp-dr-st-dot.s-sent          { background: #3b82f6; }
+  .lp-dr-st-dot.s-replied       { background: #a855f7; }
+  .lp-dr-st-dot.s-demo_booked   { background: #f59e0b; }
+  .lp-dr-st-dot.s-pilot         { background: #10b981; }
+  .lp-dr-st-dot.s-not_interested{ background: #ef4444; }
+  .lp-dr-st-dot.s-invalid       { background: #525252; }
+
+  .lp-dr-notes {
+    width: 100%; min-height: 110px; resize: vertical;
+    background: var(--bg) !important; border: 1px solid var(--border) !important;
+    border-radius: 8px; padding: 12px 14px; color: var(--text);
+    font-size: 13px; line-height: 1.5; font-family: 'Inter', sans-serif !important;
+    transition: border-color .15s ease;
+  }
+  .lp-dr-notes::placeholder { color: var(--text-dim); }
+  .lp-dr-notes:focus {
+    outline: 0; border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+
+  .lp-dr-types { display: flex; flex-wrap: wrap; gap: 6px; }
+  .lp-dr-tag {
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-muted); padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 500;
+  }
+
+  .lp-dr-meta-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+
+  .lp-dr-foot {
+    padding: 14px 24px; border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .lp-dr-link {
+    color: var(--text-dim); text-decoration: none; font-size: 12px;
+    transition: color .15s ease;
+  }
+  .lp-dr-link:hover { color: var(--accent); }
+
+  /* ─── Engagement panel (in drawer) ─────────────────────────── */
+  .lp-dr-engage {
+    background: linear-gradient(135deg, rgba(34,211,238,.06), rgba(168,85,247,.04));
+    border: 1px solid rgba(34,211,238,.18);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 22px;
+  }
+  .lp-dr-engage-pulse {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #10b981; margin-left: 6px;
+    box-shadow: 0 0 0 0 rgba(16,185,129,.7);
+    animation: lp-pulse 1.8s ease-in-out infinite;
+  }
+  .lp-dr-engage-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    margin: 8px 0 12px;
+  }
+  .lp-dr-engage-num {
+    font-size: 22px; font-weight: 700; color: var(--accent);
+    font-family: 'JetBrains Mono', monospace; letter-spacing: -.02em;
+    line-height: 1;
+  }
+  .lp-dr-engage-num.small { font-size: 13px; color: var(--text); }
+  .lp-dr-engage-lbl {
+    font-size: 10px; color: var(--text-dim); margin-top: 4px;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .lp-dr-engage-empty {
+    color: var(--text-dim); font-size: 12px; padding: 4px 0 10px;
+  }
+  .lp-dr-engage-link {
+    display: inline-block; font-size: 11px; color: var(--accent);
+    text-decoration: none; font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px;
+  }
+  .lp-dr-engage-link:hover { color: var(--accent-hover); }
+
+  /* ─── AI follow-up draft ───────────────────────────────────── */
+  .lp-dr-ai-btn {
+    width: 100%; background: linear-gradient(135deg, #1e1e2a, #2a2438);
+    border: 1px solid rgba(168,85,247,.3); color: var(--text);
+    padding: 10px 14px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+    transition: all .15s ease; font-family: inherit;
+  }
+  .lp-dr-ai-btn:hover {
+    border-color: rgba(168,85,247,.6);
+    box-shadow: 0 0 0 4px rgba(168,85,247,.1);
+  }
+  .lp-dr-ai-btn:disabled { opacity: .6; cursor: wait; }
+  .lp-dr-ai-spark { color: #c084fc; font-size: 14px; }
+  .lp-dr-ai-output {
+    margin-top: 10px; padding: 12px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 13px; line-height: 1.55;
+    white-space: pre-wrap; min-height: 0;
+    color: var(--text); font-family: 'Inter', sans-serif;
+  }
+  .lp-dr-ai-output:empty { display: none; }
+  .lp-dr-ai-send {
+    display: inline-block; margin-top: 8px;
+    color: var(--wa, #25D366); font-size: 12px; font-weight: 500;
+    text-decoration: none;
+  }
+  .lp-dr-ai-send:hover { text-decoration: underline; }
+
+  /* ─── Cmd+K command palette ────────────────────────────────── */
+  .lp-cmdk-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    backdrop-filter: blur(8px); z-index: 9998;
+    display: none; align-items: flex-start; justify-content: center;
+    padding-top: 12vh;
+    animation: lp-fade .15s ease;
+  }
+  .lp-cmdk-overlay.open { display: flex; }
+  @keyframes lp-fade { from { opacity: 0; } to { opacity: 1; } }
+  .lp-cmdk {
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 12px; width: 580px; max-width: calc(100vw - 32px);
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+    animation: lp-slide .18s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes lp-slide {
+    from { transform: translateY(-12px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+  }
+  .lp-cmdk input {
+    width: 100%; background: transparent !important; border: 0 !important;
+    padding: 16px 20px !important; font-size: 15px !important;
+    color: var(--text) !important; outline: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+    font-family: 'Inter', sans-serif !important;
+  }
+  .lp-cmdk input::placeholder { color: var(--text-dim) !important; }
+  .lp-cmdk .results {
+    max-height: 50vh; overflow-y: auto; padding: 6px;
+  }
+  .lp-cmdk .group {
+    padding: 8px 14px 4px; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--text-dim); font-weight: 600;
+  }
+  .lp-cmdk .item {
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text); font-size: 13px;
+    transition: background .1s ease;
+  }
+  .lp-cmdk .item:hover, .lp-cmdk .item.sel {
+    background: var(--surface-2);
+  }
+  .lp-cmdk .item.sel { box-shadow: inset 2px 0 0 var(--accent); }
+  .lp-cmdk .item .ic {
+    width: 24px; height: 24px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-2); color: var(--accent);
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .lp-cmdk .item .meta { color: var(--text-dim); font-size: 11px; margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+  .lp-cmdk .ftr {
+    padding: 8px 14px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-dim); display: flex; gap: 16px;
+    background: var(--surface-2);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .lp-cmdk .ftr kbd {
+    background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 4px;
+    border: 1px solid var(--border); font-family: inherit; font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  /* Object-tools (top-right) */
+  body.change-list #content-main .object-tools {
+    margin: 0 !important; float: none !important;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  body.change-list .object-tools li { list-style: none !important; }
+  body.change-list .object-tools a {
+    background: var(--surface) !important; color: var(--text-muted) !important;
+    border: 1px solid var(--border) !important;
+    padding: 9px 16px !important; border-radius: 8px !important;
+    font-size: 13px !important; font-weight: 500 !important;
+    text-transform: none !important; letter-spacing: 0 !important;
+    box-shadow: none !important; text-decoration: none !important; line-height: 1 !important;
+    transition: all .18s cubic-bezier(.4,0,.2,1) !important;
+  }
+  body.change-list .object-tools a:hover {
+    background: var(--surface-2) !important; border-color: var(--border-strong) !important;
+    color: var(--text) !important; transform: translateY(-1px);
+  }
+  body.change-list .object-tools a.lp-primary {
+    background: var(--accent) !important; color: #06060a !important;
+    border-color: var(--accent) !important; font-weight: 600 !important;
+  }
+  body.change-list .object-tools a.lp-primary:hover {
+    background: var(--accent-hover) !important; border-color: var(--accent-hover) !important;
+    box-shadow: 0 0 0 4px var(--accent-bg) !important;
+  }
+
+  /* ─── Stat cards ────────────────────────────────────────────── */
+  .lp-stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px; margin: 0 0 24px;
+  }
+  .lp-stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+    transition: all .18s cubic-bezier(.4,0,.2,1);
+    position: relative; overflow: hidden;
+  }
+  .lp-stat::before {
+    content:""; position:absolute; inset:0;
+    background: radial-gradient(circle at top right, rgba(34,211,238,.06), transparent 60%);
+    opacity: 0; transition: opacity .2s ease;
+    pointer-events: none;
+  }
+  .lp-stat:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .lp-stat:hover::before { opacity: 1; }
+  .lp-stat-fire {
+    background: linear-gradient(135deg, rgba(251,146,60,.05), rgba(34,211,238,.04)) !important;
+    border-color: rgba(251,146,60,.25) !important;
+  }
+  .lp-stat-fire .v { color: #fb923c; }
+  .lp-stat .l {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-dim); font-weight: 600;
+  }
+  .lp-stat .v {
+    font-size: 26px; font-weight: 700; color: var(--text);
+    margin-top: 6px; line-height: 1.1; letter-spacing: -0.02em;
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+  .lp-stat .v .pct {
+    font-size: 13px; font-weight: 600; color: var(--green);
+    margin-left: 8px; font-family: 'Inter', sans-serif !important;
+  }
+  .lp-stat .s { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ─── Conversion funnel ─────────────────────────────────────── */
+  .lp-funnel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin: 0 0 20px;
+    position: relative; overflow: hidden;
+  }
+  .lp-funnel::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(circle at 0% 50%, rgba(34,211,238,.04), transparent 50%);
+    pointer-events: none;
+  }
+  .lp-funnel .ttl {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-dim); font-weight: 600; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .lp-funnel .ttl::before {
+    content: ""; width: 4px; height: 4px; background: var(--accent);
+    border-radius: 50%; box-shadow: 0 0 8px var(--accent);
+  }
+  .lp-funnel .bar {
+    display: flex; height: 36px; border-radius: 8px; overflow: hidden;
+    background: rgba(255,255,255,.02); gap: 2px;
+  }
+  .lp-funnel .seg {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    color: #fff; font-size: 12px; font-weight: 600;
+    transition: all .2s ease; cursor: default; min-width: 0;
+    overflow: hidden; white-space: nowrap;
+    padding: 0 10px;
+  }
+  .lp-funnel .seg:hover { filter: brightness(1.15); }
+  .lp-funnel .seg .n { font-family: 'JetBrains Mono', monospace; }
+  .lp-funnel .seg .l { opacity: .9; font-size: 11px; font-weight: 500; }
+  .lp-funnel .legend {
+    display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px;
+    font-size: 11px; color: var(--text-dim);
+  }
+  .lp-funnel .legend span { display: flex; align-items: center; gap: 6px; }
+  .lp-funnel .legend i {
+    width: 8px; height: 8px; border-radius: 2px; display: inline-block;
+  }
+
+  /* ─── Status chips ──────────────────────────────────────────── */
+  .lp-chips {
+    display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; align-items: center;
+  }
+  .lp-chips .lbl {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-dim); font-weight: 600; margin-right: 6px;
+  }
+  .lp-chips a {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 500;
+    text-decoration: none; transition: all .15s ease;
+  }
+  .lp-chips a:hover { border-color: var(--border-strong); color: var(--text); }
+  .lp-chips a.active {
+    background: var(--accent-bg); color: var(--accent);
+    border-color: rgba(34,211,238,.4);
+  }
+
+  /* ─── Table card ────────────────────────────────────────────── */
+  body.change-list #changelist {
+    background: var(--surface) !important; border: 1px solid var(--border) !important;
+    border-radius: 12px !important; box-shadow: 0 0 0 1px rgba(255,255,255,.02), 0 1px 3px rgba(0,0,0,.4) !important;
+    padding: 0 !important; overflow: hidden;
+  }
+
+  body.change-list #changelist-filter { display: none !important; }
+  body.change-list #changelist .changelist-form-container { margin-right: 0 !important; }
+  body.change-list #changelist .results { width: auto !important; }
+
+  /* Toolbar (search) */
+  body.change-list #toolbar {
+    background: transparent !important; border-bottom: 1px solid var(--border) !important;
+    padding: 14px 18px !important; float: none !important;
+  }
+  body.change-list #toolbar form#changelist-search {
+    display: flex; gap: 8px; align-items: center;
+  }
+  body.change-list #toolbar form#changelist-search label,
+  body.change-list #toolbar form#changelist-search img { display: none !important; }
+  body.change-list #toolbar form#changelist-search input[type="text"] {
+    border: 1px solid var(--border) !important; border-radius: 8px !important;
+    padding: 9px 14px !important; font-size: 13px !important;
+    background: var(--bg) !important; width: 360px !important; color: var(--text) !important;
+    transition: all .15s ease !important;
+  }
+  body.change-list #toolbar form#changelist-search input[type="text"]::placeholder { color: var(--text-dim) !important; }
+  body.change-list #toolbar form#changelist-search input[type="text"]:focus {
+    border-color: var(--accent) !important; outline: 0 !important;
+    box-shadow: 0 0 0 3px var(--accent-bg) !important;
+  }
+  body.change-list #toolbar form#changelist-search input[type="submit"] {
+    background: var(--accent) !important; color: #06060a !important; border: 0 !important;
+    padding: 9px 20px !important; border-radius: 8px !important;
+    font-size: 13px !important; font-weight: 600 !important; cursor: pointer;
+    transition: all .15s ease !important;
+  }
+  body.change-list #toolbar form#changelist-search input[type="submit"]:hover {
+    background: var(--accent-hover) !important;
+  }
+  body.change-list #toolbar form#changelist-search a.search-help { display: none !important; }
+
+  /* Action bar */
+  body.change-list .actions {
+    background: var(--surface-2) !important; color: var(--text-muted) !important;
+    border: 0 !important; border-top: 1px solid var(--border) !important;
+    padding: 10px 18px !important; font-size: 12px !important;
+  }
+  body.change-list .actions label { color: var(--text-muted) !important; font-weight: 500 !important; }
+  body.change-list .actions select {
+    border: 1px solid var(--border) !important; border-radius: 6px !important;
+    padding: 6px 10px !important; font-size: 12px !important;
+    background: var(--surface) !important; color: var(--text) !important;
+    cursor: pointer;
+  }
+  body.change-list .actions button {
+    background: var(--accent) !important; color: #06060a !important; border: 0 !important;
+    border-radius: 6px !important; padding: 6px 16px !important;
+    font-size: 12px !important; font-weight: 600 !important; cursor: pointer;
+    transition: all .15s ease !important;
+  }
+  body.change-list .actions button:hover { background: var(--accent-hover) !important; }
+  body.change-list .actions .action-counter { color: var(--text-dim) !important; font-size: 12px !important; }
+
+  /* ─── Table ─────────────────────────────────────────────────── */
+  body.change-list #result_list {
+    border: 0 !important; width: 100% !important; border-collapse: collapse !important;
+  }
+  body.change-list #result_list thead th {
+    background: var(--surface-2) !important; color: var(--text-dim) !important;
+    font-size: 11px !important; text-transform: uppercase !important;
+    letter-spacing: .08em !important; font-weight: 600 !important;
+    padding: 12px 16px !important;
+    border: 0 !important; border-bottom: 1px solid var(--border) !important;
+    position: sticky !important; top: 0 !important; z-index: 2 !important;
+    backdrop-filter: blur(8px);
+  }
+  body.change-list #result_list thead th .text a,
+  body.change-list #result_list thead th a:link,
+  body.change-list #result_list thead th a:visited {
+    color: var(--text-dim) !important; text-decoration: none !important;
+  }
+  body.change-list #result_list thead th.sorted { color: var(--accent) !important; }
+
+  body.change-list #result_list tbody td,
+  body.change-list #result_list tbody th {
+    padding: 14px 16px !important; border: 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+    background: var(--surface) !important; color: var(--text) !important;
+    font-size: 13px !important; vertical-align: middle !important;
+    transition: background .12s ease !important;
+  }
+  body.change-list #result_list tbody tr.row1, body.change-list #result_list tbody tr.row2 { background: transparent !important; }
+  body.change-list #result_list tbody tr:hover td,
+  body.change-list #result_list tbody tr:hover th {
+    background: var(--surface-2) !important;
+  }
+  body.change-list #result_list tbody tr:last-child td,
+  body.change-list #result_list tbody tr:last-child th { border-bottom: 0 !important; }
+
+  body.change-list #result_list .field-name a:link,
+  body.change-list #result_list .field-name a:visited,
+  body.change-list #result_list th.field-name a {
+    color: var(--text) !important; font-weight: 600 !important; text-decoration: none !important;
+    display: block;
+    transition: color .12s ease;
+  }
+  body.change-list #result_list .field-name a:hover { color: var(--accent) !important; }
+
+  body.change-list #result_list .action-checkbox { width: 28px; }
+  body.change-list #result_list input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 14px; height: 14px;
+  }
+
+  /* ─── Inline status dropdown (list_editable) ────────────────── */
+  body.change-list #result_list select[name$="-status"] {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--surface-2) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23a1a1aa' d='M5 6L0 0h10z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    padding: 6px 28px 6px 12px !important;
+    font-size: 12px !important; font-weight: 500 !important;
+    cursor: pointer; transition: all .15s ease !important;
+    min-width: 140px;
+  }
+  body.change-list #result_list select[name$="-status"]:hover {
+    border-color: var(--border-strong) !important;
+  }
+  body.change-list #result_list select[name$="-status"]:focus {
+    outline: 0 !important; border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-bg) !important;
+  }
+  /* Color tints set by JS based on selected value */
+  body.change-list select.s-new           { background-color: rgba(113,113,122,.12) !important; color: #d4d4d8 !important; border-color: rgba(113,113,122,.3) !important; }
+  body.change-list select.s-sent          { background-color: rgba(59,130,246,.12) !important; color: #93c5fd !important; border-color: rgba(59,130,246,.3) !important; }
+  body.change-list select.s-replied       { background-color: rgba(168,85,247,.12) !important; color: #d8b4fe !important; border-color: rgba(168,85,247,.3) !important; }
+  body.change-list select.s-demo_booked   { background-color: rgba(245,158,11,.12) !important; color: #fcd34d !important; border-color: rgba(245,158,11,.3) !important; }
+  body.change-list select.s-pilot         { background-color: rgba(16,185,129,.12) !important; color: #6ee7b7 !important; border-color: rgba(16,185,129,.3) !important; }
+  body.change-list select.s-not_interested{ background-color: rgba(239,68,68,.12) !important; color: #fca5a5 !important; border-color: rgba(239,68,68,.3) !important; }
+  body.change-list select.s-invalid       { background-color: rgba(82,82,91,.12) !important; color: #a1a1aa !important; border-color: rgba(82,82,91,.3) !important; }
+
+  /* Save button row at bottom of list_editable */
+  body.change-list .submit-row {
+    background: var(--surface-2) !important; border: 0 !important;
+    border-top: 1px solid var(--border) !important;
+    padding: 14px 18px !important; margin: 0 !important;
+  }
+  body.change-list .submit-row input {
+    background: var(--accent) !important; color: #06060a !important; border: 0 !important;
+    padding: 9px 20px !important; border-radius: 8px !important;
+    font-size: 13px !important; font-weight: 600 !important; cursor: pointer;
+    transition: all .15s ease !important;
+  }
+  body.change-list .submit-row input:hover { background: var(--accent-hover) !important; }
+
+  /* Pagination */
+  body.change-list .paginator {
+    padding: 14px 18px !important; border-top: 1px solid var(--border) !important;
+    color: var(--text-dim) !important; font-size: 12px !important;
+    background: var(--surface) !important;
+  }
+  body.change-list .paginator a, body.change-list .paginator .this-page {
+    border-radius: 6px !important; padding: 4px 10px !important;
+    margin: 0 2px !important; text-decoration: none !important; font-size: 12px !important;
+    transition: all .15s ease !important;
+  }
+  body.change-list .paginator .this-page { background: var(--accent) !important; color: #06060a !important; font-weight: 600 !important; }
+  body.change-list .paginator a { background: var(--surface-2) !important; color: var(--text-muted) !important; border: 1px solid var(--border) !important; }
+  body.change-list .paginator a:hover { border-color: var(--border-strong) !important; color: var(--text) !important; }
+</style>
+{% endblock %}
+
+{% block content_title %}
+<div class="lp-hd">
+  <div>
+    <h1>Lead pipeline <span class="lp-live"><span class="pulse"></span>live</span></h1>
+    <div class="sub">
+      {{ lead_stats.total }} prospects
+      <span class="dot">·</span>
+      {{ lead_stats.fresh_new }} awaiting outreach
+      <span class="dot">·</span>
+      press <kbd style="background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;border:1px solid var(--border);font-family:inherit;font-size:10px;">⌘ K</kbd> to search
+    </div>
+  </div>
+</div>
+
+{% if lead_stats and lead_stats.total %}
+<div class="lp-funnel">
+  <div class="ttl">Conversion funnel</div>
+  <div class="bar">
+    {% with t=lead_stats.total s=lead_stats.sent_total r=lead_stats.replied d=lead_stats.demos p=lead_stats.pilots %}
+    <div class="seg" style="background:#71717a;flex:{{ t }};" title="Total prospects">
+      <span class="l">Total</span><span class="n">{{ t }}</span>
+    </div>
+    {% if s %}<div class="seg" style="background:#3b82f6;flex:{{ s }};" title="Outreach sent">
+      <span class="l">Sent</span><span class="n">{{ s }}</span>
+    </div>{% endif %}
+    {% if r %}<div class="seg" style="background:#a855f7;flex:{{ r }};" title="Replied">
+      <span class="l">Replied</span><span class="n">{{ r }}</span>
+    </div>{% endif %}
+    {% if d %}<div class="seg" style="background:#f59e0b;flex:{{ d }};" title="Demo booked">
+      <span class="l">Demo</span><span class="n">{{ d }}</span>
+    </div>{% endif %}
+    {% if p %}<div class="seg" style="background:#10b981;flex:{{ p }};" title="Pilot signed">
+      <span class="l">Pilot</span><span class="n">{{ p }}</span>
+    </div>{% endif %}
+    {% endwith %}
+  </div>
+  <div class="legend">
+    <span><i style="background:#71717a"></i>Total {{ lead_stats.total }}</span>
+    <span><i style="background:#3b82f6"></i>Sent {{ lead_stats.sent_total }}</span>
+    <span><i style="background:#a855f7"></i>Replied {{ lead_stats.replied }} <b style="color:var(--green);margin-left:4px;">{{ lead_stats.reply_rate }}%</b></span>
+    <span><i style="background:#f59e0b"></i>Demo {{ lead_stats.demos }}</span>
+    <span><i style="background:#10b981"></i>Pilot {{ lead_stats.pilots }} <b style="color:var(--green);margin-left:4px;">{{ lead_stats.pilot_rate }}%</b></span>
+  </div>
+</div>
+{% endif %}
+
+{% if lead_stats %}
+<div class="lp-stats">
+  <div class="lp-stat">
+    <div class="l">Total</div>
+    <div class="v">{{ lead_stats.total }}</div>
+    <div class="s">{{ lead_stats.new_week }} this week</div>
+  </div>
+  <div class="lp-stat">
+    <div class="l">New today</div>
+    <div class="v">{{ lead_stats.new_today }}</div>
+    <div class="s">fresh prospects</div>
+  </div>
+  <div class="lp-stat">
+    <div class="l">Sent</div>
+    <div class="v">{{ lead_stats.sent_total }}</div>
+    <div class="s">outreach delivered</div>
+  </div>
+  <div class="lp-stat">
+    <div class="l">Replied</div>
+    <div class="v">{{ lead_stats.replied }}<span class="pct">{{ lead_stats.reply_rate }}%</span></div>
+    <div class="s">reply rate</div>
+  </div>
+  <div class="lp-stat">
+    <div class="l">Demos</div>
+    <div class="v">{{ lead_stats.demos }}</div>
+    <div class="s">scheduled</div>
+  </div>
+  <div class="lp-stat">
+    <div class="l">Pilots</div>
+    <div class="v">{{ lead_stats.pilots }}<span class="pct">{{ lead_stats.pilot_rate }}%</span></div>
+    <div class="s">conversion</div>
+  </div>
+  <div class="lp-stat lp-stat-fire">
+    <div class="l">🔥 Engaged 24h</div>
+    <div class="v">{{ lead_stats.engaged_24h }}</div>
+    <div class="s">{% if lead_stats.engaged_hot %}{{ lead_stats.engaged_hot }} hot in last hour{% else %}opened landing page{% endif %}</div>
+  </div>
+  <div class="lp-stat">
+    <div class="l">Gold</div>
+    <div class="v">{{ lead_stats.gold }}</div>
+    <div class="s">score ≥ 21</div>
+  </div>
+</div>
+{% endif %}
+
+<div class="lp-chips">
+  <span class="lbl">Filter</span>
+  <a href="?{% if request.GET.q %}q={{ request.GET.q }}{% endif %}"
+     class="{% if not request.GET.status__exact %}active{% endif %}">All <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.total }}</span></a>
+  <a href="?status__exact=new{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+     class="{% if request.GET.status__exact == 'new' %}active{% endif %}">New <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.new|default:0 }}</span></a>
+  <a href="?status__exact=sent{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+     class="{% if request.GET.status__exact == 'sent' %}active{% endif %}">Sent <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.sent|default:0 }}</span></a>
+  <a href="?status__exact=replied{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+     class="{% if request.GET.status__exact == 'replied' %}active{% endif %}">Replied <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.replied|default:0 }}</span></a>
+  <a href="?status__exact=demo_booked{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+     class="{% if request.GET.status__exact == 'demo_booked' %}active{% endif %}">Demo <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.demo_booked|default:0 }}</span></a>
+  <a href="?status__exact=pilot{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+     class="{% if request.GET.status__exact == 'pilot' %}active{% endif %}">Pilot <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.pilot|default:0 }}</span></a>
+  <a href="?status__exact=not_interested{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+     class="{% if request.GET.status__exact == 'not_interested' %}active{% endif %}">Lost <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.not_interested|default:0 }}</span></a>
+</div>
+
+{# Lead detail drawer #}
+<div class="lp-dr-overlay" id="lp-dr-overlay"></div>
+<aside class="lp-dr" id="lp-dr" aria-hidden="true">
+  <div class="lp-dr-loading" id="lp-dr-loading">Loading lead…</div>
+  <div id="lp-dr-content" style="display:flex;flex-direction:column;flex:1;overflow:hidden;"></div>
+</aside>
+
+{# Cmd+K command palette overlay #}
+<div class="lp-cmdk-overlay" id="lp-cmdk">
+  <div class="lp-cmdk">
+    <input type="text" id="lp-cmdk-input" placeholder="Search leads, jump to a lead, run an action…" autocomplete="off">
+    <div class="results" id="lp-cmdk-results"></div>
+    <div class="ftr">
+      <span><kbd>↑↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> open</span>
+      <span><kbd>esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
 
 {% block object-tools-items %}
     <li>
         <a href="{% url 'admin:marketing_lead_run_leadgen' %}"
-           class="addlink"
-           style="background: #25D366; color: white;"
-           onclick="return confirm('Run Google Places lead-gen now? Takes 5-10 seconds. Up to 10 fresh prospects will be saved.');">
-            🔄 Run lead-gen now
+           class="lp-primary"
+           onclick="return confirm('Run Google Places lead-gen now? Takes 5-10 seconds.');">
+            ⚡ Run lead-gen
         </a>
     </li>
     <li>
-        <a href="/admin/django_celery_beat/periodictask/" class="addlink">
-            ⏰ Manage scheduled tasks
-        </a>
+        <a href="/admin/django_celery_beat/periodictask/">Scheduled</a>
     </li>
-    {{ block.super }}
+    <li>
+        <a href="{% url 'admin:marketing_lead_add' %}">+ New lead</a>
+    </li>
+{% endblock %}
+
+{% block footer %}
+{{ block.super }}
+<script>
+  (function () {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    function init () {
+    // ── Color-tint inline status dropdowns ─────────────────
+    function tint(sel) {
+      sel.className = sel.className.replace(/\bs-\S+/g, '').trim();
+      sel.classList.add('s-' + sel.value);
+    }
+    document.querySelectorAll('select[name$="-status"]').forEach(function (sel) {
+      tint(sel);
+      sel.addEventListener('change', function () { tint(sel); });
+    });
+
+    // ── Count-up animation on stat numbers ─────────────────
+    function countUp(el) {
+      var raw = el.firstChild ? (el.firstChild.nodeValue || '').trim() : '';
+      var target = parseInt(raw, 10);
+      if (isNaN(target) || target < 1) return;
+      var duration = 700;
+      var start = performance.now();
+      function step(t) {
+        var p = Math.min(1, (t - start) / duration);
+        var eased = 1 - Math.pow(1 - p, 3);
+        var n = Math.round(target * eased);
+        if (el.firstChild) el.firstChild.nodeValue = String(n);
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+    document.querySelectorAll('.lp-stat .v').forEach(countUp);
+
+    // ── Keyboard shortcut: "/" focuses search ──────────────
+    document.addEventListener('keydown', function (e) {
+      if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
+        var s = document.querySelector('#toolbar input[type="text"]');
+        if (s) { e.preventDefault(); s.focus(); s.select(); }
+      }
+    });
+
+    // ── Empty-state when filter returns nothing ────────────
+    var rl = document.getElementById('result_list');
+    if (!rl) {
+      var cl = document.getElementById('changelist');
+      if (cl && !cl.querySelector('.lp-empty')) {
+        var empty = document.createElement('div');
+        empty.className = 'lp-empty';
+        empty.style.cssText = 'padding:64px 20px;text-align:center;color:#71717a;';
+        empty.innerHTML = '<div style="font-size:48px;margin-bottom:12px;opacity:.4;">∅</div>'
+                        + '<div style="font-size:15px;font-weight:600;color:#a1a1aa;">No leads match your filter</div>'
+                        + '<div style="font-size:13px;margin-top:6px;">Try clearing the search or status filter above.</div>';
+        cl.appendChild(empty);
+      }
+    }
+
+    // ── Search input: add placeholder + "/" hint ───────────
+    var s = document.querySelector('#toolbar input[type="text"]');
+    if (s) {
+      s.placeholder = 'Search by name, phone, address…  ( / )';
+      s.setAttribute('autocomplete', 'off');
+    }
+
+    // ── Live "ago" updater (every 60s) ─────────────────────
+    function fmtAgo(ms) {
+      var s = Math.max(0, Math.floor(ms / 1000));
+      if (s < 60) return 'just now';
+      if (s < 3600) return Math.floor(s / 60) + 'm ago';
+      if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+      var d = Math.floor(s / 86400);
+      if (d === 1) return 'yesterday';
+      if (d < 7) return d + 'd ago';
+      return Math.floor(d / 7) + 'w ago';
+    }
+    function refreshAgo() {
+      var now = Date.now();
+      document.querySelectorAll('.lp-ago').forEach(function (el) {
+        var ts = el.getAttribute('data-ts');
+        if (!ts) return;
+        var t = Date.parse(ts);
+        if (isNaN(t)) return;
+        el.textContent = fmtAgo(now - t);
+      });
+    }
+    refreshAgo();
+    setInterval(refreshAgo, 60000);
+
+    // ── Lead detail drawer ─────────────────────────────────
+    var dr = document.getElementById('lp-dr');
+    var drOvl = document.getElementById('lp-dr-overlay');
+    var drBody = document.getElementById('lp-dr-content');
+    var drLoad = document.getElementById('lp-dr-loading');
+
+    function getCsrf() {
+      var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return m ? m[1] : '';
+    }
+    function drClose() {
+      dr.classList.remove('open');
+      drOvl.classList.remove('open');
+      dr.setAttribute('aria-hidden', 'true');
+      setTimeout(function () { drBody.innerHTML = ''; }, 280);
+    }
+    function drOpen(pk) {
+      dr.classList.add('open');
+      drOvl.classList.add('open');
+      dr.setAttribute('aria-hidden', 'false');
+      drBody.innerHTML = '';
+      drLoad.classList.add('show');
+      fetch('/admin/marketing/lead/' + pk + '/drawer/', {
+        credentials: 'same-origin'
+      }).then(function (r) { return r.text(); }).then(function (html) {
+        drLoad.classList.remove('show');
+        drBody.innerHTML = html;
+        wireDrawer(pk);
+      }).catch(function () {
+        drLoad.classList.remove('show');
+        drBody.innerHTML = '<div style="padding:32px;color:#ef4444;font-size:13px;">Failed to load lead.</div>';
+      });
+    }
+    function wireDrawer(pk) {
+      // Close button
+      drBody.querySelectorAll('[data-close]').forEach(function (b) {
+        b.addEventListener('click', drClose);
+      });
+
+      // Copy phone
+      drBody.querySelectorAll('[data-copy]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var v = b.getAttribute('data-copy');
+          navigator.clipboard.writeText(v).then(function () {
+            b.classList.add('copied');
+            var ic = b.querySelector('.lp-dr-copy-ic');
+            var prev = ic ? ic.textContent : '';
+            if (ic) ic.textContent = '✓';
+            setTimeout(function () {
+              b.classList.remove('copied');
+              if (ic) ic.textContent = prev;
+            }, 1400);
+          });
+        });
+      });
+
+      // Status buttons
+      drBody.querySelectorAll('.lp-dr-st').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var newStatus = btn.getAttribute('data-status');
+          var fd = new FormData();
+          fd.append('status', newStatus);
+          fd.append('csrfmiddlewaretoken', getCsrf());
+          fetch('/admin/marketing/lead/' + pk + '/quick-update/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCsrf() }
+          }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.ok) {
+              drBody.querySelectorAll('.lp-dr-st').forEach(function (b) { b.classList.remove('active'); });
+              btn.classList.add('active');
+              // Sync the row's inline status dropdown if visible
+              var rowSel = document.querySelector('select[name="form-' + 0 + '-status"]');
+              document.querySelectorAll('select[name$="-status"]').forEach(function (s) {
+                var row = s.closest('tr');
+                if (row && row.querySelector('a[href*="/' + pk + '/change/"]')) {
+                  s.value = newStatus;
+                  s.classList.remove(...Array.from(s.classList).filter(function (c) { return c.indexOf('s-') === 0; }));
+                  s.classList.add('s-' + newStatus);
+                }
+              });
+              // Update contacted display if status went to sent
+              if (data.contacted_at) {
+                var ce = drBody.querySelector('[data-contacted]');
+                if (ce && ce.querySelector('span') && ce.textContent.indexOf('never') > -1) {
+                  ce.textContent = new Date(data.contacted_at).toLocaleString();
+                }
+              }
+            }
+          });
+        });
+      });
+
+      // AI follow-up generator (Groq)
+      var aiBtn = drBody.querySelector('[data-ai-pk]');
+      var aiOut = drBody.querySelector('[data-ai-output]');
+      var aiSend = drBody.querySelector('[data-ai-send-base]');
+      if (aiBtn && aiOut) {
+        aiBtn.addEventListener('click', function () {
+          var label = aiBtn.querySelector('.lp-dr-ai-label');
+          var prev = label ? label.textContent : '';
+          aiBtn.disabled = true;
+          if (label) label.textContent = 'Drafting…';
+          var fd = new FormData();
+          fd.append('csrfmiddlewaretoken', getCsrf());
+          fetch('/admin/marketing/lead/' + pk + '/ai-followup/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCsrf() }
+          }).then(function (r) { return r.json(); }).then(function (data) {
+            aiBtn.disabled = false;
+            if (label) label.textContent = data.ok ? 'Generate another angle' : prev;
+            if (data.ok) {
+              aiOut.textContent = data.draft;
+              if (aiSend) {
+                aiSend.style.display = 'inline-block';
+                aiSend.href = aiSend.getAttribute('data-ai-send-base') + encodeURIComponent(data.draft);
+              }
+            } else {
+              aiOut.textContent = '⚠ ' + (data.error || 'Failed to generate.');
+            }
+          }).catch(function (err) {
+            aiBtn.disabled = false;
+            if (label) label.textContent = prev;
+            aiOut.textContent = '⚠ Network error.';
+          });
+        });
+      }
+
+      // Notes autosave (debounced)
+      var notes = drBody.querySelector('[data-notes]');
+      var saved = drBody.querySelector('[data-saved]');
+      if (notes) {
+        var t;
+        notes.addEventListener('input', function () {
+          clearTimeout(t);
+          if (saved) saved.classList.remove('show');
+          t = setTimeout(function () {
+            var fd = new FormData();
+            fd.append('notes', notes.value);
+            fd.append('csrfmiddlewaretoken', getCsrf());
+            fetch('/admin/marketing/lead/' + pk + '/quick-update/', {
+              method: 'POST', body: fd, credentials: 'same-origin',
+              headers: { 'X-CSRFToken': getCsrf() }
+            }).then(function (r) { return r.json(); }).then(function () {
+              if (saved) {
+                saved.textContent = '✓ saved';
+                saved.classList.add('show');
+                setTimeout(function () { saved.classList.remove('show'); }, 1600);
+              }
+            });
+          }, 600);
+        });
+      }
+    }
+
+    // Intercept clicks on lead-name links → open drawer
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('#result_list .field-name_card a');
+      if (!a) return;
+      // Cmd/Ctrl+click should still open in new tab
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      var m = a.getAttribute('href').match(/\/(\d+)\/change\//);
+      if (!m) return;
+      e.preventDefault();
+      drOpen(m[1]);
+    });
+    drOvl.addEventListener('click', drClose);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && dr.classList.contains('open')) drClose();
+    });
+
+    // ── Cmd+K command palette ──────────────────────────────
+    var ovl = document.getElementById('lp-cmdk');
+    var inp = document.getElementById('lp-cmdk-input');
+    var res = document.getElementById('lp-cmdk-results');
+    if (ovl && inp && res) {
+      // Build searchable lead list from the rendered table
+      var leads = [];
+      document.querySelectorAll('#result_list tbody tr').forEach(function (tr) {
+        var nameEl = tr.querySelector('.field-name_card a, th.field-name_card a, td.field-name_card a');
+        if (!nameEl) return;
+        var name = (nameEl.innerText || '').trim();
+        var phoneEl = tr.querySelector('.field-phone_link a');
+        var phone = phoneEl ? (phoneEl.innerText || '').trim() : '';
+        var initEl = nameEl.querySelector('span:first-child');
+        var initials = initEl ? initEl.innerText.trim() : '·';
+        var color = initEl ? initEl.style.color : '#22d3ee';
+        leads.push({ name: name, phone: phone, href: nameEl.getAttribute('href'),
+                     initials: initials, color: color });
+      });
+
+      var actions = [
+        { kind: 'a', label: 'Run lead-gen now', href: "{% url 'admin:marketing_lead_run_leadgen' %}", ic: '⚡' },
+        { kind: 'a', label: 'New lead',         href: "{% url 'admin:marketing_lead_add' %}",        ic: '+' },
+        { kind: 'a', label: 'Scheduled tasks',  href: '/admin/django_celery_beat/periodictask/',     ic: '⏱' },
+      ];
+
+      var sel = 0;
+      function score(text, q) {
+        text = (text || '').toLowerCase(); q = q.toLowerCase();
+        if (!q) return 1;
+        if (text.indexOf(q) === 0) return 100;
+        if (text.indexOf(q) > -1) return 50;
+        var i = 0, j = 0;
+        while (i < text.length && j < q.length) {
+          if (text[i] === q[j]) j++;
+          i++;
+        }
+        return j === q.length ? 10 : 0;
+      }
+      function escape(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+        });
+      }
+      function render() {
+        var q = inp.value.trim();
+        var html = '';
+        var matched = 0;
+        var matchedActions = actions.filter(function (a) { return score(a.label, q) > 0; });
+        if (matchedActions.length) {
+          html += '<div class="group">Actions</div>';
+          matchedActions.forEach(function (a) {
+            html += '<div class="item" data-href="' + escape(a.href) + '">'
+                  + '<span class="ic">' + escape(a.ic) + '</span>'
+                  + '<span>' + escape(a.label) + '</span></div>';
+            matched++;
+          });
+        }
+        var matchedLeads = leads
+          .map(function (l) { return { l: l, s: Math.max(score(l.name, q), score(l.phone, q)) }; })
+          .filter(function (m) { return m.s > 0; })
+          .sort(function (a, b) { return b.s - a.s; })
+          .slice(0, 12)
+          .map(function (m) { return m.l; });
+        if (matchedLeads.length) {
+          html += '<div class="group">Leads</div>';
+          matchedLeads.forEach(function (l) {
+            html += '<div class="item" data-href="' + escape(l.href) + '">'
+                  + '<span class="ic" style="color:' + l.color + ';background:' + l.color + '1f;">' + escape(l.initials) + '</span>'
+                  + '<span>' + escape(l.name) + '</span>'
+                  + '<span class="meta">' + escape(l.phone || '') + '</span></div>';
+            matched++;
+          });
+        }
+        if (!matched) {
+          html = '<div style="padding:32px;text-align:center;color:#71717a;font-size:13px;">No matches</div>';
+        }
+        res.innerHTML = html;
+        sel = 0;
+        applySel();
+      }
+      function applySel() {
+        res.querySelectorAll('.item').forEach(function (el, i) {
+          el.classList.toggle('sel', i === sel);
+        });
+        var s = res.querySelector('.item.sel');
+        if (s) s.scrollIntoView({ block: 'nearest' });
+      }
+      function open() { ovl.classList.add('open'); inp.value=''; render(); inp.focus(); }
+      function close() { ovl.classList.remove('open'); }
+
+      document.addEventListener('keydown', function (e) {
+        var isMac = navigator.platform.toLowerCase().indexOf('mac') > -1;
+        var modK = (isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'k';
+        if (modK) { e.preventDefault(); ovl.classList.contains('open') ? close() : open(); return; }
+        if (!ovl.classList.contains('open')) return;
+        if (e.key === 'Escape') { close(); return; }
+        var items = res.querySelectorAll('.item');
+        if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(sel + 1, items.length - 1); applySel(); }
+        if (e.key === 'ArrowUp')   { e.preventDefault(); sel = Math.max(sel - 1, 0); applySel(); }
+        if (e.key === 'Enter') {
+          var it = items[sel];
+          if (it) goItem(it);
+        }
+      });
+      function goItem(it) {
+        var href = it.dataset.href;
+        if (!href) return;
+        var m = href.match(/\/(\d+)\/change\//);
+        if (m) {
+          close();
+          drOpen(m[1]);
+        } else {
+          window.location = href;
+        }
+      }
+      inp.addEventListener('input', render);
+      ovl.addEventListener('click', function (e) { if (e.target === ovl) close(); });
+      res.addEventListener('click', function (e) {
+        var it = e.target.closest('.item');
+        if (it) goItem(it);
+      });
+    }
+    } // end init
+  })();
+</script>
 {% endblock %}

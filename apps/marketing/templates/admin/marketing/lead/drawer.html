@@ -1,0 +1,149 @@
+{% load i18n %}
+<div class="lp-dr-head">
+  <div class="lp-dr-avatar" style="background:{{ avatar_color }}1f;color:{{ avatar_color }};border-color:{{ avatar_color }}40;">
+    {{ initials }}
+  </div>
+  <div class="lp-dr-title">
+    <div class="name">{{ lead.name }}</div>
+    <div class="meta">
+      <span style="color:{{ tier_color }};font-weight:700;">{{ tier_label }} · {{ lead.score }}</span>
+      {% if lead.rating %}<span class="dot">·</span><span>★ {{ lead.rating }}</span>{% endif %}
+      {% if lead.reviews %}<span class="dot">·</span><span>{{ lead.reviews }} reviews</span>{% endif %}
+    </div>
+  </div>
+  <button type="button" class="lp-dr-close" data-close>×</button>
+</div>
+
+<div class="lp-dr-body">
+  <div class="lp-dr-actions">
+    <a href="{{ lead.whatsapp_link }}" target="_blank" class="lp-dr-btn primary">
+      <span>WhatsApp</span>
+      <span class="arr">→</span>
+    </a>
+    <button type="button" class="lp-dr-btn" data-copy="+{{ lead.phone }}">
+      <span>+{{ lead.phone }}</span>
+      <span class="lp-dr-copy-ic">⧉</span>
+    </button>
+    {% if lead.google_maps_url %}
+    <a href="{{ lead.google_maps_url }}" target="_blank" class="lp-dr-btn">
+      <span>Maps</span>
+      <span class="arr">↗</span>
+    </a>
+    {% endif %}
+  </div>
+
+  {# ─── Engagement panel: visit-history from personalised page ─── #}
+  <div class="lp-dr-section lp-dr-engage">
+    <div class="lp-dr-lbl">
+      Engagement
+      {% if lead.engaged_at %}<span class="lp-dr-engage-pulse"></span>{% endif %}
+    </div>
+    {% if lead.engaged_at %}
+      <div class="lp-dr-engage-grid">
+        <div>
+          <div class="lp-dr-engage-num">{{ lead.visit_count }}</div>
+          <div class="lp-dr-engage-lbl">visits</div>
+        </div>
+        <div>
+          <div class="lp-dr-engage-num small">{{ lead.engaged_at|timesince }}</div>
+          <div class="lp-dr-engage-lbl">since first open</div>
+        </div>
+        <div>
+          <div class="lp-dr-engage-num small">{{ lead.last_visited_at|timesince }}</div>
+          <div class="lp-dr-engage-lbl">since last visit</div>
+        </div>
+      </div>
+    {% else %}
+      <div class="lp-dr-engage-empty">
+        Prospect has not opened their personalised page yet.
+      </div>
+    {% endif %}
+    <a href="{{ landing_url }}" target="_blank" class="lp-dr-engage-link">
+      Preview their personalised page →
+    </a>
+  </div>
+
+  {# ─── AI follow-up draft (Groq Llama 3.3) ─── #}
+  <div class="lp-dr-section">
+    <div class="lp-dr-lbl">
+      AI follow-up draft
+      <span style="color:#71717a;text-transform:none;letter-spacing:0;font-weight:500;font-size:11px;">via Groq · Llama 3.3</span>
+    </div>
+    <button type="button" class="lp-dr-ai-btn" data-ai-pk="{{ lead.pk }}">
+      <span class="lp-dr-ai-spark">✦</span>
+      <span class="lp-dr-ai-label">Generate fresh follow-up</span>
+    </button>
+    <div class="lp-dr-ai-output" data-ai-output>{% if lead.ai_followup_draft %}{{ lead.ai_followup_draft }}{% endif %}</div>
+    {% if lead.ai_followup_draft %}
+    <a class="lp-dr-ai-send" target="_blank"
+       href="https://wa.me/{{ lead.phone }}?text={{ lead.ai_followup_draft|urlencode }}"
+       data-ai-send-base="https://wa.me/{{ lead.phone }}?text=">
+      Send draft on WhatsApp →
+    </a>
+    {% else %}
+    <a class="lp-dr-ai-send" style="display:none;" target="_blank"
+       href="#" data-ai-send-base="https://wa.me/{{ lead.phone }}?text=">
+      Send draft on WhatsApp →
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="lp-dr-section">
+    <div class="lp-dr-lbl">Status</div>
+    <div class="lp-dr-status-grid" data-pk="{{ lead.pk }}">
+      {% for code, label in status_choices %}
+      <button type="button" class="lp-dr-st {% if code == lead.status %}active{% endif %}"
+              data-status="{{ code }}" data-color="{{ code }}">
+        <span class="lp-dr-st-dot s-{{ code }}"></span>{{ label|cut:" — "|truncatewords:1 }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="lp-dr-section">
+    <div class="lp-dr-lbl">Notes <span class="lp-dr-saved" data-saved>saved</span></div>
+    <textarea class="lp-dr-notes" data-notes data-pk="{{ lead.pk }}"
+              placeholder="Conversation history, follow-up reminders, what they care about…">{{ lead.notes }}</textarea>
+  </div>
+
+  {% if lead.address %}
+  <div class="lp-dr-section">
+    <div class="lp-dr-lbl">Address</div>
+    <div class="lp-dr-text">{{ lead.address }}</div>
+  </div>
+  {% endif %}
+
+  {% if lead.types %}
+  <div class="lp-dr-section">
+    <div class="lp-dr-lbl">Categories</div>
+    <div class="lp-dr-types">
+      {% for t in types_list %}<span class="lp-dr-tag">{{ t }}</span>{% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="lp-dr-section lp-dr-meta-grid">
+    <div>
+      <div class="lp-dr-lbl">Added</div>
+      <div class="lp-dr-text">{{ lead.created_at|date:"M j, Y · g:i A" }}</div>
+    </div>
+    <div>
+      <div class="lp-dr-lbl">Last contacted</div>
+      <div class="lp-dr-text" data-contacted>
+        {% if lead.contacted_at %}{{ lead.contacted_at|date:"M j, Y · g:i A" }}{% else %}<span style="color:#71717a;">never</span>{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="lp-dr-lbl">Last seen on Google</div>
+      <div class="lp-dr-text">{{ lead.last_seen_at|date:"M j, Y" }}</div>
+    </div>
+    <div>
+      <div class="lp-dr-lbl">Place ID</div>
+      <div class="lp-dr-text mono">{{ lead.place_id|truncatechars:18 }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="lp-dr-foot">
+  <a href="{% url 'admin:marketing_lead_change' lead.pk %}" class="lp-dr-link">Open full edit form →</a>
+</div>

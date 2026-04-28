@@ -19,6 +19,8 @@ api.add_router("/test", test_router, tags=["Test/Dev"])
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', api.urls),
+    # External-scheduler webhook (GitHub Actions cron, etc.) — see apps/notifications/views.py
+    path('webhook/', include('apps.notifications.urls')),
     path('', include('apps.marketing.urls')),
 ]
 
