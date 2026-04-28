@@ -79,9 +79,10 @@
         <span class="pulse-dot"></span>
         <span>built specifically for</span>
       </div>
-      <div class="text-xs mono text-zinc-600">
-        {{ lead.created_at|date:"M Y" }} · pune
-      </div>
+      <a href="/?from={{ lead.slug }}"
+         class="text-xs mono text-zinc-500 hover:text-cyan-400 transition-colors flex items-center gap-1.5">
+        <span>← Home</span>
+      </a>
     </div>
 
     {# ─── Hero: clinic name + personalised greeting ─────── #}
@@ -127,24 +128,46 @@
       </div>
     </div>
 
-    {# ─── Demo video ─────────────────────────────────────── #}
-    {% if demo and demo.is_youtube and demo.youtube_id %}
-    <div class="card overflow-hidden mb-10 card-hover">
-      <div class="px-5 pt-5 pb-3">
-        <div class="text-xs mono uppercase tracking-wider text-zinc-500 mb-1">90-second demo</div>
-        <div class="text-base font-semibold text-white">{{ demo.title }}</div>
-      </div>
-      <div class="relative" style="padding-bottom: {% if demo.is_youtube_short %}177.78%{% else %}56.25%{% endif %};">
-        <iframe
-          src="{{ demo.embed_iframe_src }}"
-          title="{{ demo.title }}"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen
-          class="absolute inset-0 w-full h-full"
-        ></iframe>
+    {# ─── See it in action — drives prospect to the full home page ─── #}
+    <div class="card p-6 md:p-8 mb-10 card-hover" style="background: linear-gradient(135deg, rgba(34,211,238,.06), rgba(168,85,247,.04));">
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-cyan-500/15 flex items-center justify-center flex-shrink-0 border border-cyan-500/30">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-cyan-400">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs mono uppercase tracking-wider text-cyan-400 mb-2">See it in action</div>
+          <h3 class="text-lg md:text-xl font-bold text-white mb-2 tracking-tight">Watch the full demos</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed mb-5">
+            See the patient flow, the provider flow, real testimonials, and an ROI calculator
+            — everything live on our home page.
+          </p>
+          <div class="flex flex-wrap gap-3">
+            <a href="/?from={{ lead.slug }}" target="_blank"
+               class="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white
+                      px-5 py-2.5 rounded-xl text-sm font-semibold border border-zinc-700
+                      transition-all">
+              <span>Patient flow demo</span>
+              <span class="text-cyan-400">→</span>
+            </a>
+            <a href="/?from={{ lead.slug }}#provider" target="_blank"
+               class="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white
+                      px-5 py-2.5 rounded-xl text-sm font-semibold border border-zinc-700
+                      transition-all">
+              <span>Provider flow demo</span>
+              <span class="text-cyan-400">→</span>
+            </a>
+            <a href="/?from={{ lead.slug }}" target="_blank"
+               class="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300
+                      px-3 py-2.5 text-sm font-semibold transition-all">
+              <span>Open full home page</span>
+              <span>↗</span>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
-    {% endif %}
 
     {# ─── How it works (3 quick beats) ───────────────────── #}
     <div class="grid md:grid-cols-3 gap-3 mb-10">

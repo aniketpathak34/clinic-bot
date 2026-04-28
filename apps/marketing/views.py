@@ -33,7 +33,27 @@ def _looks_like_bot(user_agent: str) -> bool:
 
 @require_GET
 def landing(request):
-    """Marketing home page."""
+    """Marketing home page.
+
+    If a prospect lands here from their personalised page (`?from=<slug>`)
+    we bump their visit counter — useful signal that they're exploring the
+    full product, not just their pitch.
+    """
+    from_slug = request.GET.get('from', '').strip()
+    if from_slug and not _looks_like_bot(request.META.get('HTTP_USER_AGENT', '')):
+        try:
+            lead = Lead.objects.get(slug=from_slug)
+            now = timezone.now()
+            lead.last_visited_at = now
+            lead.visit_count = (lead.visit_count or 0) + 1
+            update_fields = ['last_visited_at', 'visit_count']
+            if not lead.engaged_at:
+                lead.engaged_at = now
+                update_fields.append('engaged_at')
+            lead.save(update_fields=update_fields)
+        except Lead.DoesNotExist:
+            pass
+
     videos = {
         'patient': list(DemoVideo.objects.filter(role='patient', is_active=True)),
         'provider': list(DemoVideo.objects.filter(role='provider', is_active=True)),
