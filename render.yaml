@@ -20,7 +20,9 @@ services:
     plan: free
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60"
-    healthCheckPath: /admin/login/
+    # Use the public landing page (always 200) so the health check doesn't
+    # depend on ADMIN_URL_PATH (which is now a secret path, not /admin/).
+    healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
