@@ -3,7 +3,7 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_safe
 
 from apps.clinic.models import Appointment
 
@@ -96,7 +96,7 @@ def brand_preview(request):
 # SEO — robots.txt and sitemap.xml served as plain endpoints
 # ────────────────────────────────────────────────────────────────
 
-@require_GET
+@require_safe  # Allows both GET and HEAD — search-engine crawlers often probe with HEAD first
 def robots_txt(request):
     """Serve /robots.txt — tells crawlers what to index and where to find sitemap."""
     from django.http import HttpResponse
@@ -114,7 +114,7 @@ def robots_txt(request):
     return HttpResponse(body, content_type='text/plain; charset=utf-8')
 
 
-@require_GET
+@require_safe  # Allows both GET and HEAD — Google Search Console probes with HEAD first
 def sitemap_xml(request):
     """Serve /sitemap.xml listing the public pages we want Google to crawl."""
     from django.http import HttpResponse
