@@ -40,7 +40,7 @@ def _score_tier(score: int):
 class LeadAdmin(admin.ModelAdmin):
     list_display = (
         'score_badge', 'name_card', 'phone_link', 'rating_display', 'reviews',
-        'status', 'whatsapp_button', 'age_display',
+        'status', 'action_pill', 'whatsapp_button', 'age_display',
     )
     list_display_links = ('name_card',)
     list_editable = ('status',)
@@ -122,6 +122,7 @@ class LeadAdmin(admin.ModelAdmin):
             'status_choices': Lead.STATUS_CHOICES,
             'types_list': types_list,
             'landing_url': lead.landing_url,
+            'followup_action': lead.followup_status(),
         })
 
     @staticmethod
@@ -254,6 +255,12 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
         engaged_total = qs.filter(engaged_at__isnull=False).count()
         engaged_24h = qs.filter(engaged_at__gte=day_ago).count()
         engaged_hot = qs.filter(last_visited_at__gte=hour_ago).count()
+
+        # Count leads needing follow-up by urgency
+        action_hot = sum(1 for l in qs if (a := l.followup_status()) and a['urgency'] == 'hot')
+        action_medium = sum(1 for l in qs if (a := l.followup_status()) and a['urgency'] == 'medium')
+        action_low = sum(1 for l in qs if (a := l.followup_status()) and a['urgency'] == 'low')
+        action_total = action_hot + action_medium + action_low
         stats = {
             'total': qs.count(),
             'new_today': qs.filter(created_at__date=today).count(),
@@ -269,6 +276,10 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
             'fresh_new': qs.filter(status='new').count(),
             'by_status': status_counts,
             'engaged_total': engaged_total,
+            'action_total': action_total,
+            'action_hot': action_hot,
+            'action_medium': action_medium,
+            'action_low': action_low,
             'engaged_24h': engaged_24h,
             'engaged_hot': engaged_hot,
         }
@@ -382,6 +393,29 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
             obj.whatsapp_link,
         )
     whatsapp_button.short_description = 'Outreach'
+
+    URGENCY_COLORS = {
+        'hot':    '#ef4444',  # red
+        'medium': '#f59e0b',  # amber
+        'low':    '#3b82f6',  # blue
+        'cold':   '#71717a',  # gray
+    }
+
+    def action_pill(self, obj):
+        """Auto-detected follow-up urgency badge — what to do with this lead."""
+        action = obj.followup_status()
+        if not action:
+            return format_html('<span style="color:#cbd5e1;">—</span>')
+        color = self.URGENCY_COLORS.get(action['urgency'], '#71717a')
+        return format_html(
+            '<span style="display:inline-flex;align-items:center;gap:6px;'
+            'background:{}14;color:{};padding:3px 10px;border-radius:6px;'
+            'font-weight:500;font-size:12px;font-family:Inter,sans-serif;'
+            'max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+            '" title="{}">{} {}</span>',
+            color, color, action['label'], action['emoji'], action['label'],
+        )
+    action_pill.short_description = '🎯 Action'
 
     def age_display(self, obj):
         if not obj.created_at:

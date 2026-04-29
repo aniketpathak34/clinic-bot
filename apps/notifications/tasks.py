@@ -305,11 +305,11 @@ def send_hour_before_reminders():
 
 
 @shared_task
-def fetch_daily_leads(top_n: int = 10):
+def fetch_daily_leads(top_n: int = 20):
     """Pull fresh clinic leads from Google Places API and save the top N as Lead rows.
 
     Calls the seed_leads management command — keeps the lead-gen logic in one place.
-    Default 10 leads/day with strict score threshold for high conversion quality.
+    Default 20 leads/day with strict score threshold for high conversion quality.
     """
     from django.core.management import call_command
     try:

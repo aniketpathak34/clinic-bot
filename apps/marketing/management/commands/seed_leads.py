@@ -37,8 +37,8 @@ class Command(BaseCommand):
     help = "Fetch clinic leads from Google Places API, score them, save the top N as Lead rows."
 
     def add_arguments(self, parser):
-        parser.add_argument('--top', type=int, default=10,
-                            help='Max number of new leads to save (default 10).')
+        parser.add_argument('--top', type=int, default=20,
+                            help='Max number of new leads to save (default 20).')
         parser.add_argument('--query', type=str, default='',
                             help='Custom single query instead of the default Pune set.')
         parser.add_argument('--dry-run', action='store_true',

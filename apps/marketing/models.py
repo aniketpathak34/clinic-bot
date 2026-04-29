@@ -71,6 +71,119 @@ class Lead(models.Model):
                     break
         super().save(*args, **kwargs)
 
+    @property
+    def is_mobile_phone(self) -> bool:
+        """True if this lead's phone is a true Indian mobile (not a landline).
+
+        Used by admin UI + cleanup command to flag/remove leads we can't
+        reach via WhatsApp.
+        """
+        from apps.marketing.places import _is_mobile_phone
+        return _is_mobile_phone(self.phone)
+
+    # ─── Auto-detect "needs follow-up" status ──────────────────────
+    #
+    # Returns a dict with the recommended action OR None if no follow-up
+    # is needed (e.g., not yet contacted, already converted, or recently
+    # active conversation).
+    #
+    # Used by the admin list to show "🎯 Action" column + the drawer to
+    # auto-highlight the right template button.
+
+    def followup_status(self) -> dict | None:
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # Never follow-up these statuses
+        if self.status in ('new', 'pilot', 'demo_booked', 'not_interested', 'invalid'):
+            # 'new' = not yet contacted; rest = closed-out states
+            return None
+
+        now = timezone.now()
+        contacted = self.contacted_at or self.created_at
+        if not contacted:
+            return None
+        days_since_contact = (now - contacted).days
+
+        engaged = self.engaged_at is not None
+        last_visit = self.last_visited_at
+
+        # ─── HOT: replied + visited recently → use the conversation template
+        if self.status == 'replied' and last_visit:
+            hours_since_visit = (now - last_visit).total_seconds() / 3600
+            if hours_since_visit < 48:
+                return {
+                    'urgency': 'hot',
+                    'emoji': '🔥',
+                    'label': f'Active — visited {self._humanize(now - last_visit)} ago',
+                    'template': 'followup_replied_silent_link',
+                    'template_label': 'Reply (3 demo options)',
+                }
+
+        # ─── HOT: opened the personalised page but didn't reply yet
+        if engaged and self.status == 'sent':
+            visits = self.visit_count or 1
+            return {
+                'urgency': 'hot',
+                'emoji': '🔥',
+                'label': f'Opened page · {visits}× visit{"s" if visits > 1 else ""}',
+                'template': 'followup_engaged_link',
+                'template_label': 'Engaged but silent',
+            }
+
+        # ─── MEDIUM: replied but quiet for 3+ days → 'Replied but silent' template
+        if self.status == 'replied' and days_since_contact >= 3:
+            return {
+                'urgency': 'medium',
+                'emoji': '💬',
+                'label': f'Replied but silent ({days_since_contact}d)',
+                'template': 'followup_replied_silent_link',
+                'template_label': 'Replied but silent',
+            }
+
+        # ─── MEDIUM: sent 3-7 days ago, no engagement → 3-day soft ping
+        if self.status == 'sent' and 3 <= days_since_contact <= 6:
+            return {
+                'urgency': 'medium',
+                'emoji': '📩',
+                'label': f'No reply ({days_since_contact}d) — try 3-day ping',
+                'template': 'followup_3day_link',
+                'template_label': '3-day soft ping',
+            }
+
+        # ─── LOW: sent 7-14 days ago, no engagement → 7-day final ping
+        if self.status == 'sent' and 7 <= days_since_contact <= 14:
+            return {
+                'urgency': 'low',
+                'emoji': '⏰',
+                'label': f'Quiet ({days_since_contact}d) — final ping',
+                'template': 'followup_7day_link',
+                'template_label': '7-day final ping',
+            }
+
+        # ─── COLD: sent >14 days ago, no engagement → consider archiving
+        if self.status == 'sent' and days_since_contact > 14:
+            return {
+                'urgency': 'cold',
+                'emoji': '❄️',
+                'label': f'Cold ({days_since_contact}d) — consider archiving',
+                'template': 'followup_7day_link',
+                'template_label': '7-day final ping',
+            }
+
+        return None
+
+    @staticmethod
+    def _humanize(td) -> str:
+        secs = int(td.total_seconds())
+        if secs < 60:
+            return f'{secs}s'
+        if secs < 3600:
+            return f'{secs // 60}m'
+        if secs < 86400:
+            return f'{secs // 3600}h'
+        return f'{secs // 86400}d'
+
     def __str__(self):
         return f"[{self.get_status_display()}] {self.name} ({self.phone})"
 
@@ -101,6 +214,89 @@ class Lead(models.Model):
             "— Aniket | +91 7030344210"
         )
         return f"https://wa.me/{self.phone}?text={quote(msg)}"
+
+    # ─── Follow-up templates (used when prospect doesn't reply) ────────
+    #
+    # Each template self-introduces because some clinics use WhatsApp
+    # disappearing-messages — they may not see the original pitch anymore.
+    # Always re-attach the personalised page URL so they have one click to
+    # rediscover the offer.
+
+    def _wa_url(self, msg: str) -> str:
+        return f"https://wa.me/{self.phone}?text={quote(msg)}"
+
+    @property
+    def followup_engaged_link(self) -> str:
+        """Best opener if they OPENED the personalised page but didn't reply
+        (high-intent — give them the numbers they came for)."""
+        msg = (
+            f"Hey {self.name}, Aniket here from *DocPing*. 🙏\n\n"
+            "Saw you checked out the page I sent — wanted to make sure you "
+            "had what you needed.\n\n"
+            f"Quick recap — DocPing is a WhatsApp bot that books patient "
+            f"appointments 24×7. For a clinic your size "
+            f"(~{self.estimated_calls_per_day} booking calls/day), the math is:\n\n"
+            f"  • ~30% of calls go missed after-hours\n"
+            f"  • That's ~₹{self.estimated_monthly_recovery:,}/month in lost bookings\n"
+            f"  • DocPing recovers them at ₹999/month\n\n"
+            "Page is still live for you 👇\n"
+            f"{self.landing_url}\n\n"
+            "10-min call this week? Free to share what'd actually help.\n\n"
+            "— Aniket | +91 7030344210"
+        )
+        return self._wa_url(msg)
+
+    @property
+    def followup_3day_link(self) -> str:
+        """3 days quiet — no engagement signal. Re-introduce + soft nudge."""
+        msg = (
+            f"Hey {self.name}! 🙏\n\n"
+            "Aniket here — pinged you a few days back about *DocPing*, the "
+            "WhatsApp appointment-booking bot for clinics.\n\n"
+            "(Sharing again in case the earlier message disappeared — some "
+            "WhatsApp settings auto-delete after a day.)\n\n"
+            "Short version: patients book in 4 taps, your front desk doesn't "
+            "lift a finger. Free 30-day pilot, no card, no contract.\n\n"
+            f"Custom page for your clinic 👇\n{self.landing_url}\n\n"
+            "Worth a 10-min look? Reply 'yes' or 'later' and I'll respect either.\n\n"
+            "— Aniket"
+        )
+        return self._wa_url(msg)
+
+    @property
+    def followup_7day_link(self) -> str:
+        """7-10 days quiet — final polite ping, value-first angle, low-pressure exit."""
+        msg = (
+            f"Hi {self.name}, Aniket from *DocPing* one last time. 🙏\n\n"
+            "If WhatsApp booking isn't a fit for your clinic right now, totally "
+            "understand — happy to leave you alone.\n\n"
+            "If you ARE curious, here's what 3 Pune clinics on the pilot are "
+            "saying after week 1:\n\n"
+            "  ✅ \"Front desk saved 2 hrs/day on phone calls\"\n"
+            "  ✅ \"Recovered 4 missed bookings in week 1\"\n"
+            "  ✅ \"Patients love the Hindi/Marathi flow\"\n\n"
+            f"Page still live 👇\n{self.landing_url}\n\n"
+            "Just reply 'not now' if you want me to stop, or 'tell me more' "
+            "if you're game.\n\n"
+            "— Aniket | +91 7030344210"
+        )
+        return self._wa_url(msg)
+
+    @property
+    def followup_replied_silent_link(self) -> str:
+        """They replied once then went silent. Pick up where you left off."""
+        msg = (
+            f"Hey {self.name}! 👋\n\n"
+            "Aniket — picking up from our last chat about *DocPing*.\n\n"
+            "Wanted to make it easy for you to decide. Three ways to see it:\n\n"
+            "1️⃣  Try the bot yourself (30 sec) — message *+1 555 177 3718* with 'Hi'\n"
+            "2️⃣  Watch the demos on our home page — https://docping.in\n"
+            "3️⃣  10-min Zoom call where I walk you through it\n\n"
+            f"Custom page for {self.name}: {self.landing_url}\n\n"
+            "Free 30-day pilot is still open. Pick one and we'll move forward.\n\n"
+            "— Aniket"
+        )
+        return self._wa_url(msg)
 
     # ─── Specialty inference (for landing personalisation) ─────
 

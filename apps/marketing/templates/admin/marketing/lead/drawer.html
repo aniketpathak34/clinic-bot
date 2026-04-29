@@ -32,6 +32,63 @@
     {% endif %}
   </div>
 
+  {# ─── Auto-detected follow-up recommendation ─── #}
+  {% if followup_action %}
+  <div class="lp-dr-section lp-dr-recommend lp-dr-recommend-{{ followup_action.urgency }}">
+    <div class="lp-dr-lbl">🎯 Recommended action right now</div>
+    <div class="lp-dr-recommend-row">
+      <div class="lp-dr-recommend-emoji">{{ followup_action.emoji }}</div>
+      <div class="lp-dr-recommend-text">
+        <div class="lp-dr-recommend-status">{{ followup_action.label }}</div>
+        <div class="lp-dr-recommend-cta">→ Send the <b>{{ followup_action.template_label }}</b> template below</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ─── Follow-up templates — for clinics that didn't reply yet ─── #}
+  <div class="lp-dr-section">
+    <div class="lp-dr-lbl">Follow-up templates</div>
+    <div class="lp-dr-followup-grid">
+      <a href="{{ lead.followup_engaged_link }}" target="_blank"
+         class="lp-dr-followup-btn{% if followup_action.template == 'followup_engaged_link' %} lp-dr-followup-recommended{% endif %}"
+         title="Best opener if they OPENED your personalised page but didn't reply">
+        <span class="lp-dr-followup-emoji">🔥</span>
+        <div>
+          <div class="lp-dr-followup-title">Engaged but silent</div>
+          <div class="lp-dr-followup-sub">They opened the page → ROI numbers</div>
+        </div>
+      </a>
+      <a href="{{ lead.followup_3day_link }}" target="_blank"
+         class="lp-dr-followup-btn{% if followup_action.template == 'followup_3day_link' %} lp-dr-followup-recommended{% endif %}"
+         title="3 days since outreach, no engagement">
+        <span class="lp-dr-followup-emoji">📩</span>
+        <div>
+          <div class="lp-dr-followup-title">3-day soft ping</div>
+          <div class="lp-dr-followup-sub">Re-introduce + share landing page</div>
+        </div>
+      </a>
+      <a href="{{ lead.followup_7day_link }}" target="_blank"
+         class="lp-dr-followup-btn{% if followup_action.template == 'followup_7day_link' %} lp-dr-followup-recommended{% endif %}"
+         title="7-10 days quiet — last polite ping with social proof">
+        <span class="lp-dr-followup-emoji">⏰</span>
+        <div>
+          <div class="lp-dr-followup-title">7-day final ping</div>
+          <div class="lp-dr-followup-sub">Social proof + low-pressure exit</div>
+        </div>
+      </a>
+      <a href="{{ lead.followup_replied_silent_link }}" target="_blank"
+         class="lp-dr-followup-btn{% if followup_action.template == 'followup_replied_silent_link' %} lp-dr-followup-recommended{% endif %}"
+         title="They replied once then went silent">
+        <span class="lp-dr-followup-emoji">💬</span>
+        <div>
+          <div class="lp-dr-followup-title">Replied but silent</div>
+          <div class="lp-dr-followup-sub">3 demo options (try / watch / call)</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
   {# ─── Engagement panel: visit-history from personalised page ─── #}
   <div class="lp-dr-section lp-dr-engage">
     <div class="lp-dr-lbl">

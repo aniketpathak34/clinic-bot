@@ -23,10 +23,13 @@ FIELD_MASK = ",".join([
     "places.businessStatus",
 ])
 
-# Default search queries — covers Pune's main physio/dental areas.
-# Each query returns up to 20 results. With 8 queries below we get up to 160 candidates,
-# from which we keep the top 20 by score.
+# Default search queries — covers Maharashtra Tier 1 cities × multiple specialties.
+# Each query returns up to 20 places. With ~24 queries below we get up to ~480
+# candidates, dedupe by phone+place_id, score, and keep the top 20 (default).
+# Cost: ~24 Text-Search calls/day × $0.032 = $0.77/day = ~$23/mo (well inside
+# Google Places' $200/mo free credit).
 DEFAULT_QUERIES = [
+    # ─── Pune (highest density of small clinics) ─────────────────
     "physiotherapy clinic Kothrud Pune",
     "physiotherapy clinic Aundh Pune",
     "physiotherapy clinic Baner Pune",
@@ -35,6 +38,24 @@ DEFAULT_QUERIES = [
     "physiotherapy clinic Kalyani Nagar Pune",
     "dental clinic Kothrud Pune",
     "dental clinic Baner Pune",
+    "dental clinic Wakad Pune",
+    "chiropractor clinic Pune",
+    "skin clinic Pune",
+    "gynaecologist clinic Pune",
+    # ─── Mumbai ──────────────────────────────────────────────────
+    "physiotherapy clinic Andheri Mumbai",
+    "physiotherapy clinic Bandra Mumbai",
+    "dental clinic Powai Mumbai",
+    "dental clinic Borivali Mumbai",
+    "skin clinic Bandra Mumbai",
+    # ─── Other Maharashtra Tier 1 cities ─────────────────────────
+    "physiotherapy clinic Thane",
+    "physiotherapy clinic Nashik",
+    "physiotherapy clinic Nagpur",
+    "dental clinic Thane",
+    "dental clinic Aurangabad",
+    "dental clinic Nashik",
+    "skin clinic Nagpur",
 ]
 
 
@@ -48,23 +69,61 @@ EXCLUDE_KEYWORDS = (
 )
 
 
+# Indian landline STD codes for major cities — useful as an extra defense
+# in case a number "looks" mobile (10 digits) but is actually a virtual
+# landline routed through one of these area codes.
+INDIAN_LANDLINE_STD_CODES = {
+    '11',   # Delhi
+    '20',   # Pune
+    '22',   # Mumbai
+    '33',   # Kolkata
+    '40',   # Hyderabad
+    '44',   # Chennai
+    '79',   # Ahmedabad
+    '80',   # Bengaluru
+    '120',  # Noida
+    '124',  # Gurgaon
+    '141',  # Jaipur
+    '161',  # Ludhiana
+    '172',  # Chandigarh
+    '253',  # Nashik
+    '241',  # Ahmednagar
+    '712',  # Nagpur
+    '240',  # Aurangabad
+}
+
+
 def _is_mobile_phone(raw_phone: str) -> bool:
-    """Indian mobile numbers start with 6-9 and have 10 digits.
+    """Indian mobile numbers start with 6-9 and have exactly 10 digits.
 
     Display formats vary: "+91 95599 16655", "095599 16655", "9559916655",
     "020 12345678" (landline). Strip everything except digits, drop the
-    country code (91) and any leading 0, then check the 10-digit form.
+    country code (91) and any leading 0, then check the 10-digit form starts
+    with 6-9 AND doesn't begin with a known landline STD area code.
+
+    WhatsApp Business API can only message true mobile numbers — landlines
+    return delivery errors. Better to filter them out at lead-gen time than
+    burn outreach attempts on dead numbers.
     """
-    digits = ''.join(c for c in raw_phone if c.isdigit())
+    digits = ''.join(c for c in (raw_phone or '') if c.isdigit())
     if not digits:
         return False
     # Strip 91 country code prefix
     if len(digits) == 12 and digits.startswith('91'):
         digits = digits[2:]
-    # Strip leading 0 (Indian landline / mobile display convention)
+    # Strip leading 0 (Indian display convention for both landline + mobile)
     if len(digits) == 11 and digits.startswith('0'):
         digits = digits[1:]
-    return len(digits) == 10 and digits[0] in '6789'
+    # Must be exactly 10 digits starting with 6, 7, 8, or 9
+    if len(digits) != 10 or digits[0] not in '6789':
+        return False
+    # Defense-in-depth: even if 10-digits-starting-with-6-9, reject if it
+    # matches a known landline area-code prefix (some virtual / VoIP numbers
+    # pretend to be mobile but route to landlines).
+    for std in INDIAN_LANDLINE_STD_CODES:
+        if digits.startswith(std):
+            return False
+    return True
 
 
 def _score(place: dict) -> int:
