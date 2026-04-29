@@ -1027,6 +1027,9 @@
     setInterval(refreshAgo, 60000);
 
     // ── Lead detail drawer ─────────────────────────────────
+    // Use the actual admin URL prefix (works whether admin lives at /admin/
+    // or a custom env-configured path like /portal/).
+    var ADMIN_LEAD_PREFIX = "{{ admin_lead_url_prefix|default:'/admin/marketing/lead' }}";
     var dr = document.getElementById('lp-dr');
     var drOvl = document.getElementById('lp-dr-overlay');
     var drBody = document.getElementById('lp-dr-content');
@@ -1048,7 +1051,7 @@
       dr.setAttribute('aria-hidden', 'false');
       drBody.innerHTML = '';
       drLoad.classList.add('show');
-      fetch('/admin/marketing/lead/' + pk + '/drawer/', {
+      fetch(ADMIN_LEAD_PREFIX + '/' + pk + '/drawer/', {
         credentials: 'same-origin'
       }).then(function (r) { return r.text(); }).then(function (html) {
         drLoad.classList.remove('show');
@@ -1089,7 +1092,7 @@
           var fd = new FormData();
           fd.append('status', newStatus);
           fd.append('csrfmiddlewaretoken', getCsrf());
-          fetch('/admin/marketing/lead/' + pk + '/quick-update/', {
+          fetch(ADMIN_LEAD_PREFIX + '/' + pk + '/quick-update/', {
             method: 'POST', body: fd, credentials: 'same-origin',
             headers: { 'X-CSRFToken': getCsrf() }
           }).then(function (r) { return r.json(); }).then(function (data) {
@@ -1130,7 +1133,7 @@
           if (label) label.textContent = 'Drafting…';
           var fd = new FormData();
           fd.append('csrfmiddlewaretoken', getCsrf());
-          fetch('/admin/marketing/lead/' + pk + '/ai-followup/', {
+          fetch(ADMIN_LEAD_PREFIX + '/' + pk + '/ai-followup/', {
             method: 'POST', body: fd, credentials: 'same-origin',
             headers: { 'X-CSRFToken': getCsrf() }
           }).then(function (r) { return r.json(); }).then(function (data) {
@@ -1165,7 +1168,7 @@
             var fd = new FormData();
             fd.append('notes', notes.value);
             fd.append('csrfmiddlewaretoken', getCsrf());
-            fetch('/admin/marketing/lead/' + pk + '/quick-update/', {
+            fetch(ADMIN_LEAD_PREFIX + '/' + pk + '/quick-update/', {
               method: 'POST', body: fd, credentials: 'same-origin',
               headers: { 'X-CSRFToken': getCsrf() }
             }).then(function (r) { return r.json(); }).then(function () {

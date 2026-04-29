@@ -4,7 +4,7 @@ from django.contrib import admin, messages
 from django.db.models import Count
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
-from django.urls import path, reverse
+from django.urls import path, reverse, NoReverseMatch
 from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
@@ -285,6 +285,9 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
         }
         extra_context = extra_context or {}
         extra_context['lead_stats'] = stats
+        # Pass the actual admin URL prefix so the drawer/quick-update/AI-followup
+        # JS calls work whether admin lives at /admin/ or a custom env-set path.
+        extra_context['admin_lead_url_prefix'] = reverse('admin:marketing_lead_changelist').rstrip('/')
         return super().changelist_view(request, extra_context=extra_context)
 
     fieldsets = (
