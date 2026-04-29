@@ -81,10 +81,10 @@ class Lead(models.Model):
         """Public, prospect-specific landing page URL.
 
         Uses MARKETING_PUBLIC_HOST (settable via env) and falls back to the
-        Render-hosted URL so wa.me messages work even if SITE_URL isn't set.
+        production custom domain so wa.me messages always carry the branded URL.
         """
         host = getattr(settings, 'MARKETING_PUBLIC_HOST', '') \
-               or 'https://clinic-bot-web.onrender.com'
+               or 'https://docping.in'
         return f"{host.rstrip('/')}/p/{self.slug or 'demo'}/"
 
     @property
