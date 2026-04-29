@@ -92,6 +92,57 @@ def brand_preview(request):
     return render(request, 'marketing/brand_preview.html')
 
 
+# ────────────────────────────────────────────────────────────────
+# SEO — robots.txt and sitemap.xml served as plain endpoints
+# ────────────────────────────────────────────────────────────────
+
+@require_GET
+def robots_txt(request):
+    """Serve /robots.txt — tells crawlers what to index and where to find sitemap."""
+    from django.http import HttpResponse
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin/\n"
+        "Disallow: /webhook/\n"
+        "Disallow: /api/\n"
+        "Disallow: /p/\n"
+        "Disallow: /brand/\n"
+        "\n"
+        "Sitemap: https://docping.in/sitemap.xml\n"
+    )
+    return HttpResponse(body, content_type='text/plain; charset=utf-8')
+
+
+@require_GET
+def sitemap_xml(request):
+    """Serve /sitemap.xml listing the public pages we want Google to crawl."""
+    from django.http import HttpResponse
+    today = date.today().isoformat()
+    pages = [
+        ('https://docping.in/',                '1.0', 'weekly'),
+        ('https://docping.in/privacy/',        '0.5', 'monthly'),
+        ('https://docping.in/terms/',          '0.5', 'monthly'),
+        ('https://docping.in/data-deletion/',  '0.3', 'monthly'),
+    ]
+    urls = '\n'.join(
+        f'  <url>\n'
+        f'    <loc>{url}</loc>\n'
+        f'    <lastmod>{today}</lastmod>\n'
+        f'    <changefreq>{freq}</changefreq>\n'
+        f'    <priority>{prio}</priority>\n'
+        f'  </url>'
+        for url, prio, freq in pages
+    )
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f'{urls}\n'
+        '</urlset>\n'
+    )
+    return HttpResponse(body, content_type='application/xml; charset=utf-8')
+
+
 @require_GET
 def privacy(request):
     return render(request, 'marketing/privacy.html')

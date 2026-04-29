@@ -3,9 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="WhatsApp appointment booking for Indian clinics. Patients book in seconds. Doctors get instant alerts. No app install.">
-    <title>DocPing — WhatsApp Appointment Booking for Clinics &amp; Hospitals</title>
+
+    {# ─── Primary SEO ─────────────────────────────────────────── #}
+    <title>DocPing — WhatsApp Appointment Booking for Clinics, Hospitals &amp; Doctors across India</title>
+    <meta name="description" content="DocPing — WhatsApp appointment booking software for clinics, hospitals, and doctors across India. Serving Mumbai, Pune, Nagpur, Nashik, Thane, Aurangabad, Bengaluru, Delhi, Hyderabad and beyond. Patients book in 4 taps. Free 30-day pilot.">
+    <meta name="keywords" content="DocPing, WhatsApp clinic booking, WhatsApp doctor appointment, clinic management software India, appointment scheduling India, online doctor booking, hospital OPD booking, clinic SaaS India, WhatsApp Business API, healthcare booking, appointment reminder bot, clinic chatbot, doctor appointment WhatsApp, dental clinic booking, physiotherapy clinic booking, clinic software Mumbai, clinic software Pune, clinic software Nagpur, clinic software Nashik, clinic software Thane, clinic software Aurangabad, clinic software Bengaluru, clinic software Delhi, clinic software Hyderabad, clinic software Chennai, clinic software Ahmedabad, clinic software Kolkata">
+    <meta name="author" content="Aniket Pathak">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="googlebot" content="index, follow">
+    <link rel="canonical" href="https://docping.in/">
+    <meta http-equiv="Content-Language" content="en-IN">
+    <meta name="geo.region" content="IN">
+    <meta name="geo.placename" content="India">
+    <meta name="geo.position" content="20.5937;78.9629">
+    <meta name="ICBM" content="20.5937, 78.9629">
+
+    {# ─── Open Graph (Facebook / LinkedIn / WhatsApp link previews) ─ #}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="DocPing">
+    <meta property="og:title" content="DocPing — WhatsApp Appointment Booking for Clinics in India">
+    <meta property="og:description" content="Patients book in 4 taps via WhatsApp. Doctors get instant alerts. No app install. Free 30-day pilot for Indian clinics.">
+    <meta property="og:url" content="https://docping.in/">
+    <meta property="og:image" content="https://docping.in{% static 'marketing/brand/docping-og.svg' %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="DocPing — WhatsApp appointment booking for clinics">
+    <meta property="og:locale" content="en_IN">
+
+    {# ─── Twitter Card ────────────────────────────────────────── #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="DocPing — WhatsApp Appointment Booking for Clinics in India">
+    <meta name="twitter:description" content="Patients book in 4 taps. Doctors get instant alerts. No app install. Free 30-day pilot.">
+    <meta name="twitter:image" content="https://docping.in{% static 'marketing/brand/docping-og.svg' %}">
+
+    {# ─── Favicon ─────────────────────────────────────────────── #}
     <link rel="icon" type="image/svg+xml" href="{% static 'marketing/brand/docping-icon.svg' %}">
+    <link rel="apple-touch-icon" href="{% static 'marketing/brand/docping-icon.svg' %}">
+
+    {# ─── Schema.org structured data (JSON-LD) — what makes Google rank you ─ #}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://docping.in/#organization",
+          "name": "DocPing",
+          "alternateName": "Doc Ping",
+          "url": "https://docping.in/",
+          "logo": "https://docping.in{% static 'marketing/brand/docping-icon.svg' %}",
+          "description": "WhatsApp-based appointment booking software for Indian clinics, hospitals, and doctors. Patients book in 4 taps. Doctors get instant alerts.",
+          "founder": {
+            "@type": "Person",
+            "name": "Aniket Pathak"
+          },
+          "foundingDate": "2026-01-01",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Pune",
+            "addressRegion": "Maharashtra",
+            "postalCode": "411033",
+            "addressCountry": "IN"
+          },
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+91-7030344210",
+            "contactType": "customer service",
+            "email": "info@docping.in",
+            "availableLanguage": ["English", "Hindi", "Marathi"]
+          },
+          "sameAs": []
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://docping.in/#website",
+          "url": "https://docping.in/",
+          "name": "DocPing",
+          "publisher": {"@id": "https://docping.in/#organization"},
+          "inLanguage": "en-IN"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "DocPing",
+          "operatingSystem": "Web, WhatsApp",
+          "applicationCategory": "BusinessApplication",
+          "applicationSubCategory": "HealthcareApplication",
+          "description": "WhatsApp appointment booking and reminder bot for clinics, hospitals, and doctors across India.",
+          "offers": [
+            {"@type": "Offer", "name": "Free 30-day pilot", "price": "0", "priceCurrency": "INR"},
+            {"@type": "Offer", "name": "Standard plan", "price": "999", "priceCurrency": "INR", "priceValidUntil": "2027-12-31"}
+          ],
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "5.0",
+            "reviewCount": "1"
+          }
+        },
+        {
+          "@type": "Service",
+          "name": "WhatsApp Clinic Appointment Booking",
+          "provider": {"@id": "https://docping.in/#organization"},
+          "serviceType": "Healthcare appointment scheduling software",
+          "audience": {
+            "@type": "Audience",
+            "audienceType": "Clinics, hospitals, doctors, dental clinics, physiotherapy clinics, diagnostic labs, veterinary clinics"
+          },
+          "areaServed": [
+            {"@type": "Country", "name": "India"},
+            {"@type": "State", "name": "Maharashtra", "containedInPlace": {"@type": "Country", "name": "India"}},
+            {"@type": "City", "name": "Mumbai", "containedInPlace": {"@type": "State", "name": "Maharashtra"}},
+            {"@type": "City", "name": "Pune", "containedInPlace": {"@type": "State", "name": "Maharashtra"}},
+            {"@type": "City", "name": "Nagpur", "containedInPlace": {"@type": "State", "name": "Maharashtra"}},
+            {"@type": "City", "name": "Nashik", "containedInPlace": {"@type": "State", "name": "Maharashtra"}},
+            {"@type": "City", "name": "Thane", "containedInPlace": {"@type": "State", "name": "Maharashtra"}},
+            {"@type": "City", "name": "Aurangabad", "containedInPlace": {"@type": "State", "name": "Maharashtra"}},
+            {"@type": "City", "name": "Solapur", "containedInPlace": {"@type": "State", "name": "Maharashtra"}},
+            {"@type": "City", "name": "Bengaluru", "containedInPlace": {"@type": "State", "name": "Karnataka"}},
+            {"@type": "City", "name": "Delhi"},
+            {"@type": "City", "name": "Hyderabad", "containedInPlace": {"@type": "State", "name": "Telangana"}},
+            {"@type": "City", "name": "Chennai", "containedInPlace": {"@type": "State", "name": "Tamil Nadu"}},
+            {"@type": "City", "name": "Ahmedabad", "containedInPlace": {"@type": "State", "name": "Gujarat"}},
+            {"@type": "City", "name": "Kolkata", "containedInPlace": {"@type": "State", "name": "West Bengal"}}
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How does DocPing work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Patients message your clinic's WhatsApp number, the DocPing bot collects their preferred date and time, and books the appointment in 4 taps. The doctor gets an instant WhatsApp alert. No app install for patients, no new software for staff."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which clinics can use DocPing?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "DocPing works for any medical practice in India: general clinics, dental clinics, physiotherapy clinics, dermatology, paediatric clinics, gynaecology clinics, hospital OPDs, diagnostic labs, and veterinary clinics."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What does DocPing cost?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Free 30-day pilot for the first 3 clinics in Pune. Paid plans start at ₹499/month after the pilot. No setup fees, no contracts, cancel anytime."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Do patients need to install an app?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No app install required. Patients book through their existing WhatsApp app. Works on any phone — Android, iPhone, even basic smartphones."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which Indian languages does DocPing support?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "DocPing currently supports English, Hindi, and Marathi. More Indian languages are being added based on clinic requests."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">

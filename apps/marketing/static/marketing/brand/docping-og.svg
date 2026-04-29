@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Open Graph share image — 1200×630 (Facebook/LinkedIn/WhatsApp/Twitter).
+  Shown when someone shares a docping.in link in chat or social.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="ogGlow" cx="80%" cy="20%" r="60%">
+      <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0a0a0f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ogTitle" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fafafa"/>
+      <stop offset="100%" stop-color="#a1a1aa"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0a0a0f"/>
+  <rect width="1200" height="630" fill="url(#ogGlow)"/>
+
+  <!-- DP monogram top-left -->
+  <g transform="translate(80, 80)">
+    <rect width="120" height="120" rx="24" fill="#0a0a0f" stroke="#26262f" stroke-width="2"/>
+    <!-- Mini DP letterform -->
+    <g transform="translate(0, 0) scale(0.117)">
+      <g fill="#fafafa">
+        <rect x="232" y="280" width="64" height="464" rx="16"/>
+        <path d="M 296 280 L 380 280 C 480 280, 540 360, 540 512 C 540 664, 480 744, 380 744 L 296 744 L 296 680 L 380 680 C 432 680, 476 624, 476 512 C 476 400, 432 344, 380 344 L 296 344 Z"/>
+      </g>
+      <g fill="#22d3ee">
+        <rect x="600" y="280" width="64" height="464" rx="16"/>
+        <path d="M 664 280 L 748 280 C 848 280, 908 340, 908 416 C 908 492, 848 552, 748 552 L 664 552 L 664 488 L 748 488 C 800 488, 844 460, 844 416 C 844 372, 800 344, 748 344 L 664 344 Z"/>
+      </g>
+    </g>
+    <text x="150" y="50" font-family="Inter, sans-serif" font-weight="800" font-size="32" fill="#fafafa">Doc<tspan fill="#22d3ee">Ping</tspan></text>
+    <text x="150" y="85" font-family="JetBrains Mono, monospace" font-size="14" fill="#71717a">docping.in</text>
+  </g>
+
+  <!-- Headline -->
+  <g transform="translate(80, 280)">
+    <text font-family="Inter, sans-serif" font-weight="900" font-size="72" fill="url(#ogTitle)" letter-spacing="-2">
+      <tspan x="0" y="0">WhatsApp appointment</tspan>
+      <tspan x="0" y="90">booking for Indian clinics</tspan>
+    </text>
+  </g>
+
+  <!-- Sub -->
+  <text x="80" y="500" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#a1a1aa">
+    Patients book in 4 taps · Doctors get instant alerts · No app install
+  </text>
+
+  <!-- Footer pills -->
+  <g transform="translate(80, 540)" font-family="JetBrains Mono, monospace" font-size="16" fill="#22d3ee">
+    <rect x="0" y="0" width="190" height="36" rx="18" fill="none" stroke="#22d3ee" stroke-opacity="0.3"/>
+    <text x="20" y="24">✓ Free 30-day pilot</text>
+
+    <rect x="210" y="0" width="170" height="36" rx="18" fill="none" stroke="#22d3ee" stroke-opacity="0.3"/>
+    <text x="230" y="24">✓ Made in India</text>
+
+    <rect x="400" y="0" width="200" height="36" rx="18" fill="none" stroke="#22d3ee" stroke-opacity="0.3"/>
+    <text x="420" y="24">✓ DPDP-compliant</text>
+  </g>
+</svg>
