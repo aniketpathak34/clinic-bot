@@ -87,6 +87,12 @@ def landing(request):
 # ────────────────────────────────────────────────────────────────
 
 @require_GET
+def brand_preview(request):
+    """Internal logo concepts preview — not linked from anywhere public."""
+    return render(request, 'marketing/brand_preview.html')
+
+
+@require_GET
 def privacy(request):
     return render(request, 'marketing/privacy.html')
 
