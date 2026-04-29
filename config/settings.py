@@ -133,6 +133,11 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 # in the URL path: /webhook/cron/<CRON_SECRET>/<task>/). See apps/notifications/views.py
 CRON_SECRET = os.getenv('CRON_SECRET', '')
 
+# Admin URL path — set to something non-guessable in production so bots can't
+# scan /admin/ for login attempts. Defaults to 'admin' for local dev.
+# Example production value: 'dp-control-x7k2v9' (any string, no leading/trailing slash).
+ADMIN_URL_PATH = os.getenv('ADMIN_URL_PATH', 'admin').strip('/')
+
 # Google Places API (lead generation)
 GOOGLE_PLACES_API_KEY = os.getenv('GOOGLE_PLACES_API_KEY', '')
 

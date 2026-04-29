@@ -59,6 +59,11 @@ services:
       # (POST /webhook/cron/<CRON_SECRET>/<task>/)
       - key: CRON_SECRET
         sync: false
+      # Hide the Django admin behind a non-guessable URL path.
+      # Set to something random in Render dashboard, e.g. dp-control-x7k2v9
+      # /admin/ then returns 404; the real admin lives at /<ADMIN_URL_PATH>/.
+      - key: ADMIN_URL_PATH
+        sync: false
       # Test clinic seed (optional — used by build.sh to auto-create TEST01)
       - key: TEST_CLINIC_PHONE_NUMBER_ID
         sync: false

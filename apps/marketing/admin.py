@@ -47,10 +47,31 @@ class LeadAdmin(admin.ModelAdmin):
     list_filter = ('status', 'rating')
     search_fields = ('name', 'phone', 'address')
     readonly_fields = ('place_id', 'last_seen_at', 'created_at')
-    ordering = ('-score', '-created_at')
+    # Newest leads on top — most recently scraped or added to the DB.
+    ordering = ('-created_at',)
     actions = ['mark_as_sent', 'mark_as_replied', 'mark_as_not_interested']
     change_list_template = 'admin/marketing/lead/change_list.html'
-    list_per_page = 50
+    list_per_page = 20
+
+    # ─── Smarter search: strip non-digits when the term looks like a phone ───
+
+    def get_search_results(self, request, queryset, search_term):
+        """Make phone search forgiving — strip spaces, dashes, plus signs.
+
+        If the user types '+91 70303 44210' or '70303-44210' or '7030344210',
+        we extract just the digits and match against the stored phone field
+        (which is digits-only with country code, e.g. '917030344210').
+        Falls back to the original term for non-numeric searches (name/address).
+        """
+        import re
+        if search_term and re.search(r'\d{5,}', search_term):
+            digits = re.sub(r'\D', '', search_term)
+            if digits:
+                # Run both: digits-only AND original term, then union the results.
+                qs_digits, _ = super().get_search_results(request, queryset, digits)
+                qs_orig, _ = super().get_search_results(request, queryset, search_term)
+                return (qs_digits | qs_orig).distinct(), True
+        return super().get_search_results(request, queryset, search_term)
 
     # ─── Custom admin URL: "Run lead-gen now" ─────────────────────
 
