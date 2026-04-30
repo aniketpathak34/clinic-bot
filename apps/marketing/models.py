@@ -58,6 +58,16 @@ class Lead(models.Model):
         blank=True,
         help_text="Most recent AI-drafted follow-up message (Groq); operator reviews then sends",
     )
+    last_followup_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Last time the operator clicked a follow-up template button — "
+                  "used to suppress action pill during the cooldown period.",
+    )
+    last_followup_template = models.CharField(
+        max_length=40, blank=True,
+        help_text="Which template was used for the most recent follow-up "
+                  "(engaged / 3day / 7day / replied_silent).",
+    )
 
     class Meta:
         ordering = ['-score', '-created_at']
@@ -90,6 +100,10 @@ class Lead(models.Model):
     # Used by the admin list to show "🎯 Action" column + the drawer to
     # auto-highlight the right template button.
 
+    # Cooldown after a follow-up is sent — don't surface another action pill
+    # until this many days have passed (gives the prospect time to respond).
+    FOLLOWUP_COOLDOWN_DAYS = 3
+
     def followup_status(self) -> dict | None:
         from datetime import timedelta
         from django.utils import timezone
@@ -100,6 +114,15 @@ class Lead(models.Model):
             return None
 
         now = timezone.now()
+
+        # Cooldown: if a follow-up was sent recently, hide the action pill
+        # until cooldown expires (so the operator isn't nagged to re-send
+        # the same template moments after sending it).
+        if self.last_followup_at:
+            days_since_followup = (now - self.last_followup_at).days
+            if days_since_followup < self.FOLLOWUP_COOLDOWN_DAYS:
+                return None
+
         contacted = self.contacted_at or self.created_at
         if not contacted:
             return None

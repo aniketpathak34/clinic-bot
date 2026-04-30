@@ -51,6 +51,7 @@
     <div class="lp-dr-lbl">Follow-up templates</div>
     <div class="lp-dr-followup-grid">
       <a href="{{ lead.followup_engaged_link }}" target="_blank"
+         data-followup="engaged" data-pk="{{ lead.pk }}"
          class="lp-dr-followup-btn{% if followup_action.template == 'followup_engaged_link' %} lp-dr-followup-recommended{% endif %}"
          title="Best opener if they OPENED your personalised page but didn't reply">
         <span class="lp-dr-followup-emoji">🔥</span>
@@ -60,6 +61,7 @@
         </div>
       </a>
       <a href="{{ lead.followup_3day_link }}" target="_blank"
+         data-followup="3day" data-pk="{{ lead.pk }}"
          class="lp-dr-followup-btn{% if followup_action.template == 'followup_3day_link' %} lp-dr-followup-recommended{% endif %}"
          title="3 days since outreach, no engagement">
         <span class="lp-dr-followup-emoji">📩</span>
@@ -69,6 +71,7 @@
         </div>
       </a>
       <a href="{{ lead.followup_7day_link }}" target="_blank"
+         data-followup="7day" data-pk="{{ lead.pk }}"
          class="lp-dr-followup-btn{% if followup_action.template == 'followup_7day_link' %} lp-dr-followup-recommended{% endif %}"
          title="7-10 days quiet — last polite ping with social proof">
         <span class="lp-dr-followup-emoji">⏰</span>
@@ -78,6 +81,7 @@
         </div>
       </a>
       <a href="{{ lead.followup_replied_silent_link }}" target="_blank"
+         data-followup="replied_silent" data-pk="{{ lead.pk }}"
          class="lp-dr-followup-btn{% if followup_action.template == 'followup_replied_silent_link' %} lp-dr-followup-recommended{% endif %}"
          title="They replied once then went silent">
         <span class="lp-dr-followup-emoji">💬</span>

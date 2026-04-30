@@ -466,16 +466,26 @@
   }
 
   /* Object-tools (top-right) */
+  /* Pull the object-tools (Run lead-gen / Scheduled / + New lead) UP into
+     the search-bar row so they share one clean toolbar instead of stacking
+     on their own line. */
+  body.change-list #changelist {
+    position: relative;  /* anchor for absolute-positioned object-tools */
+  }
   body.change-list #content-main .object-tools {
+    position: absolute !important;
+    top: 11px !important;
+    right: 18px !important;
     margin: 0 !important; float: none !important;
     display: flex; gap: 8px; flex-wrap: wrap;
+    z-index: 5;
   }
   body.change-list .object-tools li { list-style: none !important; }
   body.change-list .object-tools a {
-    background: var(--surface) !important; color: var(--text-muted) !important;
+    background: var(--surface-2) !important; color: var(--text-muted) !important;
     border: 1px solid var(--border) !important;
-    padding: 9px 16px !important; border-radius: 8px !important;
-    font-size: 13px !important; font-weight: 500 !important;
+    padding: 8px 14px !important; border-radius: 8px !important;
+    font-size: 12px !important; font-weight: 500 !important;
     text-transform: none !important; letter-spacing: 0 !important;
     box-shadow: none !important; text-decoration: none !important; line-height: 1 !important;
     transition: all .18s cubic-bezier(.4,0,.2,1) !important;
@@ -582,7 +592,7 @@
 
   /* ─── Status chips ──────────────────────────────────────────── */
   .lp-chips {
-    display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; align-items: center;
+    display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; align-items: center;
   }
   .lp-chips .lbl {
     font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
@@ -614,6 +624,17 @@
   body.change-list #toolbar {
     background: transparent !important; border-bottom: 1px solid var(--border) !important;
     padding: 14px 18px !important; float: none !important;
+    /* Reserve space on the right for the absolutely-positioned object-tools
+       (Run lead-gen, Scheduled, + New lead). Adjust if toolbar wraps. */
+    padding-right: 360px !important;
+  }
+  @media (max-width: 900px) {
+    /* On smaller screens, let object-tools wrap below */
+    body.change-list #content-main .object-tools {
+      position: static !important;
+      margin-bottom: 12px !important;
+    }
+    body.change-list #toolbar { padding-right: 18px !important; }
   }
   body.change-list #toolbar form#changelist-search {
     display: flex; gap: 8px; align-items: center;
@@ -895,6 +916,14 @@
      class="{% if request.GET.status__exact == 'pilot' %}active{% endif %}">Pilot <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.pilot|default:0 }}</span></a>
   <a href="?status__exact=not_interested{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
      class="{% if request.GET.status__exact == 'not_interested' %}active{% endif %}">Lost <span style="opacity:.55;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.by_status.not_interested|default:0 }}</span></a>
+  <span style="color:var(--border-strong);margin:0 4px;">|</span>
+  <a href="?needs_followup=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
+     class="lp-chip-action {% if filter_needs_followup %}active{% endif %}"
+     style="border-color: rgba(239,68,68,.4); color: #fca5a5;"
+     title="Leads where the recommended action has reset (cooldown expired or new engagement)">
+     🎯 Needs follow-up
+     <span style="opacity:.6;margin-left:4px;font-family:JetBrains Mono,monospace;">{{ lead_stats.action_total }}</span>
+  </a>
 </div>
 
 {# Lead detail drawer #}
@@ -1118,6 +1147,23 @@
               }
             }
           });
+        });
+      });
+
+      // Track follow-up template clicks → record timestamp on lead so the
+      // "🎯 Action" pill respects the 3-day cooldown before re-suggesting.
+      drBody.querySelectorAll('[data-followup]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          // Don't preventDefault — let the wa.me link open in new tab.
+          // Fire-and-forget POST in the background.
+          var fd = new FormData();
+          fd.append('template', btn.getAttribute('data-followup'));
+          fd.append('csrfmiddlewaretoken', getCsrf());
+          fetch(ADMIN_LEAD_PREFIX + '/' + pk + '/followup-taken/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCsrf() },
+            keepalive: true,  // request continues even if tab navigates
+          }).catch(function () { /* fire-and-forget — ignore errors */ });
         });
       });
 

@@ -98,8 +98,33 @@ class LeadAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.ai_followup_view),
                 name='marketing_lead_ai_followup',
             ),
+            path(
+                '<int:pk>/followup-taken/',
+                self.admin_site.admin_view(self.followup_taken_view),
+                name='marketing_lead_followup_taken',
+            ),
         ]
         return custom + urls
+
+    @staticmethod
+    @require_POST
+    def followup_taken_view(request, pk):
+        """Record that the operator clicked a follow-up template button.
+
+        Called via fire-and-forget fetch() from the drawer — sets
+        last_followup_at + last_followup_template on the lead so the
+        action pill respects the cooldown period.
+        """
+        lead = get_object_or_404(Lead, pk=pk)
+        template = request.POST.get('template', '')[:40]
+        lead.last_followup_at = timezone.now()
+        lead.last_followup_template = template
+        lead.save(update_fields=['last_followup_at', 'last_followup_template'])
+        return JsonResponse({
+            'ok': True,
+            'recorded_at': lead.last_followup_at.isoformat(),
+            'template': lead.last_followup_template,
+        })
 
     def drawer_view(self, request, pk):
         lead = get_object_or_404(Lead, pk=pk)
@@ -239,7 +264,24 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
 
     # ─── Stat strip shown above the changelist table ─────────────
 
+    def get_queryset(self, request):
+        """Hook the 'needs_followup' URL param (stashed on the request by
+        changelist_view) to filter to leads needing action right now."""
+        qs = super().get_queryset(request)
+        if getattr(request, '_filter_needs_followup', False):
+            ids = [l.pk for l in qs if l.followup_status() is not None]
+            qs = qs.filter(pk__in=ids)
+        return qs
+
     def changelist_view(self, request, extra_context=None):
+        # Pop our custom param BEFORE Django admin's ChangeList validates
+        # query params (unknown params trigger a redirect with ?e=1 error).
+        request._filter_needs_followup = request.GET.get('needs_followup') == '1'
+        if request._filter_needs_followup:
+            get = request.GET.copy()
+            get.pop('needs_followup', None)
+            request.GET = get
+
         today = date.today()
         week_ago = today - timedelta(days=7)
         now = timezone.now()
@@ -288,6 +330,8 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
         # Pass the actual admin URL prefix so the drawer/quick-update/AI-followup
         # JS calls work whether admin lives at /admin/ or a custom env-set path.
         extra_context['admin_lead_url_prefix'] = reverse('admin:marketing_lead_changelist').rstrip('/')
+        # Pass our custom filter state to the template (since we popped it from GET).
+        extra_context['filter_needs_followup'] = getattr(request, '_filter_needs_followup', False)
         return super().changelist_view(request, extra_context=extra_context)
 
     fieldsets = (
