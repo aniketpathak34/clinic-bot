@@ -227,14 +227,13 @@ class Lead(models.Model):
     def whatsapp_link(self) -> str:
         """Pre-filled wa.me link with the standard outreach message."""
         msg = (
-            f"Namaste! I'm Aniket from Pune. Saw *{self.name}* online — great reviews! 🙏\n\n"
+            f"Hello! I'm Aniket. Saw *{self.name}* online — great reviews! 🙏\n\n"
             "I've built a WhatsApp bot that takes patient appointments 24×7 — "
             "no app for your patients, no new software for your staff.\n\n"
-            "I put together a quick page just for your clinic 👇\n"
+            "Put together a quick page just for your clinic 👇\n"
             f"{self.landing_url}\n\n"
-            "I'm offering a *free 30-day pilot to 3 clinics* in Pune — no card, no contract.\n\n"
-            "Would you be open to a 10-min chat this week?\n\n"
-            "— Aniket | +91 7030344210"
+            "Offering a *free 30-day pilot* — no card, no contract.\n\n"
+            "Open to a 10-min chat this week?"
         )
         return f"https://wa.me/{self.phone}?text={quote(msg)}"
 
@@ -253,7 +252,7 @@ class Lead(models.Model):
         """Best opener if they OPENED the personalised page but didn't reply
         (high-intent — give them the numbers they came for)."""
         msg = (
-            f"Hey {self.name}, Aniket here from *DocPing*. 🙏\n\n"
+            f"Hey {self.name}, Aniket from *DocPing* here. 🙏\n\n"
             "Saw you checked out the page I sent — wanted to make sure you "
             "had what you needed.\n\n"
             f"Quick recap — DocPing is a WhatsApp bot that books patient "
@@ -262,10 +261,9 @@ class Lead(models.Model):
             f"  • ~30% of calls go missed after-hours\n"
             f"  • That's ~₹{self.estimated_monthly_recovery:,}/month in lost bookings\n"
             f"  • DocPing recovers them at ₹999/month\n\n"
-            "Page is still live for you 👇\n"
+            "Page still live 👇\n"
             f"{self.landing_url}\n\n"
-            "10-min call this week? Free to share what'd actually help.\n\n"
-            "— Aniket | +91 7030344210"
+            "10-min call this week? Happy to share what'd actually help."
         )
         return self._wa_url(msg)
 
@@ -281,8 +279,7 @@ class Lead(models.Model):
             "Short version: patients book in 4 taps, your front desk doesn't "
             "lift a finger. Free 30-day pilot, no card, no contract.\n\n"
             f"Custom page for your clinic 👇\n{self.landing_url}\n\n"
-            "Worth a 10-min look? Reply 'yes' or 'later' and I'll respect either.\n\n"
-            "— Aniket"
+            "Worth a 10-min look? Reply 'yes' or 'later' and I'll respect either."
         )
         return self._wa_url(msg)
 
@@ -293,15 +290,14 @@ class Lead(models.Model):
             f"Hi {self.name}, Aniket from *DocPing* one last time. 🙏\n\n"
             "If WhatsApp booking isn't a fit for your clinic right now, totally "
             "understand — happy to leave you alone.\n\n"
-            "If you ARE curious, here's what 3 Pune clinics on the pilot are "
+            "If you ARE curious, here's what 3 clinics on the pilot are "
             "saying after week 1:\n\n"
             "  ✅ \"Front desk saved 2 hrs/day on phone calls\"\n"
             "  ✅ \"Recovered 4 missed bookings in week 1\"\n"
             "  ✅ \"Patients love the Hindi/Marathi flow\"\n\n"
             f"Page still live 👇\n{self.landing_url}\n\n"
             "Just reply 'not now' if you want me to stop, or 'tell me more' "
-            "if you're game.\n\n"
-            "— Aniket | +91 7030344210"
+            "if you're game."
         )
         return self._wa_url(msg)
 
@@ -316,8 +312,7 @@ class Lead(models.Model):
             "2️⃣  Watch the demos on our home page — https://docping.in\n"
             "3️⃣  10-min Zoom call where I walk you through it\n\n"
             f"Custom page for {self.name}: {self.landing_url}\n\n"
-            "Free 30-day pilot is still open. Pick one and we'll move forward.\n\n"
-            "— Aniket"
+            "Free 30-day pilot is still open. Pick one and we'll move forward."
         )
         return self._wa_url(msg)
 

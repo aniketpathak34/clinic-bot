@@ -84,7 +84,7 @@ class Command(BaseCommand):
         updated = []
         for field, env_key, default in [
             ('bot_number', 'DJANGO_SUPERUSER_BOT_NUMBER', '15551773718'),
-            ('contact_number', 'DJANGO_SUPERUSER_CONTACT_NUMBER', '917030344210'),
+            ('contact_number', 'DJANGO_SUPERUSER_CONTACT_NUMBER', '917020162229'),
             ('contact_name', 'DJANGO_SUPERUSER_CONTACT_NAME', 'Aniket'),
         ]:
             if not getattr(user, field, ''):

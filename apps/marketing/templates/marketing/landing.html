@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static marketing_extras %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -67,7 +67,7 @@
           },
           "contactPoint": {
             "@type": "ContactPoint",
-            "telephone": "+91-7030344210",
+            "telephone": "+91-7020162229",
             "contactType": "customer service",
             "email": "info@docping.in",
             "availableLanguage": ["English", "Hindi", "Marathi"]
@@ -703,7 +703,7 @@
                     <div class="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
                         <span class="w-2 h-2 rounded-full bg-green-500"></span> Talk to me
                     </div>
-                    <div class="mt-1 font-bold text-slate-900">+{{ contact_number }}</div>
+                    <div class="mt-1 font-bold text-slate-900">{{ contact_number|pretty_phone }}</div>
                     <div class="mt-1 text-sm text-slate-600">Onboarding, pricing, custom requests — message me directly.</div>
                 </a>
                 {% endif %}
@@ -713,7 +713,7 @@
                     <div class="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
                         <span class="live-dot"></span> Try the bot
                     </div>
-                    <div class="mt-1 font-bold text-slate-900">+{{ bot_number }}</div>
+                    <div class="mt-1 font-bold text-slate-900">{{ bot_number|pretty_phone }}</div>
                     <div class="mt-1 text-sm text-slate-600">Message "hi" to see the patient flow live — it responds in seconds.</div>
                 </a>
                 {% endif %}

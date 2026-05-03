@@ -782,6 +782,44 @@
   }
   body.change-list .submit-row input:hover { background: var(--accent-hover) !important; }
 
+  /* Mobile: pin Save bar to bottom of viewport so it's always reachable */
+  @media (max-width: 900px) {
+    body.change-list .submit-row {
+      position: fixed !important;
+      bottom: 0 !important; left: 0 !important; right: 0 !important;
+      z-index: 100 !important;
+      padding: 12px 14px !important;
+      box-shadow: 0 -8px 24px rgba(0,0,0,.5) !important;
+      backdrop-filter: blur(8px);
+    }
+    body.change-list .submit-row input {
+      width: 100% !important; padding: 12px 18px !important;
+      font-size: 14px !important;
+    }
+    /* Push content up so the fixed Save bar doesn't overlap last row */
+    body.change-list #content { padding-bottom: 90px !important; }
+  }
+
+  /* Floating Save FAB — always visible on the changelist when there are
+     editable rows. Submits the same #changelist-form as the bottom Save. */
+  #lp-fab-save-list {
+    position: fixed !important;
+    right: 16px !important; bottom: 88px !important;
+    z-index: 9999 !important;
+    background: var(--accent) !important; color: #06060a !important;
+    border: 0 !important; border-radius: 999px !important;
+    font-weight: 700 !important; font-size: 14px !important;
+    padding: 12px 22px !important; cursor: pointer !important;
+    box-shadow: 0 10px 30px rgba(34,211,238,.45),
+                0 4px 12px rgba(0,0,0,.4) !important;
+    display: inline-flex !important; align-items: center !important; gap: 6px !important;
+    transition: transform .15s ease !important;
+  }
+  #lp-fab-save-list:active { transform: scale(.97); }
+  @media (max-width: 900px) {
+    #lp-fab-save-list { bottom: 78px !important; }
+  }
+
   /* Pagination */
   body.change-list .paginator {
     padding: 14px 18px !important; border-top: 1px solid var(--border) !important;
@@ -1369,6 +1407,27 @@
       });
     }
     } // end init
+  })();
+
+  // Floating Save FAB for the changelist's bulk-edit form. Only injected
+  // when the page actually has editable rows (i.e. the bottom .submit-row
+  // exists), and removed if the operator hasn't changed anything yet —
+  // we toggle it as soon as a Status select changes.
+  (function () {
+    document.addEventListener('DOMContentLoaded', function () {
+      var form = document.getElementById('changelist-form');
+      var bottomSave = document.querySelector('.submit-row input[name="_save"], .submit-row input[type="submit"]');
+      if (!form || !bottomSave) return;
+
+      var fab = document.createElement('button');
+      fab.id = 'lp-fab-save-list';
+      fab.type = 'submit';
+      fab.name = '_save';
+      fab.value = 'Save';
+      fab.setAttribute('form', 'changelist-form');
+      fab.innerHTML = '<span style="font-size:15px;line-height:1;">✓</span><span>Save</span>';
+      document.body.appendChild(fab);
+    });
   })();
 </script>
 {% endblock %}

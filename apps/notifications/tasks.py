@@ -317,3 +317,22 @@ def fetch_daily_leads(top_n: int = 20):
     except Exception as e:
         logger.exception(f"[lead-gen] Failed: {e}")
         raise
+
+
+@shared_task
+def generate_monthly_slots():
+    """Fill AvailableSlot rows for the demo doctor for the entire current month.
+
+    Triggered by the monthly GitHub Actions cron (1st of each month). Idempotent
+    — get_or_create on (doctor, date, time) so re-runs are no-ops.
+    """
+    from io import StringIO
+    from django.core.management import call_command
+    out = StringIO()
+    try:
+        call_command('generate_monthly_slots', stdout=out, stderr=out)
+        result = (out.getvalue() or '').strip().splitlines()
+        return result[-1] if result else ''
+    except Exception as e:
+        logger.exception(f"[monthly-slots] Failed: {e}")
+        raise

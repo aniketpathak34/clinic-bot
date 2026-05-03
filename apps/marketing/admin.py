@@ -49,7 +49,8 @@ class LeadAdmin(admin.ModelAdmin):
     readonly_fields = ('place_id', 'last_seen_at', 'created_at')
     # Newest leads on top — most recently scraped or added to the DB.
     ordering = ('-created_at',)
-    actions = ['mark_as_sent', 'mark_as_replied', 'mark_as_not_interested']
+    actions = ['bulk_whatsapp_queue', 'mark_as_sent', 'mark_as_replied',
+               'mark_as_not_interested']
     change_list_template = 'admin/marketing/lead/change_list.html'
     list_per_page = 20
 
@@ -58,9 +59,9 @@ class LeadAdmin(admin.ModelAdmin):
     def get_search_results(self, request, queryset, search_term):
         """Make phone search forgiving — strip spaces, dashes, plus signs.
 
-        If the user types '+91 70303 44210' or '70303-44210' or '7030344210',
+        If the user types '+91 70303 44210' or '70303-44210' or '7020162229',
         we extract just the digits and match against the stored phone field
-        (which is digits-only with country code, e.g. '917030344210').
+        (which is digits-only with country code, e.g. '917020162229').
         Falls back to the original term for non-numeric searches (name/address).
         """
         import re
@@ -102,6 +103,11 @@ class LeadAdmin(admin.ModelAdmin):
                 '<int:pk>/followup-taken/',
                 self.admin_site.admin_view(self.followup_taken_view),
                 name='marketing_lead_followup_taken',
+            ),
+            path(
+                'bulk-whatsapp/',
+                self.admin_site.admin_view(self.bulk_whatsapp_view),
+                name='marketing_lead_bulk_whatsapp',
             ),
         ]
         return custom + urls
@@ -491,6 +497,46 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
     age_display.admin_order_field = 'created_at'
 
     # ─── Bulk actions ────────────────────────────────────────────
+
+    def bulk_whatsapp_queue(self, request, queryset):
+        """Redirect to a mobile-friendly queue page with one row per selected
+        lead. Operator taps Send → WhatsApp opens the pre-filled chat → comes
+        back → taps 'mark sent' → moves to the next.
+
+        wa.me only opens one chat at a time, so true 'broadcast' isn't possible
+        from a deep link; this is the best UX we can give on mobile.
+        """
+        ids = ','.join(str(pk) for pk in queryset.values_list('pk', flat=True))
+        url = reverse('admin:marketing_lead_bulk_whatsapp') + f'?ids={ids}'
+        return HttpResponseRedirect(url)
+    bulk_whatsapp_queue.short_description = "📲 Send WhatsApp to selected (one-by-one)"
+
+    def bulk_whatsapp_view(self, request):
+        """Render the WhatsApp send queue. Two modes:
+
+        - GET (with ?ids=1,2,3): show the queue page.
+        - POST (with pk): mark a lead as sent and bump contacted_at.
+        """
+        if request.method == 'POST':
+            pk = request.POST.get('pk')
+            lead = get_object_or_404(Lead, pk=pk)
+            now = timezone.now()
+            update_fields = ['contacted_at']
+            lead.contacted_at = now
+            if lead.status == 'new':
+                lead.status = 'sent'
+                update_fields.append('status')
+            lead.save(update_fields=update_fields)
+            return JsonResponse({'ok': True, 'status': lead.status})
+
+        ids_raw = request.GET.get('ids', '')
+        ids = [int(x) for x in ids_raw.split(',') if x.strip().isdigit()]
+        leads = list(Lead.objects.filter(pk__in=ids).order_by('-score', 'name'))
+        return render(request, 'admin/marketing/lead/bulk_whatsapp.html', {
+            'leads': leads,
+            'count': len(leads),
+            'admin_lead_url_prefix': reverse('admin:marketing_lead_changelist').rstrip('/'),
+        })
 
     def mark_as_sent(self, request, queryset):
         updated = queryset.update(status='sent', contacted_at=timezone.now())

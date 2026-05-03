@@ -1,0 +1,233 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}WhatsApp send queue — {{ count }} clinic{{ count|pluralize }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #14141b; --surface-2: #1c1c25;
+    --border: #26262f; --text: #f4f4f5; --text-muted: #a1a1aa; --text-dim: #71717a;
+    --accent: #22d3ee; --accent-hover: #67e8f9;
+    --green: #25d366; --green-hover: #1ebe5a;
+    --red: #ef4444;
+  }
+  body, body * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+  body { background: var(--bg); color: var(--text); margin: 0; }
+
+  /* Hide Django admin chrome */
+  #header, .breadcrumbs, #footer { display: none !important; }
+  #container { background: var(--bg) !important; padding: 0 !important; max-width: none !important; }
+  #content { padding: 0 !important; margin: 0 !important; }
+
+  .bw-wrap { max-width: 720px; margin: 0 auto; padding: 16px 14px 100px; }
+
+  .bw-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 2px 18px; gap: 12px;
+  }
+  .bw-head h1 {
+    margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.02em;
+    color: var(--text);
+  }
+  .bw-head .sub {
+    color: var(--text-dim); font-size: 12px; margin-top: 2px;
+  }
+  .bw-back {
+    color: var(--text-muted); text-decoration: none; font-size: 13px;
+    padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .bw-progress {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+  }
+  .bw-progress-num { font-weight: 700; color: var(--accent); font-size: 15px; }
+  .bw-progress-bar {
+    flex: 1; height: 6px; background: var(--surface-2); border-radius: 999px;
+    overflow: hidden;
+  }
+  .bw-progress-fill {
+    height: 100%; background: var(--accent); border-radius: 999px;
+    transition: width .3s ease; width: 0%;
+  }
+
+  .bw-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .bw-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px;
+    transition: all .25s ease;
+  }
+  .bw-card.done {
+    background: var(--surface-2); opacity: .55;
+  }
+  .bw-card.done .bw-card-body { display: none; }
+  .bw-card.done .bw-card-name { text-decoration: line-through; }
+
+  .bw-card-top {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .bw-card-name {
+    flex: 1; min-width: 0;
+    font-weight: 600; font-size: 14px; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bw-card-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; padding: 3px 7px; border-radius: 6px;
+    background: rgba(34,211,238,.1); color: var(--accent);
+    font-weight: 700;
+  }
+  .bw-card-meta {
+    color: var(--text-dim); font-size: 12px; margin-top: 4px;
+  }
+  .bw-card-meta .dot { margin: 0 6px; opacity: .5; }
+
+  .bw-card-body {
+    display: flex; gap: 8px; margin-top: 12px;
+  }
+  .bw-btn {
+    flex: 1; padding: 12px 14px; border-radius: 10px;
+    border: 0; font-size: 14px; font-weight: 600; cursor: pointer;
+    text-decoration: none; text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all .15s ease;
+  }
+  .bw-btn-send {
+    background: var(--green); color: #fff;
+  }
+  .bw-btn-send:active { background: var(--green-hover); }
+  .bw-btn-mark {
+    background: var(--surface-2); color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .bw-btn-mark:active { background: var(--accent-bg); color: var(--accent); }
+
+  .bw-empty {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 40px 20px; text-align: center;
+    color: var(--text-muted);
+  }
+
+  .bw-done-banner {
+    background: linear-gradient(135deg, rgba(16,185,129,.15), rgba(34,211,238,.08));
+    border: 1px solid rgba(16,185,129,.3);
+    border-radius: 14px; padding: 18px 16px; text-align: center;
+    color: #6ee7b7; font-weight: 600; font-size: 15px;
+    display: none;
+  }
+  .bw-done-banner.show { display: block; }
+
+  @media (max-width: 480px) {
+    .bw-head h1 { font-size: 16px; }
+    .bw-card-body { flex-direction: column; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bw-wrap">
+  <div class="bw-head">
+    <div>
+      <h1>WhatsApp queue</h1>
+      <div class="sub">{{ count }} clinic{{ count|pluralize }} selected · tap each one</div>
+    </div>
+    <a href="{{ admin_lead_url_prefix }}/" class="bw-back">← Back</a>
+  </div>
+
+  {% if leads %}
+    <div class="bw-progress">
+      <span class="bw-progress-num"><span data-progress-done>0</span>/{{ count }}</span>
+      <div class="bw-progress-bar"><div class="bw-progress-fill" data-progress-fill></div></div>
+      <span data-progress-pct style="color:var(--text-dim);font-size:12px;font-family:JetBrains Mono,monospace;">0%</span>
+    </div>
+
+    <div class="bw-done-banner" data-done-banner>
+      ✓ All {{ count }} sent. Nice work.
+    </div>
+
+    <div class="bw-list">
+      {% for lead in leads %}
+      <div class="bw-card" data-card data-pk="{{ lead.pk }}">
+        <div class="bw-card-top">
+          <div class="bw-card-name">{{ lead.name }}</div>
+          <div class="bw-card-score">{{ lead.score }}</div>
+        </div>
+        <div class="bw-card-meta">
+          +{{ lead.phone }}
+          {% if lead.rating %}<span class="dot">·</span>★ {{ lead.rating }}{% endif %}
+          {% if lead.reviews %}<span class="dot">·</span>{{ lead.reviews }} reviews{% endif %}
+        </div>
+        <div class="bw-card-body">
+          <a href="{{ lead.whatsapp_link }}" target="_blank" rel="noopener"
+             class="bw-btn bw-btn-send" data-send>
+            Send 💬
+          </a>
+          <button type="button" class="bw-btn bw-btn-mark" data-mark>
+            Mark sent ✓
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="bw-empty">No leads selected.</div>
+  {% endif %}
+</div>
+
+<script>
+(function() {
+  const csrf = (document.cookie.split('; ').find(r => r.startsWith('csrftoken=')) || '').split('=')[1] || '';
+  const total = {{ count }};
+  const cards = Array.from(document.querySelectorAll('[data-card]'));
+  const progressDone = document.querySelector('[data-progress-done]');
+  const progressFill = document.querySelector('[data-progress-fill]');
+  const progressPct = document.querySelector('[data-progress-pct]');
+  const banner = document.querySelector('[data-done-banner]');
+
+  function refreshProgress() {
+    const done = document.querySelectorAll('.bw-card.done').length;
+    progressDone.textContent = done;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    if (done === total && total > 0) {
+      banner.classList.add('show');
+    }
+  }
+
+  cards.forEach(card => {
+    const pk = card.dataset.pk;
+    const sendBtn = card.querySelector('[data-send]');
+    const markBtn = card.querySelector('[data-mark]');
+
+    function markDone(silent) {
+      if (card.classList.contains('done')) return;
+      card.classList.add('done');
+      refreshProgress();
+      if (silent) return;
+      // Fire-and-forget: tell the server this lead was contacted.
+      fetch(window.location.pathname, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrf,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'pk=' + encodeURIComponent(pk),
+      }).catch(() => {});
+    }
+
+    // Tapping "Send" opens WhatsApp + auto-marks done after a beat.
+    sendBtn.addEventListener('click', () => {
+      setTimeout(() => markDone(false), 600);
+    });
+    markBtn.addEventListener('click', () => markDone(false));
+  });
+})();
+</script>
+{% endblock %}

@@ -37,6 +37,7 @@ ALLOWED_TASKS = {
     'send_hour_before_reminders',
     'make_confirmation_calls',
     'retry_unanswered_calls',
+    'generate_monthly_slots',
 }
 
 

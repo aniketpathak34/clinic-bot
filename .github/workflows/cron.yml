@@ -9,12 +9,13 @@
 #      and runs the task synchronously, then returns a JSON result.
 #
 # ─── Schedule overview (visible in the GitHub Actions tab as past runs) ──
-#   ┌────────────────────────────┬──────────────┬─────────┐
-#   │ Job                        │ When (IST)   │ Cron UTC│
-#   ├────────────────────────────┼──────────────┼─────────┤
-#   │ daily-leadgen              │ 09:00 daily  │ 30 3    │
-#   │ day-reminders              │ 18:00 daily  │ 30 12   │
-#   └────────────────────────────┴──────────────┴─────────┘
+#   ┌────────────────────────────┬──────────────────┬─────────────┐
+#   │ Job                        │ When (IST)       │ Cron UTC    │
+#   ├────────────────────────────┼──────────────────┼─────────────┤
+#   │ daily-leadgen              │ 09:00 daily      │ 30 3 * * *  │
+#   │ day-reminders              │ 18:00 daily      │ 30 12 * * * │
+#   │ monthly-slots              │ 09:00 on the 1st │ 30 3 1 * *  │
+#   └────────────────────────────┴──────────────────┴─────────────┘
 #
 # ─── Manual triggering (from this Actions tab) ──────────────────────────
 #   Click "Run workflow" at the top right of the workflow page, pick which
@@ -49,6 +50,7 @@ on:
   schedule:
     - cron: '30 3 * * *'        # 09:00 IST daily — lead-gen
     - cron: '30 12 * * *'       # 18:00 IST daily — day-before reminders
+    - cron: '0 3 1 * *'         # 08:30 IST 1st of month — generate slots
 
   # ── Manual trigger from the Actions tab ───────────────────────────────
   # Pick which task to run from the "task" dropdown, then click "Run workflow".
@@ -62,6 +64,7 @@ on:
         options:
           - fetch_daily_leads
           - send_day_before_reminders
+          - generate_monthly_slots
 
 
 jobs:
@@ -96,6 +99,21 @@ jobs:
           curl --fail --show-error --silent --max-time 90 \
             -X POST \
             "${BASE_URL}/webhook/cron/${SECRET}/send_day_before_reminders/"
+
+  # ─── 08:30 IST on 1st of month: fill AvailableSlot for the new month ──
+  monthly-slots:
+    name: Monthly demo slots (1st @ 08:30 IST)
+    if: github.event.schedule == '0 3 1 * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST generate_monthly_slots
+        env:
+          BASE_URL: ${{ secrets.RENDER_BASE_URL }}
+          SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --show-error --silent --max-time 60 \
+            -X POST \
+            "${BASE_URL}/webhook/cron/${SECRET}/generate_monthly_slots/"
 
   # ─── Manual trigger — runs whichever task was picked from the UI ──────
   manual:
