@@ -1,0 +1,359 @@
+{% load i18n admin_dashboard %}
+{% sidebar_counts as c %}
+{% todays_mission as mission %}
+
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar">
+
+  {# ─── Today's mission panel ─────────────────────────────────────── #}
+  {% if mission %}
+  <div class="dp-mission">
+    <div class="dp-mission-head">
+      <span class="dp-mission-eyebrow">Today's mission</span>
+      <span class="dp-mission-time" data-clock>—</span>
+    </div>
+    <div class="dp-mission-cards">
+      {% for card in mission %}
+      <a href="{{ card.href }}" class="dp-mission-card dp-mission-{{ card.tone }}">
+        <span class="dp-mission-emoji">{{ card.emoji }}</span>
+        <span class="dp-mission-text">
+          <span class="dp-mission-title">{{ card.title }}</span>
+          <span class="dp-mission-sub">{{ card.sub }}</span>
+        </span>
+        <span class="dp-mission-arr">→</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ─── Filter input ─────────────────────────────────────────────── #}
+  <input type="search" id="nav-filter"
+         class="dp-filter"
+         placeholder="{% translate 'Quick find…' %}"
+         aria-label="{% translate 'Filter navigation items' %}">
+
+  {# ─── Workflow-grouped nav ─────────────────────────────────────── #}
+
+  {# 🎯 GROWTH ─────────────────────── #}
+  <div class="dp-section">
+    <div class="dp-section-head">🎯 Growth</div>
+    <a href="{% admin_url 'admin:marketing_lead_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Leads</span>
+      <span class="dp-link-meta">
+        {% if c.leads_hot %}<span class="dp-badge dp-badge-hot">🔥 {{ c.leads_hot }}</span>{% endif %}
+        {% if c.leads_total %}<span class="dp-badge dp-badge-dim">{{ c.leads_total }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:marketing_lead_changelist' %}?needs_followup=1" class="dp-link dp-sublink">
+      <span class="dp-link-name">Needs follow-up</span>
+      <span class="dp-link-meta">
+        {% if c.leads_followup_due %}<span class="dp-badge dp-badge-amber">{{ c.leads_followup_due }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:marketing_lead_changelist' %}?status__exact=demo_booked" class="dp-link dp-sublink">
+      <span class="dp-link-name">Demos booked</span>
+      <span class="dp-link-meta">
+        {% if c.leads_demo_booked %}<span class="dp-badge dp-badge-amber">{{ c.leads_demo_booked }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:marketing_demovideo_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Demo videos</span>
+      <span class="dp-link-meta">
+        {% if c.demo_videos_active %}<span class="dp-badge dp-badge-dim">{{ c.demo_videos_active }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:marketing_dashboardconfig_changelist' %}" class="dp-link dp-sublink">
+      <span class="dp-link-name">Dashboard config</span>
+    </a>
+  </div>
+
+  {# 🏥 OPERATIONS ─────────────────── #}
+  <div class="dp-section">
+    <div class="dp-section-head">🏥 Operations</div>
+    <a href="{% admin_url 'admin:clinic_appointment_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Appointments</span>
+      <span class="dp-link-meta">
+        {% if c.appts_next_hour %}<span class="dp-badge dp-badge-hot">⏰ {{ c.appts_next_hour }}</span>{% endif %}
+        {% if c.appts_today %}<span class="dp-badge dp-badge-cyan">{{ c.appts_today }} today</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:clinic_availableslot_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Available slots</span>
+      <span class="dp-link-meta">
+        {% if c.slots_unbooked %}<span class="dp-badge dp-badge-dim">{{ c.slots_unbooked }} open</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:clinic_doctor_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Doctors</span>
+      <span class="dp-link-meta">
+        {% if c.doctors_total %}<span class="dp-badge dp-badge-dim">{{ c.doctors_total }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:clinic_patient_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Patients</span>
+      <span class="dp-link-meta">
+        {% if c.patients_total %}<span class="dp-badge dp-badge-dim">{{ c.patients_total }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:clinic_clinic_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Clinics</span>
+    </a>
+  </div>
+
+  {# 💬 CONVERSATIONS ──────────────── #}
+  <div class="dp-section">
+    <div class="dp-section-head">💬 Conversations</div>
+    <a href="{% admin_url 'admin:conversations_conversationstate_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Active chats</span>
+    </a>
+    <a href="{% admin_url 'admin:notifications_calllog_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Call logs</span>
+      <span class="dp-link-meta">
+        {% if c.call_logs_today %}<span class="dp-badge dp-badge-cyan">{{ c.call_logs_today }} today</span>{% endif %}
+      </span>
+    </a>
+  </div>
+
+  {# ⚙️ ADMIN ─ collapsed, the noisy stuff you barely touch ────────── #}
+  <details class="dp-section dp-advanced">
+    <summary class="dp-section-head dp-section-head-toggle">
+      <span>⚙️ Admin</span>
+      <span class="dp-section-chev">▾</span>
+    </summary>
+    <a href="{% admin_url 'admin:accounts_user_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Users</span>
+    </a>
+    <a href="{% admin_url 'admin:auth_group_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Groups</span>
+    </a>
+    <a href="{% admin_url 'admin:django_celery_beat_periodictask_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Periodic tasks</span>
+    </a>
+    <a href="{% admin_url 'admin:django_celery_beat_crontabschedule_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Crontabs</span>
+    </a>
+    <a href="{% admin_url 'admin:django_celery_beat_clockedschedule_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Clocked schedules</span>
+    </a>
+  </details>
+
+  <div class="dp-foot">
+    <span class="dp-foot-brand">DocPing · ops console</span>
+  </div>
+
+  <div style="display:none" aria-hidden="true">
+    {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
+  </div>
+</nav>
+
+<style>
+  /* ── Reset Django's default nav-sidebar styling ─────────────────── */
+  #nav-sidebar {
+    background: #0a0a0f !important;
+    color: #f4f4f5 !important;
+    border-right: 1px solid #26262f !important;
+    padding: 0 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #nav-sidebar .module,
+  #nav-sidebar .module h2,
+  #nav-sidebar .module caption {
+    background: transparent !important;
+    color: inherit !important;
+    border: 0 !important;
+  }
+
+  /* ── Today's mission ─────────────────────────────────────────────── */
+  .dp-mission {
+    padding: 14px 12px 8px;
+    background: linear-gradient(180deg, rgba(34,211,238,.04), transparent);
+    border-bottom: 1px solid #1c1c25;
+  }
+  .dp-mission-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .dp-mission-eyebrow {
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: #71717a; font-weight: 700;
+  }
+  .dp-mission-time {
+    font-size: 10px; color: #52525b; font-family: 'JetBrains Mono', monospace;
+  }
+  .dp-mission-cards { display: flex; flex-direction: column; gap: 6px; }
+  .dp-mission-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 11px; border-radius: 10px;
+    text-decoration: none !important;
+    background: #14141b; border: 1px solid #26262f;
+    transition: all .15s ease;
+  }
+  .dp-mission-card:hover {
+    transform: translateX(2px);
+    border-color: #36364a;
+  }
+  .dp-mission-emoji { font-size: 18px; line-height: 1; flex-shrink: 0; }
+  .dp-mission-text {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25;
+  }
+  .dp-mission-title {
+    color: #f4f4f5; font-weight: 600; font-size: 12.5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dp-mission-sub { color: #71717a; font-size: 10.5px; margin-top: 2px; }
+  .dp-mission-arr { color: #52525b; font-size: 13px; }
+  .dp-mission-card:hover .dp-mission-arr { color: #22d3ee; }
+
+  /* Tone variants */
+  .dp-mission-hot {
+    background: linear-gradient(135deg, rgba(239,68,68,.08), rgba(245,158,11,.05));
+    border-color: rgba(239,68,68,.25);
+  }
+  .dp-mission-hot:hover { border-color: rgba(239,68,68,.5); }
+  .dp-mission-amber {
+    background: linear-gradient(135deg, rgba(245,158,11,.08), transparent);
+    border-color: rgba(245,158,11,.22);
+  }
+  .dp-mission-amber:hover { border-color: rgba(245,158,11,.45); }
+  .dp-mission-cyan {
+    background: linear-gradient(135deg, rgba(34,211,238,.08), transparent);
+    border-color: rgba(34,211,238,.22);
+  }
+  .dp-mission-cyan:hover { border-color: rgba(34,211,238,.5); }
+  .dp-mission-dim { opacity: .65; }
+
+  /* ── Filter input ────────────────────────────────────────────────── */
+  #nav-sidebar .dp-filter,
+  #nav-sidebar #nav-filter {
+    margin: 12px 12px 4px !important;
+    width: calc(100% - 24px) !important;
+    background: #14141b !important;
+    border: 1px solid #26262f !important;
+    color: #f4f4f5 !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    box-sizing: border-box !important;
+    transition: border-color .15s ease, box-shadow .15s ease !important;
+  }
+  #nav-sidebar #nav-filter::placeholder { color: #52525b !important; }
+  #nav-sidebar #nav-filter:focus {
+    border-color: #22d3ee !important;
+    box-shadow: 0 0 0 3px rgba(34,211,238,.1) !important;
+    outline: 0 !important;
+  }
+
+  /* ── Sections ────────────────────────────────────────────────────── */
+  .dp-section {
+    margin: 10px 0;
+    padding: 0 6px;
+  }
+  .dp-section-head {
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: #71717a; font-weight: 700;
+    padding: 8px 10px 6px;
+  }
+  .dp-section-head-toggle {
+    list-style: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    user-select: none;
+  }
+  .dp-section-head-toggle::-webkit-details-marker { display: none; }
+  .dp-section-chev {
+    font-size: 11px; color: #52525b;
+    transition: transform .2s ease;
+  }
+  .dp-advanced[open] .dp-section-chev { transform: rotate(180deg); }
+
+  /* ── Links ───────────────────────────────────────────────────────── */
+  .dp-link {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    padding: 7px 12px; margin: 1px 4px;
+    border-radius: 7px;
+    text-decoration: none !important;
+    color: #d4d4d8 !important;
+    font-size: 13px; font-weight: 500;
+    transition: background .12s ease, color .12s ease;
+    border: 1px solid transparent;
+  }
+  .dp-link:hover {
+    background: #14141b !important;
+    color: #f4f4f5 !important;
+  }
+  .dp-link.dp-active,
+  .dp-link[data-active="1"] {
+    background: rgba(34,211,238,.08) !important;
+    color: #22d3ee !important;
+    border-color: rgba(34,211,238,.18);
+  }
+  .dp-sublink {
+    padding-left: 24px;
+    font-size: 12.5px;
+    color: #a1a1aa !important;
+    position: relative;
+  }
+  .dp-sublink::before {
+    content: ""; position: absolute;
+    left: 14px; top: 50%; width: 5px; height: 1px;
+    background: #36364a;
+  }
+  .dp-link-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dp-link-meta { display: flex; gap: 4px; flex-shrink: 0; }
+
+  /* ── Badges ──────────────────────────────────────────────────────── */
+  .dp-badge {
+    display: inline-flex; align-items: center;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+    line-height: 1.4;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -.01em;
+  }
+  .dp-badge-hot {
+    background: rgba(239,68,68,.15); color: #fca5a5;
+    box-shadow: 0 0 10px rgba(239,68,68,.2);
+  }
+  .dp-badge-amber { background: rgba(245,158,11,.15); color: #fcd34d; }
+  .dp-badge-cyan { background: rgba(34,211,238,.12); color: #67e8f9; }
+  .dp-badge-dim { background: #1c1c25; color: #71717a; }
+
+  /* ── Foot ────────────────────────────────────────────────────────── */
+  .dp-foot {
+    margin-top: 16px; padding: 14px 16px;
+    border-top: 1px solid #1c1c25;
+    color: #52525b; font-size: 10px;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+</style>
+
+<script>
+  (function () {
+    // Live clock in the mission panel header
+    function tick() {
+      var el = document.querySelector('[data-clock]');
+      if (!el) return;
+      var d = new Date();
+      var h = d.getHours(), m = d.getMinutes();
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      var hh = ((h + 11) % 12) + 1;
+      el.textContent = hh + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+    }
+    tick(); setInterval(tick, 30000);
+
+    // Highlight the link matching the current page
+    document.addEventListener('DOMContentLoaded', function () {
+      var here = window.location.pathname + window.location.search;
+      var bestMatch = null, bestLen = 0;
+      document.querySelectorAll('#nav-sidebar .dp-link').forEach(function (a) {
+        var href = a.getAttribute('href') || '';
+        if (href === '#' || href === '') return;
+        if (here.indexOf(href.split('?')[0]) === 0 && href.length > bestLen) {
+          bestMatch = a; bestLen = href.length;
+        }
+      });
+      if (bestMatch) bestMatch.setAttribute('data-active', '1');
+    });
+  })();
+</script>

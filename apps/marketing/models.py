@@ -468,3 +468,63 @@ class DemoVideo(models.Model):
     @property
     def file_url(self) -> str:
         return self.video_file.url if self.video_file else ''
+
+
+class DashboardConfig(models.Model):
+    """Singleton row holding tunable assumptions for the admin dashboard.
+
+    Only ever one row (pk=1, enforced in save()). Edit the fields from the
+    admin to update pipeline-value math + goal targets without redeploying.
+    """
+    arpu_inr = models.PositiveIntegerField(
+        default=2000,
+        help_text="Assumed monthly revenue per converted clinic (₹). Used by the pipeline-value hero.",
+    )
+
+    # Industry-benchmark fallbacks for conversion rates. Used until your
+    # observed funnel has at least `min_sample_size` leads at that stage.
+    benchmark_new_to_sent_pct = models.PositiveSmallIntegerField(
+        default=80, help_text="Default % of new leads we expect to contact."
+    )
+    benchmark_sent_to_replied_pct = models.PositiveSmallIntegerField(
+        default=15, help_text="Default % of sent leads expected to reply."
+    )
+    benchmark_replied_to_demo_pct = models.PositiveSmallIntegerField(
+        default=40, help_text="Default % of replied leads that book a demo."
+    )
+    benchmark_demo_to_pilot_pct = models.PositiveSmallIntegerField(
+        default=50, help_text="Default % of demos that convert to a paid pilot."
+    )
+
+    min_sample_size = models.PositiveSmallIntegerField(
+        default=10,
+        help_text=(
+            "Switch from benchmark to observed conversion at this stage once "
+            "you have this many leads at that stage. Lower = trust your data "
+            "earlier (noisier); higher = stick with benchmarks longer."
+        ),
+    )
+
+    # Weekly / monthly goals shown as progress bars on the dashboard.
+    goal_outreach_per_week = models.PositiveIntegerField(default=50)
+    goal_demos_per_week    = models.PositiveIntegerField(default=3)
+    goal_pilots_per_month  = models.PositiveIntegerField(default=2)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dashboard config"
+        verbose_name_plural = "Dashboard config"
+
+    def __str__(self):
+        return f"Dashboard config (ARPU ₹{self.arpu_inr}, demo goal {self.goal_demos_per_week}/wk)"
+
+    def save(self, *args, **kwargs):
+        # Singleton: always pk=1, never create a second row.
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> 'DashboardConfig':
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

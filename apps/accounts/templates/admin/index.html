@@ -1,0 +1,917 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static admin_dashboard %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/dashboard.css" %}">
+<style>
+  /* ─── Kill the upstream width caps that made this page look broken ─── */
+  body.dashboard #content,
+  .dashboard #content { width: auto !important; max-width: none !important; }
+  body.dashboard .colMS,
+  .colMS { margin-right: 0 !important; }
+  body.dashboard #content { background: #0a0a0f !important; padding: 0 !important; }
+  body.dashboard #content > h1,
+  body.dashboard #content-related { display: none !important; }
+
+  .wr {
+    color: #f4f4f5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 22px 28px 60px;
+    max-width: 1640px; margin: 0 auto;
+  }
+  .wr a { text-decoration: none; }
+
+  /* ── Stuck leaks alert strip ─────────────────────────────── */
+  .wr-leaks {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap;
+    background: linear-gradient(135deg, rgba(239,68,68,.08), rgba(245,158,11,.05));
+    border: 1px solid rgba(245,158,11,.25);
+    border-radius: 12px; padding: 12px 16px; margin-bottom: 18px;
+  }
+  .wr-leaks-eyebrow {
+    color: #fcd34d; font-size: 11px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .wr-leak {
+    background: #1c1c25; border: 1px solid #36364a;
+    color: #fcd34d; font-size: 12px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px;
+    transition: all .15s ease;
+  }
+  .wr-leak:hover { border-color: rgba(245,158,11,.5); transform: translateY(-1px); }
+  .wr-leak b { color: #fbbf24; font-family: 'JetBrains Mono', monospace; }
+  .wr-leaks-empty {
+    color: #6ee7b7; font-size: 12px; font-weight: 600;
+    background: #1c1c25; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid rgba(16,185,129,.25);
+  }
+
+  /* ── Hero row ────────────────────────────────────────────── */
+  .wr-hero {
+    display: grid; grid-template-columns: 1.1fr 2fr; gap: 18px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 1024px) { .wr-hero { grid-template-columns: 1fr; } }
+
+  .wr-pipe {
+    background: radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 60%),
+                #14141b;
+    border: 1px solid #26262f;
+    border-radius: 16px; padding: 22px 24px;
+    position: relative; overflow: hidden;
+    color: inherit !important;
+  }
+  .wr-pipe::before {
+    content: ""; position: absolute; right: -80px; top: -80px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(34,211,238,.18), transparent 70%);
+    pointer-events: none;
+  }
+  .wr-pipe-eyebrow {
+    color: #71717a; font-size: 11px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .wr-pipe-num {
+    font-size: 52px; font-weight: 800; letter-spacing: -.03em;
+    background: linear-gradient(135deg, #22d3ee, #67e8f9);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; margin-top: 4px; line-height: 1.05;
+  }
+  .wr-pipe-sub { color: #a1a1aa; font-size: 13px; margin-top: 6px; }
+  .wr-pipe-sub b { color: #f4f4f5; font-weight: 700; }
+
+  /* ── Calibration mode badge ─────────────────────────────────── */
+  .wr-pipe-calib {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px;
+    padding: 3px 9px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase;
+    cursor: help; user-select: none;
+    position: relative;
+  }
+  .wr-pipe-calib.m-observed {
+    background: rgba(16,185,129,.12); color: #6ee7b7;
+    border: 1px solid rgba(16,185,129,.3);
+  }
+  .wr-pipe-calib.m-mixed {
+    background: rgba(34,211,238,.1); color: #67e8f9;
+    border: 1px solid rgba(34,211,238,.25);
+  }
+  .wr-pipe-calib.m-benchmark {
+    background: rgba(245,158,11,.1); color: #fcd34d;
+    border: 1px solid rgba(245,158,11,.25);
+  }
+  .wr-pipe-calib-tip {
+    position: absolute; left: 0; top: calc(100% + 6px);
+    background: #0a0a0f; border: 1px solid #36364a;
+    border-radius: 8px; padding: 10px 12px;
+    color: #d4d4d8; font-size: 11.5px; font-weight: 500;
+    letter-spacing: 0; text-transform: none;
+    width: 320px; z-index: 50;
+    box-shadow: 0 12px 36px rgba(0,0,0,.6);
+    opacity: 0; pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity .15s ease, transform .15s ease;
+    line-height: 1.55;
+  }
+  .wr-pipe-calib:hover .wr-pipe-calib-tip {
+    opacity: 1; transform: translateY(0);
+  }
+  .wr-pipe-calib-tip h4 {
+    margin: 0 0 6px; font-size: 11px; color: #71717a; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em;
+  }
+  .wr-pipe-calib-tip ul { margin: 0; padding: 0; list-style: none; }
+  .wr-pipe-calib-tip li {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 3px 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .wr-pipe-calib-tip li .lbl { color: #a1a1aa; }
+  .wr-pipe-calib-tip li .val { color: #f4f4f5; font-weight: 700; }
+  .wr-pipe-calib-tip li .val.benchmark { color: #fcd34d; }
+  .wr-pipe-calib-tip li .val.observed  { color: #6ee7b7; }
+  .wr-pipe-calib-tip .foot {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid #26262f;
+    color: #71717a; font-size: 10.5px;
+  }
+  .wr-pipe-calib-tip .foot a { color: #22d3ee; }
+
+  /* ── 14-day SVG area chart (clean, Stripe/Linear-style) ─────── */
+  .wr-pipe-chart-wrap {
+    margin-top: 22px; position: relative;
+  }
+  .wr-pipe-chart-meta {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .wr-pipe-chart-title {
+    color: #71717a; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+  }
+  .wr-pipe-chart-summary {
+    display: flex; align-items: baseline; gap: 12px;
+    color: #a1a1aa; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .wr-pipe-chart-summary b { color: #22d3ee; font-weight: 700; font-size: 12px; }
+  .wr-pipe-chart-summary .trend.up   { color: #6ee7b7; }
+  .wr-pipe-chart-summary .trend.down { color: #fca5a5; }
+  .wr-pipe-chart-summary .trend.flat { color: #71717a; }
+
+  .wr-pipe-chart {
+    display: block; width: 100%; height: 70px;
+    overflow: visible;
+  }
+  .wr-pipe-chart .grid-line {
+    stroke: #26262f; stroke-width: 1; stroke-dasharray: 2 4;
+  }
+  .wr-pipe-chart .area  { fill: url(#wr-area-grad); }
+  .wr-pipe-chart .line  { fill: none; stroke: #22d3ee; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .wr-pipe-chart .today-dot {
+    fill: #22d3ee; stroke: #0a0a0f; stroke-width: 3;
+    filter: drop-shadow(0 0 6px rgba(34,211,238,.7));
+  }
+  .wr-pipe-chart .hover-cap {
+    fill: transparent; cursor: crosshair;
+  }
+  .wr-pipe-chart .hover-line {
+    stroke: #36364a; stroke-width: 1; stroke-dasharray: 2 3;
+    opacity: 0; pointer-events: none;
+  }
+  .wr-pipe-chart .hover-dot {
+    fill: #67e8f9; stroke: #0a0a0f; stroke-width: 2;
+    opacity: 0; pointer-events: none;
+  }
+
+  .wr-pipe-tooltip {
+    position: absolute; pointer-events: none; opacity: 0;
+    background: #0a0a0f; border: 1px solid #36364a;
+    border-radius: 6px; padding: 6px 10px;
+    color: #f4f4f5; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    box-shadow: 0 6px 18px rgba(0,0,0,.5);
+    transform: translate(-50%, -100%);
+    transition: opacity .15s ease;
+    white-space: nowrap; z-index: 5;
+  }
+  .wr-pipe-tooltip b { color: #22d3ee; }
+
+  .wr-pipe-days {
+    display: grid; grid-template-columns: repeat(14, 1fr);
+    margin-top: 6px; padding: 0 2px;
+  }
+  .wr-pipe-days span {
+    color: #52525b; font-size: 9.5px; text-align: center;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: .04em;
+  }
+  .wr-pipe-days span.today { color: #22d3ee; font-weight: 700; }
+
+  .wr-kpis {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  }
+  @media (max-width: 1024px) { .wr-kpis { grid-template-columns: repeat(2, 1fr); } }
+  .wr-kpi {
+    background: #14141b; border: 1px solid #26262f;
+    border-radius: 12px; padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .wr-kpi-eyebrow {
+    color: #71717a; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+    line-height: 1.3;
+  }
+  .wr-kpi-num {
+    font-size: 30px; font-weight: 700; color: #f4f4f5;
+    margin-top: 2px; letter-spacing: -.02em; line-height: 1.05;
+  }
+  .wr-kpi-delta {
+    font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .wr-kpi-delta.up { color: #6ee7b7; }
+  .wr-kpi-delta.down { color: #fca5a5; }
+  .wr-kpi-delta.flat { color: #71717a; }
+
+  /* ── Funnel ribbon ──────────────────────────────────────── */
+  .wr-funnel {
+    background: #14141b; border: 1px solid #26262f;
+    border-radius: 16px; padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .wr-funnel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .wr-funnel-title {
+    font-size: 13px; font-weight: 700;
+    color: #71717a; letter-spacing: .1em; text-transform: uppercase;
+  }
+  .wr-funnel-help { color: #52525b; font-size: 11px; }
+  .wr-funnel-row {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+  }
+  .wr-stage {
+    background: #1c1c25; border: 1px solid #26262f;
+    border-radius: 12px; padding: 16px 16px 14px;
+    color: #d4d4d8; transition: all .15s ease;
+    display: flex; flex-direction: column; gap: 4px;
+    cursor: pointer;
+  }
+  .wr-stage:hover { border-color: #36364a; transform: translateY(-1px); }
+  .wr-stage-label { font-size: 11px; color: #71717a; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .wr-stage-count { font-size: 28px; font-weight: 700; color: #f4f4f5; letter-spacing: -.02em; }
+  .wr-stage.s-sent { border-color: rgba(59,130,246,.25); }
+  .wr-stage.s-sent .wr-stage-count { color: #93c5fd; }
+  .wr-stage.s-replied { border-color: rgba(168,85,247,.25); }
+  .wr-stage.s-replied .wr-stage-count { color: #d8b4fe; }
+  .wr-stage.s-demo_booked { border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.04); }
+  .wr-stage.s-demo_booked .wr-stage-count { color: #fcd34d; }
+  .wr-stage.s-pilot { border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.05); }
+  .wr-stage.s-pilot .wr-stage-count { color: #86efac; }
+
+  /* ── Goal bars + streak strip ────────────────────────────── */
+  .wr-goals {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 280px; gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 1100px) { .wr-goals { grid-template-columns: 1fr 1fr; } }
+  .wr-goal {
+    background: #14141b; border: 1px solid #26262f;
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .wr-goal-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .wr-goal-label {
+    color: #71717a; font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+  .wr-goal-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; font-weight: 700; color: #f4f4f5;
+  }
+  .wr-goal-num span { color: #52525b; font-weight: 500; }
+  .wr-goal-bar {
+    height: 8px; background: #1c1c25; border-radius: 999px; overflow: hidden;
+  }
+  .wr-goal-fill {
+    height: 100%; border-radius: 999px;
+    transition: width .4s ease;
+  }
+  .wr-goal-fill.t-cyan  { background: linear-gradient(90deg, #22d3ee, #67e8f9); }
+  .wr-goal-fill.t-amber { background: linear-gradient(90deg, #f59e0b, #fcd34d); }
+  .wr-goal-fill.t-green { background: linear-gradient(90deg, #10b981, #34d399); }
+  .wr-goal-pct {
+    color: #71717a; font-size: 10.5px; margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .wr-streak {
+    background: linear-gradient(135deg, rgba(245,158,11,.12), rgba(239,68,68,.06)),
+                #14141b;
+    border: 1px solid rgba(245,158,11,.3);
+    border-radius: 12px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .wr-streak-flame {
+    font-size: 32px; line-height: 1;
+    filter: drop-shadow(0 0 8px rgba(245,158,11,.45));
+  }
+  .wr-streak.cold .wr-streak-flame { filter: grayscale(.8); opacity: .5; }
+  .wr-streak-text { display: flex; flex-direction: column; }
+  .wr-streak-num {
+    font-size: 22px; font-weight: 800; color: #fcd34d; letter-spacing: -.02em;
+  }
+  .wr-streak.cold .wr-streak-num { color: #71717a; }
+  .wr-streak-lbl { color: #a1a1aa; font-size: 11px; font-weight: 600; }
+
+  /* ── Body grid: AI briefing | Timeline | Next moves ───────── */
+  .wr-body {
+    display: grid; grid-template-columns: 1.3fr 1.2fr 1fr; gap: 18px;
+  }
+  @media (max-width: 1280px) { .wr-body { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 768px)  { .wr-body { grid-template-columns: 1fr; } }
+
+  .wr-panel {
+    background: #14141b; border: 1px solid #26262f;
+    border-radius: 16px; padding: 18px 20px;
+  }
+  .wr-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .wr-panel-eyebrow {
+    color: #71717a; font-size: 11px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* AI panel — gradient flair */
+  .wr-ai {
+    background: linear-gradient(135deg, rgba(34,211,238,.05), rgba(168,85,247,.04)),
+                #14141b;
+  }
+  .wr-ai-spark { color: #22d3ee; font-size: 14px; }
+  .wr-ai-refresh {
+    background: #1c1c25; border: 1px solid #26262f;
+    color: #a1a1aa; font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 6px;
+    cursor: pointer; transition: all .15s ease;
+  }
+  .wr-ai-refresh:hover { color: #f4f4f5; border-color: #36364a; }
+  .wr-ai-refresh:disabled { opacity: .4; cursor: wait; }
+  .wr-ai-body {
+    color: #d4d4d8; font-size: 14px; line-height: 1.65;
+    min-height: 80px; white-space: pre-wrap;
+  }
+  .wr-ai-body.loading { color: #52525b; font-style: italic; }
+  .wr-ai-body.loading::after {
+    content: "▍"; animation: blink 1s steps(1) infinite; color: #22d3ee;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .wr-ai-foot {
+    color: #52525b; font-size: 10.5px; margin-top: 12px;
+    letter-spacing: .04em;
+  }
+
+  /* Timeline panel */
+  .wr-tl-list {
+    display: flex; flex-direction: column;
+    max-height: 380px; overflow-y: auto;
+    margin: 0 -4px;
+  }
+  .wr-tl-list::-webkit-scrollbar { width: 6px; }
+  .wr-tl-list::-webkit-scrollbar-thumb { background: #26262f; border-radius: 3px; }
+  .wr-tl {
+    display: grid; grid-template-columns: 50px 24px 1fr;
+    align-items: start; gap: 10px;
+    padding: 9px 6px;
+    border-radius: 8px;
+    transition: background .12s ease;
+  }
+  .wr-tl:hover { background: #1c1c25; }
+  .wr-tl-time {
+    color: #71717a; font-size: 11.5px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; padding-top: 2px;
+  }
+  .wr-tl-emoji { font-size: 16px; line-height: 1.4; }
+  .wr-tl-text {
+    color: #d4d4d8; font-size: 12.5px; line-height: 1.45;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .wr-tl-text b { color: #f4f4f5; font-weight: 600; }
+  .wr-tl-text .action { color: #71717a; font-weight: 500; }
+  .wr-tl-empty {
+    color: #52525b; font-size: 12px; padding: 30px 10px; text-align: center;
+    font-style: italic;
+  }
+
+  /* Moves panel */
+  .wr-move {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px; border-radius: 10px;
+    background: #1c1c25; border: 1px solid #26262f;
+    color: #f4f4f5;
+    margin-bottom: 8px; transition: all .15s ease;
+  }
+  .wr-move:last-child { margin-bottom: 0; }
+  .wr-move:hover { transform: translateX(2px); border-color: #36364a; }
+  .wr-move-emoji { font-size: 20px; line-height: 1; flex-shrink: 0; }
+  .wr-move-text { flex: 1; min-width: 0; }
+  .wr-move-title { font-weight: 600; font-size: 13px; color: #f4f4f5; }
+  .wr-move-sub { color: #71717a; font-size: 11.5px; margin-top: 2px; }
+  .wr-move-arr { color: #52525b; font-size: 14px; }
+  .wr-move:hover .wr-move-arr { color: #22d3ee; }
+  .wr-move.t-hot { border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.05); }
+  .wr-move.t-amber { border-color: rgba(245,158,11,.25); background: rgba(245,158,11,.04); }
+  .wr-move.t-cyan { border-color: rgba(34,211,238,.22); }
+
+  /* ── Engagement toast container ──────────────────────────── */
+  #wr-toasts {
+    position: fixed; right: 22px; top: 80px;
+    z-index: 9999; display: flex; flex-direction: column;
+    gap: 8px; pointer-events: none; max-width: 360px;
+  }
+  .wr-toast {
+    background: linear-gradient(135deg, rgba(239,68,68,.18), rgba(245,158,11,.1)),
+                #14141b;
+    border: 1px solid rgba(239,68,68,.4);
+    border-radius: 14px; padding: 14px 16px;
+    color: #f4f4f5; font-size: 13px;
+    box-shadow: 0 10px 30px rgba(239,68,68,.2),
+                0 4px 12px rgba(0,0,0,.4);
+    pointer-events: auto;
+    transform: translateX(120%); opacity: 0;
+    transition: transform .35s ease, opacity .35s ease;
+    display: flex; align-items: flex-start; gap: 12px;
+    text-decoration: none !important;
+  }
+  .wr-toast.show { transform: translateX(0); opacity: 1; }
+  .wr-toast-emoji {
+    font-size: 22px; line-height: 1;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.18); }
+  }
+  .wr-toast-title { font-weight: 700; color: #f4f4f5; font-size: 13.5px; }
+  .wr-toast-sub { color: #fca5a5; font-size: 11.5px; margin-top: 2px; }
+
+  .wr-hidden-applist { display: none !important; }
+</style>
+{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block nav-sidebar %}
+  {% include "admin/nav_sidebar.html" %}
+{% endblock %}
+
+{% block content %}
+{% war_room_metrics as wr %}
+<div class="wr">
+
+  <!-- ── STUCK LEAKS STRIP ─────────────────────────────────── -->
+  <div class="wr-leaks">
+    <span class="wr-leaks-eyebrow">⚠ Pipeline leaks</span>
+    {% for s in wr.stuck %}
+    <a href="{{ s.href }}" class="wr-leak">
+      <b>{{ s.count }}</b> stuck in <b>{{ s.label }}</b> for &gt;{{ s.days }}d
+    </a>
+    {% empty %}
+    <span class="wr-leaks-empty">✓ No stuck leads — pipeline is flowing</span>
+    {% endfor %}
+  </div>
+
+  <!-- ── HERO ROW ──────────────────────────────────────────── -->
+  <div class="wr-hero">
+    <a href="{% admin_url 'admin:marketing_lead_changelist' %}" class="wr-pipe">
+      <div class="wr-pipe-eyebrow">Pipeline value · expected MRR</div>
+      <div class="wr-pipe-num">{{ wr.pipeline_value_inr_short }}</div>
+      <div class="wr-pipe-sub">
+        Across <b>{{ wr.kpis.week_leads }}</b> leads in the last 7d · {{ wr.kpis.reply_rate }}% reply rate
+      </div>
+
+      <div class="wr-pipe-calib m-{{ wr.calibration.mode }}">
+        {% if wr.calibration.mode == 'observed' %}
+          ✓ Observed conversion
+        {% elif wr.calibration.mode == 'mixed' %}
+          ◐ Mixed · observed + benchmark
+        {% else %}
+          ⚠ Benchmark — needs more data
+        {% endif %}
+        <span class="wr-pipe-calib-tip">
+          <h4>How this is calibrated</h4>
+          <ul>
+            {% for r in wr.calibration.rates %}
+            <li>
+              <span class="lbl">{{ r.transition }}</span>
+              <span class="val {{ r.mode }}">
+                {{ r.pct }}%
+                {% if r.mode == 'observed' %}<span style="color:#6ee7b7;">· obs</span>
+                {% else %}<span style="color:#fcd34d;">· bm</span>{% endif %}
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+          <div class="foot">
+            ARPU ₹{{ wr.calibration.arpu_inr }} / month per pilot · switches stage to <b>observed</b> at ≥{{ wr.calibration.min_sample_size }} leads.
+            Edit in <span style="color:#22d3ee;">Marketing → Dashboard config</span>.
+          </div>
+        </span>
+      </div>
+
+      <div class="wr-pipe-chart-wrap">
+        <div class="wr-pipe-chart-meta">
+          <span class="wr-pipe-chart-title">New leads · last 14 days</span>
+          <span class="wr-pipe-chart-summary" data-spark-summary>
+            <span>peak <b data-stat-peak>—</b></span>
+            <span>avg <b data-stat-avg>—</b></span>
+            <span class="trend flat" data-stat-trend>—</span>
+          </span>
+        </div>
+        <svg class="wr-pipe-chart" data-spark='{{ wr.sparkline_14d }}'
+             viewBox="0 0 280 70" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="wr-area-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#22d3ee" stop-opacity=".45"/>
+              <stop offset="60%" stop-color="#22d3ee" stop-opacity=".08"/>
+              <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line class="grid-line" x1="0" y1="35" x2="280" y2="35"/>
+          <path class="area" data-spark-area d=""/>
+          <path class="line" data-spark-line d=""/>
+          <circle class="today-dot" data-spark-dot cx="0" cy="0" r="4"/>
+          <line  class="hover-line" data-spark-hover-line x1="0" x2="0" y1="0" y2="70"/>
+          <circle class="hover-dot"  data-spark-hover-dot cx="0" cy="0" r="3.5"/>
+          <rect class="hover-cap" data-spark-cap x="0" y="0" width="280" height="70"/>
+        </svg>
+        <div class="wr-pipe-days" data-spark-days></div>
+        <div class="wr-pipe-tooltip" data-spark-tooltip></div>
+      </div>
+    </a>
+
+    <div class="wr-kpis">
+      <div class="wr-kpi">
+        <div class="wr-kpi-eyebrow">New today</div>
+        <div class="wr-kpi-num">{{ wr.kpis.new_today }}</div>
+        <div class="wr-kpi-delta {% if wr.kpis.delta_today > 0 %}up{% elif wr.kpis.delta_today < 0 %}down{% else %}flat{% endif %}">
+          {% if wr.kpis.delta_today > 0 %}↑{% elif wr.kpis.delta_today < 0 %}↓{% else %}—{% endif %}
+          {{ wr.kpis.delta_today|stringformat:"+d" }} vs yesterday
+        </div>
+      </div>
+      <div class="wr-kpi">
+        <div class="wr-kpi-eyebrow">Contacted today</div>
+        <div class="wr-kpi-num">{{ wr.kpis.contacted_today }}</div>
+        <div class="wr-kpi-delta flat">outbound moves</div>
+      </div>
+      <div class="wr-kpi">
+        <div class="wr-kpi-eyebrow">On their page now</div>
+        <div class="wr-kpi-num" style="color:{% if wr.kpis.engaged_now %}#fca5a5{% else %}#f4f4f5{% endif %};">{{ wr.kpis.engaged_now }}</div>
+        <div class="wr-kpi-delta flat">last 60 min</div>
+      </div>
+      <div class="wr-kpi">
+        <div class="wr-kpi-eyebrow">7-day reply rate</div>
+        <div class="wr-kpi-num">{{ wr.kpis.reply_rate }}<span style="font-size:18px;color:#71717a;">%</span></div>
+        <div class="wr-kpi-delta flat">replied / sent</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FUNNEL RIBBON ────────────────────────────────────── -->
+  <div class="wr-funnel">
+    <div class="wr-funnel-head">
+      <span class="wr-funnel-title">Pipeline funnel</span>
+      <span class="wr-funnel-help">click any stage</span>
+    </div>
+    <div class="wr-funnel-row">
+      {% for s in wr.funnel %}
+      <a class="wr-stage s-{{ s.key }}" href="{% admin_url 'admin:marketing_lead_changelist' %}?status__exact={{ s.key }}">
+        <span class="wr-stage-label">{{ s.label }}</span>
+        <span class="wr-stage-count">{{ s.count }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── GOALS + STREAK ───────────────────────────────────── -->
+  <div class="wr-goals">
+    {% for g in wr.goals_streak.goals %}
+    <div class="wr-goal">
+      <div class="wr-goal-head">
+        <span class="wr-goal-label">{{ g.label }}</span>
+        <span class="wr-goal-num">{{ g.actual }}<span> / {{ g.target }}</span></span>
+      </div>
+      <div class="wr-goal-bar">
+        <div class="wr-goal-fill t-{{ g.tone }}" style="width:{{ g.pct }}%;"></div>
+      </div>
+      <div class="wr-goal-pct">{{ g.pct }}% of target</div>
+    </div>
+    {% endfor %}
+    <div class="wr-streak{% if not wr.goals_streak.streak_active_today %} cold{% endif %}">
+      <span class="wr-streak-flame">🔥</span>
+      <div class="wr-streak-text">
+        <span class="wr-streak-num">{{ wr.goals_streak.streak }}</span>
+        <span class="wr-streak-lbl">
+          {% if wr.goals_streak.streak == 0 %}contacting streak — start one today{% else %}day{{ wr.goals_streak.streak|pluralize }} contacting streak{% if not wr.goals_streak.streak_active_today %} · cools today{% endif %}{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BODY: AI | Timeline | Moves ─────────────────────── -->
+  <div class="wr-body">
+
+    <div class="wr-panel wr-ai">
+      <div class="wr-panel-head">
+        <div class="wr-panel-eyebrow">
+          <span class="wr-ai-spark">✦</span> Your AI co-pilot
+        </div>
+        <button class="wr-ai-refresh" data-ai-refresh>
+          <span data-ai-btn-label>Refresh</span>
+        </button>
+      </div>
+      <div class="wr-ai-body loading" data-ai-body>thinking through your pipeline…</div>
+      <div class="wr-ai-foot" data-ai-foot>via Groq · Llama 3.3 — cached 30 min</div>
+    </div>
+
+    <div class="wr-panel">
+      <div class="wr-panel-head">
+        <div class="wr-panel-eyebrow">📅 Today's activity</div>
+        <span style="color:#52525b;font-size:11px;">{{ wr.timeline|length }} events</span>
+      </div>
+      <div class="wr-tl-list">
+        {% for e in wr.timeline %}
+        <a class="wr-tl" href="/admin/marketing/lead/?_drawer={{ e.lead_id }}">
+          <span class="wr-tl-time">{{ e.time_str }}</span>
+          <span class="wr-tl-emoji">{{ e.emoji }}</span>
+          <span class="wr-tl-text"><span class="action">{{ e.action }}</span> · <b>{{ e.name }}</b></span>
+        </a>
+        {% empty %}
+        <div class="wr-tl-empty">Nothing has happened yet today.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="wr-panel">
+      <div class="wr-panel-head">
+        <div class="wr-panel-eyebrow">→ Next 3 moves</div>
+      </div>
+      {% for m in wr.next_moves %}
+      <a href="{{ m.href }}" class="wr-move t-{{ m.tone }}">
+        <span class="wr-move-emoji">{{ m.emoji }}</span>
+        <span class="wr-move-text">
+          <span class="wr-move-title">{{ m.title }}</span>
+          <span class="wr-move-sub">{{ m.sub }}</span>
+        </span>
+        <span class="wr-move-arr">→</span>
+      </a>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <div id="wr-toasts"></div>
+
+  <div class="wr-hidden-applist">
+    {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── Pipeline-value 14-day chart ──────────────────────────────────
+  var svg = document.querySelector('.wr-pipe-chart');
+  if (svg) {
+    var raw = (svg.getAttribute('data-spark') || '[]').replace(/'/g, '"');
+    var data; try { data = JSON.parse(raw); } catch (e) { data = []; }
+    if (data.length) drawSparkChart(svg, data);
+  }
+
+  function drawSparkChart(svg, data) {
+    var W = 280, H = 70, P = 4;            // viewBox + padding
+    var maxV = Math.max.apply(null, data); // chart scale
+    var ceiling = Math.max(maxV, 1);       // never divide by zero
+
+    // Build x/y coord arrays
+    var pts = data.map(function (v, i) {
+      var x = P + (i * (W - 2 * P)) / (data.length - 1);
+      var y = H - P - ((v / ceiling) * (H - 2 * P));
+      return { x: x, y: y, v: v, i: i };
+    });
+
+    // Smooth curve via Catmull-Rom → cubic bezier
+    function smoothPath(pts, close) {
+      if (pts.length < 2) return '';
+      var d = 'M' + pts[0].x.toFixed(2) + ',' + pts[0].y.toFixed(2);
+      for (var i = 0; i < pts.length - 1; i++) {
+        var p0 = pts[i - 1] || pts[i];
+        var p1 = pts[i];
+        var p2 = pts[i + 1];
+        var p3 = pts[i + 2] || p2;
+        // tension 0.5 — gentle curve, no overshoot
+        var c1x = p1.x + (p2.x - p0.x) / 6;
+        var c1y = p1.y + (p2.y - p0.y) / 6;
+        var c2x = p2.x - (p3.x - p1.x) / 6;
+        var c2y = p2.y - (p3.y - p1.y) / 6;
+        d += ' C' + c1x.toFixed(2) + ',' + c1y.toFixed(2) +
+             ' '  + c2x.toFixed(2) + ',' + c2y.toFixed(2) +
+             ' '  + p2.x.toFixed(2) + ',' + p2.y.toFixed(2);
+      }
+      if (close) {
+        d += ' L' + pts[pts.length - 1].x.toFixed(2) + ',' + (H - 0.5).toFixed(2);
+        d += ' L' + pts[0].x.toFixed(2) + ',' + (H - 0.5).toFixed(2) + ' Z';
+      }
+      return d;
+    }
+
+    var lineEl = svg.querySelector('[data-spark-line]');
+    var areaEl = svg.querySelector('[data-spark-area]');
+    var dotEl  = svg.querySelector('[data-spark-dot]');
+    var hLine  = svg.querySelector('[data-spark-hover-line]');
+    var hDot   = svg.querySelector('[data-spark-hover-dot]');
+    var capEl  = svg.querySelector('[data-spark-cap]');
+
+    lineEl.setAttribute('d', smoothPath(pts, false));
+    areaEl.setAttribute('d', smoothPath(pts, true));
+
+    var last = pts[pts.length - 1];
+    dotEl.setAttribute('cx', last.x);
+    dotEl.setAttribute('cy', last.y);
+
+    // Day labels under the chart — short (S/M/T/W/T/F/S), with today bold
+    var daysWrap = document.querySelector('[data-spark-days]');
+    if (daysWrap) {
+      var letters = ['S','M','T','W','T','F','S'];
+      var todayDow = new Date().getDay();
+      var html = '';
+      for (var i = 0; i < data.length; i++) {
+        var dow = (todayDow - (data.length - 1 - i) + 7 * 4) % 7;
+        var isToday = i === data.length - 1;
+        html += '<span class="' + (isToday ? 'today' : '') + '">' + letters[dow] + '</span>';
+      }
+      daysWrap.innerHTML = html;
+    }
+
+    // Summary stats: peak / avg / 7-day trend vs prior 7-day
+    var peak = maxV;
+    var avg = data.reduce(function (a, b) { return a + b; }, 0) / data.length;
+    var avgRecent = data.slice(-7).reduce(function (a, b) { return a + b; }, 0) / 7;
+    var avgPrev   = data.slice(-14, -7).reduce(function (a, b) { return a + b; }, 0) / 7;
+    var trendPct, trendCls, trendArrow;
+    if (avgPrev === 0 && avgRecent === 0) {
+      trendPct = 0; trendCls = 'flat'; trendArrow = '—';
+    } else if (avgPrev === 0) {
+      trendPct = 100; trendCls = 'up';   trendArrow = '↑';
+    } else {
+      trendPct = Math.round(((avgRecent - avgPrev) / avgPrev) * 100);
+      if      (trendPct > 5)  { trendCls = 'up';   trendArrow = '↑'; }
+      else if (trendPct < -5) { trendCls = 'down'; trendArrow = '↓'; }
+      else                    { trendCls = 'flat'; trendArrow = '—'; }
+    }
+    var setText = function (sel, val) {
+      var el = document.querySelector(sel); if (el) el.textContent = val;
+    };
+    setText('[data-stat-peak]', peak);
+    setText('[data-stat-avg]', avg.toFixed(1));
+    var trendEl = document.querySelector('[data-stat-trend]');
+    if (trendEl) {
+      trendEl.className = 'trend ' + trendCls;
+      trendEl.textContent = trendArrow + ' ' + (trendPct === 0 ? 'flat' :
+        (trendPct > 0 ? '+' : '') + trendPct + '% wow');
+    }
+
+    // ── Hover tooltip ──
+    var tooltip = document.querySelector('[data-spark-tooltip]');
+    var labels = (function () {
+      var out = [];
+      var today = new Date();
+      for (var i = data.length - 1; i >= 0; i--) {
+        var d = new Date(today.getTime());
+        d.setDate(today.getDate() - (data.length - 1 - i));
+        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        out[i] = d.getDate() + ' ' + months[d.getMonth()];
+      }
+      return out;
+    })();
+
+    function nearestPoint(svgX) {
+      var closest = pts[0], best = Infinity;
+      for (var i = 0; i < pts.length; i++) {
+        var dx = Math.abs(pts[i].x - svgX);
+        if (dx < best) { best = dx; closest = pts[i]; }
+      }
+      return closest;
+    }
+    capEl.addEventListener('mousemove', function (ev) {
+      var rect = svg.getBoundingClientRect();
+      var svgX = ((ev.clientX - rect.left) / rect.width) * W;
+      var p = nearestPoint(svgX);
+      hLine.setAttribute('x1', p.x); hLine.setAttribute('x2', p.x);
+      hLine.style.opacity = 1;
+      hDot.setAttribute('cx', p.x); hDot.setAttribute('cy', p.y);
+      hDot.style.opacity = 1;
+      var leftPx = (p.x / W) * rect.width;
+      tooltip.style.left = leftPx + 'px';
+      tooltip.style.top  = (p.y / H) * rect.height - 8 + 'px';
+      tooltip.innerHTML = '<b>' + p.v + '</b> lead' + (p.v === 1 ? '' : 's')
+                       + ' · ' + labels[p.i];
+      tooltip.style.opacity = 1;
+    });
+    capEl.addEventListener('mouseleave', function () {
+      hLine.style.opacity = 0;
+      hDot.style.opacity = 0;
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  var briefingUrl = "{% admin_url 'admin:marketing_dashboard_briefing' %}";
+  var pulseUrl    = "{% admin_url 'admin:marketing_engagement_pulse' %}";
+  var aiBody      = document.querySelector('[data-ai-body]');
+  var aiFoot      = document.querySelector('[data-ai-foot]');
+  var aiBtn       = document.querySelector('[data-ai-refresh]');
+  var aiBtnLabel  = document.querySelector('[data-ai-btn-label]');
+
+  function loadBriefing() {
+    if (!briefingUrl || briefingUrl === '#') return;
+    aiBtn.disabled = true; aiBtnLabel.textContent = '…';
+    aiBody.classList.add('loading');
+    aiBody.textContent = 'thinking through your pipeline…';
+    fetch(briefingUrl, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.ok && j.briefing) {
+          aiBody.classList.remove('loading');
+          aiBody.textContent = j.briefing;
+          aiFoot.textContent = j.cached
+            ? 'via Groq · Llama 3.3 — cached, refresh in ~30 min'
+            : 'via Groq · Llama 3.3 — fresh draft just now';
+        } else {
+          aiBody.classList.remove('loading');
+          aiBody.textContent = j.error || 'AI briefing unavailable.';
+        }
+      })
+      .catch(function () {
+        aiBody.classList.remove('loading');
+        aiBody.textContent = 'AI briefing unavailable right now.';
+      })
+      .finally(function () {
+        aiBtn.disabled = false; aiBtnLabel.textContent = 'Refresh';
+      });
+  }
+  if (aiBtn) aiBtn.addEventListener('click', loadBriefing);
+  loadBriefing();
+
+  var seen = new Set(), firstRun = true;
+  var toasts = document.getElementById('wr-toasts');
+  function pulse() {
+    if (!pulseUrl || pulseUrl === '#') return;
+    fetch(pulseUrl + '?since=90', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok || !Array.isArray(j.items)) return;
+        j.items.forEach(function (item) {
+          if (firstRun) { seen.add(item.id); return; }
+          if (seen.has(item.id)) return;
+          seen.add(item.id);
+          showToast(item);
+        });
+        firstRun = false;
+      }).catch(function () {});
+  }
+  function showToast(item) {
+    var a = document.createElement('a');
+    a.className = 'wr-toast';
+    a.href = item.drawer_url;
+    a.innerHTML =
+      '<span class="wr-toast-emoji">🔥</span>' +
+      '<span style="flex:1;min-width:0;">' +
+      '<span class="wr-toast-title">' + escapeHtml(item.name) + ' is on their page</span>' +
+      '<span class="wr-toast-sub">visit #' + item.visit_count +
+      ' · click to open the lead drawer</span>' +
+      '</span>';
+    toasts.appendChild(a);
+    requestAnimationFrame(function () { a.classList.add('show'); });
+    setTimeout(function () {
+      a.classList.remove('show');
+      setTimeout(function () { a.remove(); }, 400);
+    }, 14000);
+  }
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  pulse();
+  setInterval(pulse, 30000);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,609 @@
+{% extends "admin/base.html" %}
+{% load i18n admin_dashboard %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | DocPing admin{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  /* ─── Global header rebuild ──────────────────────────────────── */
+  body { background: #0a0a0f !important; }
+
+  /* Wipe the stock teal-blue bar */
+  #header {
+    background: #0a0a0f !important;
+    color: #f4f4f5 !important;
+    border-bottom: 1px solid #1c1c25 !important;
+    padding: 0 !important;
+    height: 56px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    position: sticky !important; top: 0; z-index: 200;
+  }
+  /* Flatten Django's #branding wrapper so its children become direct flex
+     children of #header — without this, the right-side controls (bell +
+     user menu) get squeezed off the visible header. */
+  #branding {
+    display: contents !important;
+    padding: 0 !important;
+    float: none !important;
+  }
+
+  /* Brand lockup — DP square + wordmark */
+  .dp-brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 18px;
+    text-decoration: none !important;
+    height: 56px;
+  }
+  .dp-brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #22d3ee, #67e8f9);
+    color: #06060a;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 12px; letter-spacing: -.02em;
+    box-shadow: 0 4px 14px rgba(34,211,238,.35);
+  }
+  .dp-brand-name {
+    font-size: 14px; font-weight: 700;
+    background: linear-gradient(135deg, #f4f4f5, #a1a1aa);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    letter-spacing: -.01em;
+  }
+
+  /* Center signals strip */
+  .dp-strip {
+    flex: 1; display: flex; justify-content: center; align-items: center;
+    gap: 14px; padding: 0 16px; min-width: 0;
+  }
+  .dp-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px; border-radius: 999px;
+    background: #14141b; border: 1px solid #1c1c25;
+    color: #a1a1aa; font-size: 11.5px; font-weight: 600;
+    line-height: 1; white-space: nowrap;
+    transition: all .15s ease;
+  }
+  .dp-pill b {
+    font-family: 'JetBrains Mono', monospace;
+    color: #f4f4f5; font-weight: 700;
+  }
+  .dp-pill.hot {
+    background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.3);
+    color: #fca5a5;
+  }
+  .dp-pill.hot b { color: #fca5a5; }
+  .dp-pill.hot .dot {
+    width: 6px; height: 6px; border-radius: 999px;
+    background: #ef4444; animation: dpHotPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes dpHotPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.7); }
+    50%      { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+  }
+  .dp-pill.cmd {
+    cursor: pointer;
+    color: #71717a;
+  }
+  .dp-pill.cmd:hover { border-color: #36364a; color: #f4f4f5; }
+  .dp-pill.cmd kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    background: #1c1c25; color: #a1a1aa;
+    padding: 1px 5px; border-radius: 4px;
+    border: 1px solid #26262f;
+  }
+
+  /* Right-side actions */
+  .dp-right {
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0; padding-right: 14px;
+  }
+
+  /* Bell */
+  .dp-bell {
+    position: relative;
+    width: 36px; height: 36px;
+    border: 1px solid #1c1c25; border-radius: 10px;
+    background: #14141b;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #a1a1aa;
+    transition: all .15s ease;
+  }
+  .dp-bell:hover { color: #f4f4f5; border-color: #36364a; }
+  .dp-bell svg { width: 16px; height: 16px; }
+  .dp-bell-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: #ef4444; color: #fff;
+    font-size: 9.5px; font-weight: 800;
+    line-height: 1; padding: 3px 5px; border-radius: 999px;
+    border: 2px solid #0a0a0f; min-width: 16px; text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    display: none;
+  }
+  .dp-bell-badge.show { display: block; animation: dpHotPulse 1.6s ease-in-out infinite; }
+
+  /* User menu */
+  .dp-user {
+    position: relative;
+  }
+  .dp-user-trigger {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 10px 4px 4px;
+    height: 36px;
+    border: 1px solid #1c1c25; border-radius: 999px;
+    background: #14141b;
+    color: #d4d4d8; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .15s ease;
+  }
+  .dp-user-trigger:hover { border-color: #36364a; color: #f4f4f5; }
+  .dp-user-avatar {
+    width: 28px; height: 28px; border-radius: 999px;
+    background: linear-gradient(135deg, #a855f7, #22d3ee);
+    color: #06060a;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 11px;
+  }
+  .dp-user-chev { color: #71717a; font-size: 10px; }
+
+  /* Dropdown / tray panels (shared style) */
+  .dp-pop {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    background: #14141b; border: 1px solid #26262f;
+    border-radius: 12px; padding: 6px;
+    min-width: 220px; z-index: 500;
+    box-shadow: 0 12px 36px rgba(0,0,0,.6);
+    opacity: 0; pointer-events: none;
+    transform: translateY(-4px);
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  .dp-pop.open {
+    opacity: 1; pointer-events: auto; transform: translateY(0);
+  }
+  .dp-pop-head {
+    color: #71717a; font-size: 10px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    padding: 8px 10px 6px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .dp-pop-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 7px;
+    color: #d4d4d8 !important; font-size: 13px;
+    text-decoration: none !important;
+    transition: background .12s ease;
+  }
+  .dp-pop-item:hover { background: #1c1c25; }
+  .dp-pop-item .ic { font-size: 14px; width: 18px; text-align: center; }
+  .dp-pop-sep {
+    height: 1px; background: #26262f; margin: 4px 6px;
+  }
+
+  /* Notifications tray — wider */
+  .dp-tray {
+    width: 360px; max-height: 480px; overflow-y: auto;
+    padding: 8px;
+  }
+  .dp-tray::-webkit-scrollbar { width: 6px; }
+  .dp-tray::-webkit-scrollbar-thumb { background: #26262f; border-radius: 3px; }
+  .dp-tray-empty {
+    padding: 26px 16px; text-align: center;
+    color: #52525b; font-size: 12.5px; font-style: italic;
+  }
+  .dp-tray-item {
+    display: flex; gap: 10px; padding: 10px 11px;
+    border-radius: 9px; margin-bottom: 4px;
+    background: #1c1c25; border: 1px solid #26262f;
+    color: #f4f4f5 !important;
+    text-decoration: none !important;
+    transition: all .12s ease;
+  }
+  .dp-tray-item:hover { transform: translateX(2px); border-color: #36364a; }
+  .dp-tray-item.tone-hot   { border-color: rgba(239,68,68,.25); background: rgba(239,68,68,.05); }
+  .dp-tray-item.tone-amber { border-color: rgba(245,158,11,.22); background: rgba(245,158,11,.04); }
+  .dp-tray-item.tone-cyan  { border-color: rgba(34,211,238,.22); }
+  .dp-tray-emoji {
+    font-size: 18px; line-height: 1; flex-shrink: 0; padding-top: 2px;
+  }
+  .dp-tray-text { flex: 1; min-width: 0; line-height: 1.35; }
+  .dp-tray-title {
+    font-size: 12.5px; font-weight: 600; color: #f4f4f5;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dp-tray-sub { font-size: 11px; color: #a1a1aa; margin-top: 2px; }
+
+  /* ⌘K palette overlay */
+  #dp-palette {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(6, 6, 10, .68);
+    backdrop-filter: blur(6px);
+    display: none; align-items: flex-start; justify-content: center;
+    padding-top: 90px;
+  }
+  #dp-palette.open { display: flex; }
+  .dp-pal-box {
+    width: 100%; max-width: 580px;
+    background: #14141b; border: 1px solid #26262f;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,.7);
+  }
+  .dp-pal-input-wrap {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #1c1c25;
+  }
+  .dp-pal-input-wrap svg { width: 16px; height: 16px; color: #71717a; flex-shrink: 0; }
+  .dp-pal-input {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    color: #f4f4f5; font-size: 16px;
+    font-family: 'Inter', sans-serif;
+  }
+  .dp-pal-input::placeholder { color: #52525b; }
+  .dp-pal-esc {
+    color: #71717a; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    border: 1px solid #26262f; padding: 2px 6px; border-radius: 5px;
+  }
+  .dp-pal-results {
+    max-height: 460px; overflow-y: auto; padding: 6px;
+  }
+  .dp-pal-results::-webkit-scrollbar { width: 6px; }
+  .dp-pal-results::-webkit-scrollbar-thumb { background: #26262f; border-radius: 3px; }
+  .dp-pal-section-head {
+    color: #71717a; font-size: 10px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase;
+    padding: 10px 12px 6px;
+  }
+  .dp-pal-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px;
+    color: #d4d4d8 !important; text-decoration: none !important;
+    cursor: pointer;
+  }
+  .dp-pal-row:hover, .dp-pal-row.active { background: #1c1c25; }
+  .dp-pal-row.active { box-shadow: inset 2px 0 0 #22d3ee; }
+  .dp-pal-emoji { font-size: 16px; width: 22px; text-align: center; }
+  .dp-pal-text { flex: 1; min-width: 0; line-height: 1.35; }
+  .dp-pal-title { font-size: 13.5px; color: #f4f4f5; font-weight: 600; }
+  .dp-pal-desc { font-size: 11.5px; color: #71717a; margin-top: 2px; }
+  .dp-pal-tag {
+    font-size: 10px; color: #71717a; font-family: 'JetBrains Mono', monospace;
+    background: #1c1c25; border: 1px solid #26262f; padding: 2px 6px; border-radius: 4px;
+  }
+  .dp-pal-empty {
+    padding: 22px 14px; text-align: center; color: #52525b;
+    font-size: 12px; font-style: italic;
+  }
+
+  /* Breadcrumbs as pill chips */
+  .breadcrumbs {
+    background: #0a0a0f !important;
+    color: #71717a !important;
+    padding: 12px 22px !important;
+    border-bottom: 1px solid #1c1c25 !important;
+    font-size: 12px !important;
+  }
+  .breadcrumbs a {
+    color: #a1a1aa !important;
+    background: #14141b;
+    padding: 4px 10px; border-radius: 6px;
+    border: 1px solid #1c1c25;
+    text-decoration: none !important;
+    margin-right: 4px;
+    transition: all .15s ease;
+  }
+  .breadcrumbs a:hover { color: #22d3ee !important; border-color: #36364a; }
+
+  /* Hide stuff we replaced */
+  #user-tools { display: none !important; }
+  body.login #header { display: none !important; }
+
+  /* Stop the sticky sidebar from sliding under the sticky header on scroll */
+  #nav-sidebar.sticky,
+  #nav-sidebar { top: 56px !important; z-index: 50 !important; }
+  /* And give the sidebar's first panel a small breathing-room top */
+  #nav-sidebar > :first-child { padding-top: 16px !important; }
+
+  /* Mobile compact */
+  @media (max-width: 768px) {
+    .dp-strip { gap: 6px; padding: 0 6px; }
+    .dp-pill:not(.hot):not(.cmd) { display: none; }
+    .dp-pill.cmd kbd { display: none; }
+    .dp-brand-name { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block branding %}
+{% header_signals as h %}
+<a href="{% url 'admin:index' %}" class="dp-brand">
+  <span class="dp-brand-mark">DP</span>
+  <span class="dp-brand-name">DocPing</span>
+</a>
+
+<div class="dp-strip">
+  <span class="dp-pill hot" data-pill-hot {% if not h.hot_now %}style="display:none;"{% endif %}>
+    <span class="dot"></span>
+    <b data-pill-hot-num>{{ h.hot_now }}</b> hot
+  </span>
+  <span class="dp-pill" data-pill-sent>
+    📲 <b data-pill-sent-num>{{ h.sent_today }}</b> sent today
+  </span>
+  <span class="dp-pill" data-pill-time>
+    🕐 Pune <b data-pill-time-str>{{ h.time_str }}</b>
+  </span>
+  <span class="dp-pill cmd" data-pal-trigger title="Open command palette">
+    Quick find <kbd>⌘K</kbd>
+  </span>
+</div>
+
+<div class="dp-right">
+  <div class="dp-bell" data-bell-trigger title="Notifications">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+    </svg>
+    <span class="dp-bell-badge" data-bell-badge>0</span>
+    <div class="dp-pop dp-tray" data-bell-tray onclick="event.stopPropagation();">
+      <div class="dp-pop-head">
+        <span>Right now</span>
+        <span style="color:#52525b;font-size:10px;text-transform:none;letter-spacing:0;font-weight:500;" data-bell-time></span>
+      </div>
+      <div data-bell-list>
+        <div class="dp-tray-empty">Nothing needs your attention right now.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dp-user">
+    <button type="button" class="dp-user-trigger" data-user-trigger>
+      <span class="dp-user-avatar">{{ user.get_username|slice:":1"|upper|default:"A" }}</span>
+      <span>{{ user.get_short_name|default:user.get_username }}</span>
+      <span class="dp-user-chev">▾</span>
+    </button>
+    <div class="dp-pop" data-user-menu onclick="event.stopPropagation();">
+      <div class="dp-pop-head">Account</div>
+      <a href="/" class="dp-pop-item"><span class="ic">↗</span><span>View site</span></a>
+      <a href="{% url 'admin:password_change' %}" class="dp-pop-item"><span class="ic">🔑</span><span>Change password</span></a>
+      <div class="dp-pop-sep"></div>
+      <a href="{% url 'admin:logout' %}" class="dp-pop-item" style="color:#fca5a5 !important;"><span class="ic">⏻</span><span>Log out</span></a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block usertools %}{% endblock %}
+{% block nav-global %}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<div id="dp-palette" data-palette-root>
+  <div class="dp-pal-box">
+    <div class="dp-pal-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input class="dp-pal-input" data-palette-input
+             placeholder="Search leads, jump to anywhere…" autocomplete="off">
+      <span class="dp-pal-esc">esc</span>
+    </div>
+    <div class="dp-pal-results" data-palette-results></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── Endpoints ────────────────────────────────────────────────
+  var SIGNALS_URL = "/admin/marketing/lead/header-signals/";
+  var NOTIFS_URL  = "/admin/marketing/lead/notifications/";
+  var SEARCH_URL  = "/admin/marketing/lead/command-search/";
+
+  // ── Live signals strip — refresh every 30s ──────────────────
+  function refreshSignals() {
+    fetch(SIGNALS_URL, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) return;
+        var hot = document.querySelector('[data-pill-hot]');
+        var hotN = document.querySelector('[data-pill-hot-num]');
+        if (hot) hot.style.display = j.hot_now ? '' : 'none';
+        if (hotN) hotN.textContent = j.hot_now;
+        var sentN = document.querySelector('[data-pill-sent-num]');
+        if (sentN) sentN.textContent = j.sent_today;
+        var timeStr = document.querySelector('[data-pill-time-str]');
+        if (timeStr) timeStr.textContent = j.time_str;
+      })
+      .catch(function () {});
+  }
+  setInterval(refreshSignals, 30000);
+
+  // ── Notifications bell ─────────────────────────────────────
+  var bell = document.querySelector('[data-bell-trigger]');
+  var tray = document.querySelector('[data-bell-tray]');
+  var bellBadge = document.querySelector('[data-bell-badge]');
+  var bellList  = document.querySelector('[data-bell-list]');
+  var bellTime  = document.querySelector('[data-bell-time]');
+
+  function refreshNotifs(opts) {
+    opts = opts || {};
+    return fetch(NOTIFS_URL, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) return;
+        // Badge (only counts items the user hasn't acknowledged yet)
+        var lastSeen = parseInt(localStorage.getItem('dp:bell:lastSeen') || '0', 10);
+        var unseen = j.items.filter(function (it) {
+          return new Date(it.ts).getTime() > lastSeen;
+        }).length;
+        if (unseen > 0) {
+          bellBadge.textContent = unseen > 9 ? '9+' : unseen;
+          bellBadge.classList.add('show');
+        } else {
+          bellBadge.classList.remove('show');
+        }
+
+        if (opts.render === false) return;
+        // Tray content
+        bellTime.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (!j.items.length) {
+          bellList.innerHTML = '<div class="dp-tray-empty">Nothing needs your attention right now.</div>';
+          return;
+        }
+        bellList.innerHTML = j.items.map(function (it) {
+          return '<a class="dp-tray-item tone-' + it.tone + '" href="' + it.href + '">' +
+            '<span class="dp-tray-emoji">' + it.emoji + '</span>' +
+            '<span class="dp-tray-text">' +
+            '<span class="dp-tray-title">' + escapeHtml(it.title) + '</span>' +
+            '<span class="dp-tray-sub">' + escapeHtml(it.sub) + '</span>' +
+            '</span></a>';
+        }).join('');
+      })
+      .catch(function () {});
+  }
+  if (bell) {
+    bell.addEventListener('click', function (e) {
+      // If they clicked the inner tray, ignore.
+      if (e.target.closest('[data-bell-tray]')) return;
+      var open = tray.classList.toggle('open');
+      if (open) {
+        refreshNotifs({ render: true });
+        localStorage.setItem('dp:bell:lastSeen', Date.now().toString());
+        bellBadge.classList.remove('show');
+      }
+    });
+    refreshNotifs({ render: false });
+    setInterval(function () { refreshNotifs({ render: tray.classList.contains('open') }); }, 30000);
+  }
+
+  // ── User menu dropdown ─────────────────────────────────────
+  var userBtn = document.querySelector('[data-user-trigger]');
+  var userMenu = document.querySelector('[data-user-menu]');
+  if (userBtn) {
+    userBtn.addEventListener('click', function (e) {
+      userMenu.classList.toggle('open');
+      e.stopPropagation();
+    });
+  }
+
+  // Close any pop on outside click
+  document.addEventListener('click', function () {
+    document.querySelectorAll('.dp-pop.open').forEach(function (el) { el.classList.remove('open'); });
+  });
+
+  // ── ⌘K command palette ────────────────────────────────────
+  var pal = document.getElementById('dp-palette');
+  var palInput = document.querySelector('[data-palette-input]');
+  var palResults = document.querySelector('[data-palette-results]');
+  var palItems = []; var palActive = 0;
+  var palTimer = null;
+
+  function openPalette() {
+    pal.classList.add('open');
+    setTimeout(function () { palInput.focus(); palInput.select(); }, 30);
+    if (!palInput.value) renderPalette({ leads: [], commands: [] }, true);
+    runPalette('');
+  }
+  function closePalette() {
+    pal.classList.remove('open');
+  }
+  function runPalette(q) {
+    fetch(SEARCH_URL + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) return;
+        renderPalette(j, false);
+      })
+      .catch(function () {});
+  }
+  function renderPalette(j, suggestionsOnly) {
+    palItems = []; palActive = 0;
+    var html = '';
+    if (j.leads && j.leads.length) {
+      html += '<div class="dp-pal-section-head">Leads</div>';
+      j.leads.forEach(function (l) {
+        palItems.push(l.href);
+        html += '<a class="dp-pal-row" data-href="' + l.href + '">' +
+          '<span class="dp-pal-emoji">👤</span>' +
+          '<span class="dp-pal-text">' +
+          '<span class="dp-pal-title">' + escapeHtml(l.name) + '</span>' +
+          '<span class="dp-pal-desc">+' + escapeHtml(l.phone) + ' · score ' + l.score + '</span>' +
+          '</span>' +
+          '<span class="dp-pal-tag">' + escapeHtml(l.status) + '</span></a>';
+      });
+    }
+    if (j.commands && j.commands.length) {
+      html += '<div class="dp-pal-section-head">' + (suggestionsOnly ? 'Suggested' : 'Commands') + '</div>';
+      j.commands.forEach(function (c) {
+        palItems.push(c.href);
+        html += '<a class="dp-pal-row" data-href="' + c.href + '">' +
+          '<span class="dp-pal-emoji">' + c.emoji + '</span>' +
+          '<span class="dp-pal-text">' +
+          '<span class="dp-pal-title">' + escapeHtml(c.title) + '</span>' +
+          '<span class="dp-pal-desc">' + escapeHtml(c.desc) + '</span>' +
+          '</span></a>';
+      });
+    }
+    if (!html) html = '<div class="dp-pal-empty">No matches.</div>';
+    palResults.innerHTML = html;
+    highlightActive();
+    palResults.querySelectorAll('.dp-pal-row').forEach(function (row, i) {
+      row.addEventListener('click', function (e) {
+        e.preventDefault(); window.location.href = row.dataset.href;
+      });
+      row.addEventListener('mouseenter', function () {
+        palActive = i; highlightActive();
+      });
+    });
+  }
+  function highlightActive() {
+    palResults.querySelectorAll('.dp-pal-row').forEach(function (row, i) {
+      row.classList.toggle('active', i === palActive);
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var isMac = /Mac/.test(navigator.platform);
+    var trigger = (isMac && e.metaKey && e.key === 'k') || (!isMac && e.ctrlKey && e.key === 'k');
+    if (trigger) {
+      e.preventDefault();
+      if (pal.classList.contains('open')) closePalette(); else openPalette();
+      return;
+    }
+    if (!pal.classList.contains('open')) return;
+    if (e.key === 'Escape') { closePalette(); return; }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      palActive = Math.min(palActive + 1, palItems.length - 1);
+      highlightActive();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      palActive = Math.max(palActive - 1, 0);
+      highlightActive();
+    } else if (e.key === 'Enter') {
+      if (palItems[palActive]) window.location.href = palItems[palActive];
+    }
+  });
+  if (palInput) {
+    palInput.addEventListener('input', function () {
+      clearTimeout(palTimer);
+      palTimer = setTimeout(function () { runPalette(palInput.value.trim()); }, 140);
+    });
+  }
+  document.querySelectorAll('[data-pal-trigger]').forEach(function (el) {
+    el.addEventListener('click', function (e) { e.preventDefault(); openPalette(); });
+  });
+  pal.addEventListener('click', function (e) {
+    if (e.target === pal) closePalette();
+  });
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+})();
+</script>
+{% endblock %}

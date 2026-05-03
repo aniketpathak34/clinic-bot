@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.views.decorators.http import require_POST
 
-from .models import DemoVideo, Lead
+from .models import DashboardConfig, DemoVideo, Lead
 
 
 # ─── Visual helpers ───────────────────────────────────────────────
@@ -109,8 +109,58 @@ class LeadAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.bulk_whatsapp_view),
                 name='marketing_lead_bulk_whatsapp',
             ),
+            path(
+                'dashboard-briefing/',
+                self.admin_site.admin_view(self._ai_briefing),
+                name='marketing_dashboard_briefing',
+            ),
+            path(
+                'engagement-pulse/',
+                self.admin_site.admin_view(self._engagement_pulse),
+                name='marketing_engagement_pulse',
+            ),
+            path(
+                'header-signals/',
+                self.admin_site.admin_view(self._header_signals),
+                name='marketing_header_signals',
+            ),
+            path(
+                'notifications/',
+                self.admin_site.admin_view(self._notifications),
+                name='marketing_notifications',
+            ),
+            path(
+                'command-search/',
+                self.admin_site.admin_view(self._command_search),
+                name='marketing_command_search',
+            ),
         ]
         return custom + urls
+
+    @staticmethod
+    def _ai_briefing(request):
+        from .dashboard import ai_briefing_view
+        return ai_briefing_view(request)
+
+    @staticmethod
+    def _engagement_pulse(request):
+        from .dashboard import engagement_pulse_view
+        return engagement_pulse_view(request)
+
+    @staticmethod
+    def _header_signals(request):
+        from .dashboard import header_signals_view
+        return header_signals_view(request)
+
+    @staticmethod
+    def _notifications(request):
+        from .dashboard import notifications_view
+        return notifications_view(request)
+
+    @staticmethod
+    def _command_search(request):
+        from .dashboard import command_search_view
+        return command_search_view(request)
 
     @staticmethod
     @require_POST
@@ -585,3 +635,51 @@ class DemoVideoAdmin(admin.ModelAdmin):
             return format_html('<a href="{}" target="_blank">▶ File</a>', obj.video_file.url)
         return '—'
     preview.short_description = 'Preview'
+
+
+@admin.register(DashboardConfig)
+class DashboardConfigAdmin(admin.ModelAdmin):
+    """Singleton-style admin: redirect Add to the existing edit page,
+    and hide the delete option entirely."""
+    list_display = ('__str__', 'updated_at')
+    fieldsets = (
+        ('Pipeline-value math', {
+            'fields': ('arpu_inr', 'min_sample_size'),
+            'description': (
+                "ARPU is multiplied by stage-conversion probability and lead count to "
+                "produce the headline pipeline value. The dashboard uses your <b>observed</b> "
+                "conversion rate at each stage once you have at least <code>min_sample_size</code> "
+                "leads at that stage; otherwise it falls back to the benchmark % below."
+            ),
+        }),
+        ('Benchmark fallbacks (used when observed sample is too small)', {
+            'fields': (
+                'benchmark_new_to_sent_pct',
+                'benchmark_sent_to_replied_pct',
+                'benchmark_replied_to_demo_pct',
+                'benchmark_demo_to_pilot_pct',
+            ),
+        }),
+        ('Goal targets shown on the dashboard', {
+            'fields': (
+                'goal_outreach_per_week',
+                'goal_demos_per_week',
+                'goal_pilots_per_month',
+            ),
+        }),
+    )
+    readonly_fields = ()
+
+    def has_add_permission(self, request):
+        # Allow Add only if no row exists yet — otherwise force edit-existing.
+        return not DashboardConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        # Skip the list view entirely — go straight to the single editable row.
+        obj = DashboardConfig.load()
+        return HttpResponseRedirect(
+            reverse('admin:marketing_dashboardconfig_change', args=(obj.pk,))
+        )
