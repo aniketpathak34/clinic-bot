@@ -96,6 +96,85 @@ def brand_preview(request):
 # SEO — robots.txt and sitemap.xml served as plain endpoints
 # ────────────────────────────────────────────────────────────────
 
+# ────────────────────────────────────────────────────────────────
+# PWA — manifest.json + service worker (must live at the site root
+# so the SW's scope covers the whole admin)
+# ────────────────────────────────────────────────────────────────
+
+@require_safe
+def pwa_manifest(request):
+    """Return the PWA manifest as JSON. Browsers fetch this when deciding
+    if a site is installable to the home screen."""
+    from django.http import JsonResponse
+    return JsonResponse({
+        'name': 'DocPing — Ops Console',
+        'short_name': 'DocPing',
+        'description': 'WhatsApp-based clinic appointment booking — operator dashboard',
+        'start_url': '/admin/',
+        'scope': '/',
+        'display': 'standalone',
+        'orientation': 'portrait',
+        'background_color': '#0a0a0f',
+        'theme_color': '#0a0a0f',
+        'icons': [
+            {'src': '/static/marketing/brand/docping-icon.svg',
+             'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'any'},
+            {'src': '/static/marketing/brand/docping-icon.svg',
+             'sizes': 'any', 'type': 'image/svg+xml', 'purpose': 'maskable'},
+        ],
+    })
+
+
+@require_safe
+def service_worker(request):
+    """Service worker — must be served from /sw.js (root scope) and with a
+    JS content type. The body is small: register push handler + click handler."""
+    from django.http import HttpResponse
+    body = """// DocPing service worker — handles web push notifications.
+// Cache: nothing (we don't do offline; this SW only exists for push).
+self.addEventListener('install', function (e) { self.skipWaiting(); });
+self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });
+
+self.addEventListener('push', function (event) {
+  if (!event.data) return;
+  var payload = {};
+  try { payload = event.data.json(); } catch (e) { payload = { title: 'DocPing', body: event.data.text() }; }
+  var title = payload.title || 'DocPing';
+  var opts = {
+    body: payload.body || '',
+    icon: payload.icon || '/static/marketing/brand/docping-icon.svg',
+    badge: payload.badge || '/static/marketing/brand/docping-icon.svg',
+    tag: payload.tag || 'docping',
+    renotify: true,
+    requireInteraction: false,
+    data: { url: payload.url || '/admin/' },
+    vibrate: [60, 30, 60],
+  };
+  event.waitUntil(self.registration.showNotification(title, opts));
+});
+
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  var url = (event.notification.data && event.notification.data.url) || '/admin/';
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (winList) {
+    for (var i = 0; i < winList.length; i++) {
+      var c = winList[i];
+      if (c.url.indexOf(self.registration.scope) === 0 && 'focus' in c) {
+        c.focus();
+        if ('navigate' in c) c.navigate(url);
+        return;
+      }
+    }
+    if (clients.openWindow) return clients.openWindow(url);
+  }));
+});
+"""
+    resp = HttpResponse(body, content_type='application/javascript; charset=utf-8')
+    # Allow the SW to control the entire site root.
+    resp['Service-Worker-Allowed'] = '/'
+    return resp
+
+
 @require_safe  # Allows both GET and HEAD — search-engine crawlers often probe with HEAD first
 def robots_txt(request):
     """Serve /robots.txt — tells crawlers what to index and where to find sitemap."""
@@ -187,7 +266,27 @@ def lead_landing(request, slug: str):
             if not lead.contacted_at:
                 lead.contacted_at = now
                 update_fields.append('contacted_at')
+        was_first_visit = (lead.visit_count == 1)
         lead.save(update_fields=update_fields)
+
+        # ── Hot-lead push: notify staff that a clinic is on their page now.
+        # We push for every visit (not just first) because revisits are also
+        # buying signal — but the title text differs so the operator knows.
+        try:
+            from .push import notify_all_staff
+            notify_all_staff(
+                title=("🔥 " + lead.name + " is on their page" if was_first_visit
+                       else "👀 " + lead.name + " came back"),
+                body=(f"First open · score {lead.score} · tap to open the lead drawer"
+                      if was_first_visit else
+                      f"Visit #{lead.visit_count} · {timezone.localtime(now).strftime('%I:%M %p').lstrip('0')}"),
+                url=f"/admin/marketing/lead/?_drawer={lead.pk}",
+                tag=f"docping-engaged-{lead.pk}",
+            )
+        except Exception:
+            # Push failures must never break the lead's page render.
+            import logging
+            logging.getLogger(__name__).exception("hot-lead push failed")
 
     # Pull the operator's WA contact number off the same User row used by
     # the public landing page, so this page shows "Aniket | +91 ..." too.

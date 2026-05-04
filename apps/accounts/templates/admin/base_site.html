@@ -150,12 +150,22 @@
   }
   .dp-user-chev { color: #71717a; font-size: 10px; }
 
-  /* Dropdown / tray panels (shared style) */
+  /* Belt-and-braces: parents Django ships sometimes set overflow:hidden,
+     which would clip absolutely-positioned dropdowns. Force visible. */
+  #header, #container, #main, body.dashboard #content {
+    overflow: visible !important;
+  }
+
+  /* Dropdown / tray panels (shared style)
+     Use position: fixed so the dropdown escapes every parent stacking
+     context — there's no way for the page's main column to paint over it. */
   .dp-pop {
-    position: absolute; top: calc(100% + 8px); right: 0;
+    position: fixed;
+    top: 60px;
+    right: 14px;
     background: #14141b; border: 1px solid #26262f;
     border-radius: 12px; padding: 6px;
-    min-width: 220px; z-index: 500;
+    min-width: 220px; z-index: 99999;
     box-shadow: 0 12px 36px rgba(0,0,0,.6);
     opacity: 0; pointer-events: none;
     transform: translateY(-4px);
@@ -164,6 +174,8 @@
   .dp-pop.open {
     opacity: 1; pointer-events: auto; transform: translateY(0);
   }
+  /* Bell's tray sits left of the avatar; offset it so they don't collide. */
+  [data-bell-tray] { right: 60px; }
   .dp-pop-head {
     color: #71717a; font-size: 10px; font-weight: 700;
     letter-spacing: .12em; text-transform: uppercase;
@@ -307,12 +319,135 @@
   /* And give the sidebar's first panel a small breathing-room top */
   #nav-sidebar > :first-child { padding-top: 16px !important; }
 
-  /* Mobile compact */
+  /* ── Desktop: sidebar permanently visible ──────────────────────
+     Django's stock CSS hides the sidebar off-screen via margin-left
+     until a cookie flips it on. That's the wrong default for an ops
+     console — pin it visible always. Hide the toggle button entirely. */
+  @media (min-width: 1025px) {
+    #nav-sidebar {
+      position: sticky !important;
+      top: 56px !important;
+      left: 0 !important;
+      margin-left: 0 !important;
+      flex: 0 0 280px !important;
+      transform: none !important;
+      z-index: 50 !important;
+    }
+    .toggle-nav-sidebar { display: none !important; }
+    /* Don't let Django's .shifted class push content over — keep things
+       laid out by the natural flex placement. */
+    .main.shifted > .content,
+    .main > .content { margin-left: 0 !important; }
+  }
+
+  /* ── Mobile / tablet (≤1024px): slide-in drawer with backdrop ──── */
+  @media (max-width: 1024px) {
+    /* Django's stock nav_sidebar.css does `#nav-sidebar { display: none }`
+       below 767px. Override with explicit display so our slide-in drawer
+       actually renders. */
+    #nav-sidebar {
+      display: block !important;
+      position: fixed !important;
+      top: 56px !important;
+      left: 0 !important;
+      bottom: 0 !important;
+      width: 280px !important;
+      max-width: 85vw !important;
+      transform: translateX(-105%) !important;
+      transition: transform .3s ease !important;
+      box-shadow: 4px 0 24px rgba(0,0,0,.6);
+      margin-left: 0 !important;
+      z-index: 10000 !important;
+      overflow-y: auto !important;
+      pointer-events: auto !important;
+    }
+    /* Defensive: every interactive child must take taps regardless of
+       any inherited pointer-events: none from upstream Django styles. */
+    #nav-sidebar a,
+    #nav-sidebar button,
+    #nav-sidebar input,
+    #nav-sidebar summary {
+      pointer-events: auto !important;
+      position: relative;
+      z-index: 1;
+      -webkit-tap-highlight-color: rgba(34,211,238,.25);
+      touch-action: manipulation;
+    }
+    #dp-sidebar-backdrop { z-index: 9000 !important; }
+    /* Both descendant + direct-child selectors, !important on each, so
+       no Django CSS or specificity quirk can stop the drawer from sliding. */
+    .main.shifted #nav-sidebar,
+    .main.shifted > #nav-sidebar { transform: translateX(0) !important; }
+
+    /* Backdrop covers ONLY the area to the right of the sidebar so it
+       can never sit on top of sidebar links, regardless of any mobile
+       z-index quirks. */
+    #dp-sidebar-backdrop {
+      position: fixed;
+      top: 56px;
+      left: min(280px, 85vw);
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 999;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s ease;
+    }
+    #dp-sidebar-backdrop.show {
+      opacity: 1; pointer-events: auto;
+    }
+
+    .main.shifted > .content,
+    .main > .content { margin-left: 0 !important; }
+
+    .toggle-nav-sidebar {
+      position: fixed !important;
+      top: 0 !important; left: 0 !important;
+      width: 56px !important; height: 56px !important;
+      background: transparent !important;
+      border: 0 !important;
+      color: #f4f4f5 !important;
+      font-size: 22px !important;
+      z-index: 201 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer;
+    }
+    .toggle-nav-sidebar::before {
+      content: '☰' !important;
+      color: #f4f4f5 !important;
+    }
+    .main.shifted .toggle-nav-sidebar::before { content: '✕' !important; }
+    .dp-brand { padding-left: 56px !important; }
+  }
+
+  /* Mobile compact ─ Django's responsive.css flips #header to
+     flex-direction: column on small screens, which kills our brand /
+     center / right horizontal layout. Force row everywhere. */
+  @media (max-width: 1024px) {
+    #header {
+      flex-direction: row !important;
+      padding: 0 !important;
+      height: 56px !important;
+      flex-wrap: nowrap !important;
+    }
+  }
   @media (max-width: 768px) {
-    .dp-strip { gap: 6px; padding: 0 6px; }
+    .dp-strip { gap: 6px; padding: 0 6px; flex: 1; min-width: 0; overflow: hidden; }
     .dp-pill:not(.hot):not(.cmd) { display: none; }
     .dp-pill.cmd kbd { display: none; }
+    .dp-pill.cmd { font-size: 11px; padding: 5px 9px; }
     .dp-brand-name { display: none; }
+    .dp-brand { padding: 0 12px; }
+    .dp-right { padding-right: 8px; gap: 6px; }
+    /* Hide the username text on tight viewports — keep the avatar tappable */
+    .dp-user-trigger > span:not(.dp-user-avatar):not(.dp-user-chev) { display: none; }
+    .dp-user-trigger { padding: 4px; }
+  }
+  @media (max-width: 420px) {
+    /* Very narrow: drop the Quick find pill, keep just brand + bell + user */
+    .dp-pill.cmd { display: none; }
   }
 </style>
 {% endblock %}
@@ -366,6 +501,15 @@
     </button>
     <div class="dp-pop" data-user-menu onclick="event.stopPropagation();">
       <div class="dp-pop-head">Account</div>
+      <button type="button" class="dp-pop-item" data-push-toggle style="background:transparent;border:0;width:100%;text-align:left;cursor:pointer;font:inherit;">
+        <span class="ic" data-push-icon>🔕</span>
+        <span data-push-label>Enable push notifications</span>
+      </button>
+      <button type="button" class="dp-pop-item" data-push-test style="background:transparent;border:0;width:100%;text-align:left;cursor:pointer;font:inherit;display:none;">
+        <span class="ic">🧪</span>
+        <span>Send a test notification</span>
+      </button>
+      <div class="dp-pop-sep"></div>
       <a href="/" class="dp-pop-item"><span class="ic">↗</span><span>View site</span></a>
       <a href="{% url 'admin:password_change' %}" class="dp-pop-item"><span class="ic">🔑</span><span>Change password</span></a>
       <div class="dp-pop-sep"></div>
@@ -379,6 +523,13 @@
 {% block nav-global %}{% endblock %}
 
 {% block extrahead %}{{ block.super }}
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DocPing">
+<link rel="apple-touch-icon" href="/static/marketing/brand/docping-icon.svg">
+
 <div id="dp-palette" data-palette-root>
   <div class="dp-pal-box">
     <div class="dp-pal-input-wrap">
@@ -395,7 +546,10 @@
 </div>
 
 <script>
-(function () {
+// This script lives in <head>, but we wire up handlers for buttons that
+// exist in <body>. Defer setup until DOM is ready or the queries return
+// null and nothing becomes clickable.
+function dpHeaderInit() {
   // ── Endpoints ────────────────────────────────────────────────
   var SIGNALS_URL = "/admin/marketing/lead/header-signals/";
   var NOTIFS_URL  = "/admin/marketing/lead/notifications/";
@@ -604,6 +758,245 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   }
-})();
+
+  // ── Mobile sidebar: own the toggle ──────────────────────────────
+  // Django's stock nav_sidebar.js attaches a click handler that toggles
+  // `.shifted` on .main, but on this customised theme it sometimes doesn't
+  // fire (defer-script loading order, content-shifted CSS, etc). Wire
+  // up our own handler too — and a backdrop that closes the drawer on tap.
+  (function () {
+    // First visit on mobile: Django defaults the sidebar OPEN, which on a
+    // phone covers the whole dashboard with the overlay + backdrop. Force
+    // closed on mobile if the user hasn't expressed a preference yet.
+    try {
+      if (localStorage.getItem('django.admin.navSidebarIsOpen') === null
+          && window.matchMedia('(max-width: 1024px)').matches) {
+        localStorage.setItem('django.admin.navSidebarIsOpen', 'false');
+      }
+    } catch (e) {}
+
+    var main = document.querySelector('.main') || document.getElementById('main');
+    if (!main) return;
+    var toggle = document.getElementById('toggle-nav-sidebar');
+
+    var backdrop = document.getElementById('dp-sidebar-backdrop');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'dp-sidebar-backdrop';
+      document.body.appendChild(backdrop);
+    }
+
+    function syncBackdrop() {
+      var mobile = window.matchMedia('(max-width: 1024px)').matches;
+      if (mobile && main.classList.contains('shifted')) {
+        backdrop.classList.add('show');
+      } else {
+        backdrop.classList.remove('show');
+      }
+    }
+
+    function toggleSidebar(force) {
+      var willOpen;
+      if (typeof force === 'boolean') {
+        willOpen = force;
+      } else {
+        willOpen = !main.classList.contains('shifted');
+      }
+      main.classList.toggle('shifted', willOpen);
+      try {
+        localStorage.setItem('django.admin.navSidebarIsOpen', willOpen ? 'true' : 'false');
+      } catch (e) {}
+      syncBackdrop();
+    }
+
+    // Toggle button — Django's stock nav_sidebar.js ALSO attaches a click
+    // handler to this same button that toggles .shifted. If both fire we
+    // cancel each other out (open + close = nothing). Run in capture phase
+    // and stopImmediatePropagation to ensure only OUR handler runs.
+    if (toggle) {
+      toggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        toggleSidebar();
+      }, true);
+    }
+
+    backdrop.addEventListener('click', function () { toggleSidebar(false); });
+
+    // On mobile, close the drawer when a sidebar link is tapped so the
+    // next page isn't covered by the overlay. Bubble phase, no
+    // preventDefault — link still navigates normally.
+    var sidebarEl = document.getElementById('nav-sidebar');
+    if (sidebarEl) {
+      sidebarEl.addEventListener('click', function (e) {
+        var link = e.target.closest('a[href]');
+        if (!link) return;
+        if (!window.matchMedia('(max-width: 1024px)').matches) return;
+        try {
+          localStorage.setItem('django.admin.navSidebarIsOpen', 'false');
+          main.classList.remove('shifted');
+        } catch (err) {}
+      });
+    }
+
+    // Re-sync if Django's script also flips .shifted (we don't want both
+    // handlers fighting — use MutationObserver to keep backdrop honest).
+    new MutationObserver(syncBackdrop)
+      .observe(main, { attributes: true, attributeFilter: ['class'] });
+
+    syncBackdrop();
+    window.addEventListener('resize', syncBackdrop);
+  })();
+
+  // ── Web Push: register service worker + handle subscribe toggle ──
+  var PUSH_CONFIG_URL  = "/admin/marketing/lead/push/config/";
+  var PUSH_SUB_URL     = "/admin/marketing/lead/push/subscribe/";
+  var PUSH_UNSUB_URL   = "/admin/marketing/lead/push/unsubscribe/";
+  var PUSH_TEST_URL    = "/admin/marketing/lead/push/test/";
+
+  var pushBtn   = document.querySelector('[data-push-toggle]');
+  var pushIcon  = document.querySelector('[data-push-icon]');
+  var pushLabel = document.querySelector('[data-push-label]');
+  var pushTest  = document.querySelector('[data-push-test]');
+
+  function pushSupported() {
+    return ('serviceWorker' in navigator) && ('PushManager' in window) &&
+           (location.protocol === 'https:' || location.hostname === 'localhost' ||
+            location.hostname === '127.0.0.1');
+  }
+
+  function setPushUI(state) {
+    if (!pushBtn) return;
+    if (state === 'unsupported') {
+      pushIcon.textContent = '🚫';
+      pushLabel.textContent = 'Push not supported here';
+      pushBtn.disabled = true;
+      pushBtn.style.opacity = .5;
+      pushTest.style.display = 'none';
+    } else if (state === 'denied') {
+      pushIcon.textContent = '🚫';
+      pushLabel.textContent = 'Notifications blocked in browser';
+      pushTest.style.display = 'none';
+    } else if (state === 'on') {
+      pushIcon.textContent = '🔔';
+      pushLabel.textContent = 'Notifications on · click to disable';
+      pushTest.style.display = 'flex';
+    } else if (state === 'busy') {
+      pushIcon.textContent = '⏳';
+      pushLabel.textContent = 'Working…';
+      pushBtn.disabled = true;
+    } else { // 'off'
+      pushIcon.textContent = '🔕';
+      pushLabel.textContent = 'Enable push notifications';
+      pushTest.style.display = 'none';
+      pushBtn.disabled = false;
+    }
+  }
+
+  function urlBase64ToUint8Array(b64) {
+    var pad = '='.repeat((4 - b64.length % 4) % 4);
+    var s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = atob(s);
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  function ensureSW() {
+    return navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  }
+
+  function subscribeToPush() {
+    setPushUI('busy');
+    return Notification.requestPermission()
+      .then(function (perm) {
+        if (perm !== 'granted') { setPushUI(perm === 'denied' ? 'denied' : 'off'); return null; }
+        return ensureSW().then(function (reg) {
+          return fetch(PUSH_CONFIG_URL, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (cfg) {
+              if (!cfg.ok) throw new Error('No VAPID config');
+              return reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(cfg.public_key),
+              });
+            });
+        }).then(function (sub) {
+          if (!sub) return null;
+          return fetch(PUSH_SUB_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(sub.toJSON()),
+          }).then(function (r) { return r.json(); }).then(function (j) {
+            setPushUI(j.ok ? 'on' : 'off');
+            return j;
+          });
+        });
+      })
+      .catch(function (e) {
+        console.error('[push] subscribe failed', e);
+        setPushUI('off');
+      });
+  }
+
+  function unsubscribePush() {
+    setPushUI('busy');
+    return ensureSW().then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (sub) {
+        var endpoint = sub && sub.endpoint;
+        var p = sub ? sub.unsubscribe() : Promise.resolve();
+        return p.then(function () {
+          return fetch(PUSH_UNSUB_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ endpoint: endpoint || '' }),
+          });
+        });
+      });
+    }).then(function () { setPushUI('off'); })
+      .catch(function () { setPushUI('off'); });
+  }
+
+  function refreshPushUI() {
+    if (!pushSupported()) { setPushUI('unsupported'); return; }
+    if (Notification.permission === 'denied') { setPushUI('denied'); return; }
+    ensureSW().then(function (reg) {
+      return reg.pushManager.getSubscription();
+    }).then(function (sub) {
+      setPushUI(sub ? 'on' : 'off');
+    }).catch(function () { setPushUI('off'); });
+  }
+
+  if (pushBtn) {
+    pushBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var label = pushLabel.textContent || '';
+      if (label.indexOf('Notifications on') === 0) {
+        unsubscribePush();
+      } else {
+        subscribeToPush();
+      }
+    });
+    pushTest.addEventListener('click', function (e) {
+      e.preventDefault();
+      fetch(PUSH_TEST_URL, { method: 'POST', credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var oldLabel = pushLabel.textContent;
+          pushLabel.textContent = j.ok && j.sent ? 'Sent ✓ check your phone' : 'Test failed';
+          setTimeout(function () { pushLabel.textContent = oldLabel; }, 2200);
+        });
+    });
+    refreshPushUI();
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', dpHeaderInit);
+} else {
+  dpHeaderInit();
+}
 </script>
 {% endblock %}

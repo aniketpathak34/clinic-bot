@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import path, reverse, NoReverseMatch
 from django.utils import timezone
 from django.utils.html import format_html
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from .models import DashboardConfig, DemoVideo, Lead
@@ -134,6 +135,26 @@ class LeadAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self._command_search),
                 name='marketing_command_search',
             ),
+            path(
+                'push/config/',
+                self.admin_site.admin_view(self._push_config),
+                name='marketing_push_config',
+            ),
+            path(
+                'push/subscribe/',
+                self.admin_site.admin_view(self._push_subscribe),
+                name='marketing_push_subscribe',
+            ),
+            path(
+                'push/unsubscribe/',
+                self.admin_site.admin_view(self._push_unsubscribe),
+                name='marketing_push_unsubscribe',
+            ),
+            path(
+                'push/test/',
+                self.admin_site.admin_view(self._push_test),
+                name='marketing_push_test',
+            ),
         ]
         return custom + urls
 
@@ -161,6 +182,29 @@ class LeadAdmin(admin.ModelAdmin):
     def _command_search(request):
         from .dashboard import command_search_view
         return command_search_view(request)
+
+    @staticmethod
+    def _push_config(request):
+        from .dashboard import push_config_view
+        return push_config_view(request)
+
+    @staticmethod
+    @csrf_exempt
+    def _push_subscribe(request):
+        from .dashboard import push_subscribe_view
+        return push_subscribe_view(request)
+
+    @staticmethod
+    @csrf_exempt
+    def _push_unsubscribe(request):
+        from .dashboard import push_unsubscribe_view
+        return push_unsubscribe_view(request)
+
+    @staticmethod
+    @csrf_exempt
+    def _push_test(request):
+        from .dashboard import push_test_view
+        return push_test_view(request)
 
     @staticmethod
     @require_POST
@@ -321,21 +365,28 @@ Output ONLY the message text, no preamble, no quotes, no explanation."""
     # ─── Stat strip shown above the changelist table ─────────────
 
     def get_queryset(self, request):
-        """Hook the 'needs_followup' URL param (stashed on the request by
-        changelist_view) to filter to leads needing action right now."""
+        """Hook our custom URL params (stashed on the request by
+        changelist_view) to filter the queryset."""
         qs = super().get_queryset(request)
         if getattr(request, '_filter_needs_followup', False):
             ids = [l.pk for l in qs if l.followup_status() is not None]
             qs = qs.filter(pk__in=ids)
+        if getattr(request, '_filter_engaged', False):
+            # "Currently engaged" = visited their personalised page in the
+            # last hour. Same definition used by the dashboard KPI tile.
+            hour_ago = timezone.now() - timedelta(hours=1)
+            qs = qs.filter(last_visited_at__gte=hour_ago)
         return qs
 
     def changelist_view(self, request, extra_context=None):
-        # Pop our custom param BEFORE Django admin's ChangeList validates
+        # Pop our custom params BEFORE Django admin's ChangeList validates
         # query params (unknown params trigger a redirect with ?e=1 error).
         request._filter_needs_followup = request.GET.get('needs_followup') == '1'
-        if request._filter_needs_followup:
+        request._filter_engaged = request.GET.get('engaged') == '1'
+        if request._filter_needs_followup or request._filter_engaged:
             get = request.GET.copy()
             get.pop('needs_followup', None)
+            get.pop('engaged', None)
             request.GET = get
 
         today = date.today()

@@ -528,3 +528,104 @@ class DashboardConfig(models.Model):
     def load(cls) -> 'DashboardConfig':
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class WebPushSettings(models.Model):
+    """Singleton holding the project's VAPID keys + contact email.
+
+    Generated lazily on first access — see `load()`. Stored in the DB so the
+    operator never has to mess with env vars; same singleton pattern as
+    DashboardConfig.
+
+    NEVER rotate the private key once subscribers exist — old subscriptions
+    will silently break. If you ever do rotate, also clear PushSubscription.
+    """
+    vapid_public_key = models.TextField(blank=True)
+    vapid_private_key = models.TextField(blank=True)
+    contact_email = models.EmailField(
+        default='ops@docping.in',
+        help_text=(
+            "Required by the Web Push standard — push services use this to "
+            "contact you if your pushes are misbehaving. Anything you check."
+        ),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Web push settings"
+        verbose_name_plural = "Web push settings"
+
+    def __str__(self):
+        return f"WebPush keys (set: {bool(self.vapid_public_key)})"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> 'WebPushSettings':
+        obj, created = cls.objects.get_or_create(pk=1)
+        if not obj.vapid_public_key or not obj.vapid_private_key:
+            obj._mint_keys()
+            obj.save()
+        return obj
+
+    def _mint_keys(self):
+        """Generate a fresh VAPID key pair using py-vapid. Called once on
+        first access; the keys persist forever afterwards."""
+        from py_vapid import Vapid
+        v = Vapid()
+        v.generate_keys()
+        # py-vapid serialises keys as PEM strings via these helpers
+        from cryptography.hazmat.primitives import serialization
+        priv_pem = v.private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode('ascii')
+        # Public key as raw 65-byte uncompressed point, then base64url
+        # (the format browsers expect for `applicationServerKey`).
+        pub_raw = v.public_key.public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint,
+        )
+        import base64
+        pub_b64 = base64.urlsafe_b64encode(pub_raw).rstrip(b'=').decode('ascii')
+        self.vapid_private_key = priv_pem
+        self.vapid_public_key = pub_b64
+
+
+class PushSubscription(models.Model):
+    """One row per browser/device a user has opted in from.
+
+    A single User can have many subscriptions (laptop Chrome, mobile Chrome,
+    home-screen PWA). Each carries the FCM/APNS endpoint + the keys we need
+    to encrypt payloads.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='push_subscriptions',
+    )
+    endpoint = models.URLField(max_length=600, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=120)
+    user_agent = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    last_failed_at = models.DateTimeField(null=True, blank=True)
+    fail_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user_id} · {self.user_agent[:60]}"
+
+    @property
+    def as_payload(self) -> dict:
+        """Shape pywebpush expects."""
+        return {
+            'endpoint': self.endpoint,
+            'keys': {'p256dh': self.p256dh, 'auth': self.auth},
+        }

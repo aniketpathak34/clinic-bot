@@ -491,6 +491,93 @@ Rules:
         return JsonResponse({'ok': False, 'error': f'Groq call failed: {e}'}, status=500)
 
 
+# ─── Web push: subscribe / unsubscribe / test ───────────────────────────
+
+@require_GET
+def push_config_view(request):
+    """Returns the public VAPID key so the browser can subscribe."""
+    from .push import public_vapid_key
+    from .models import PushSubscription
+    has_sub = False
+    if request.user.is_authenticated:
+        has_sub = PushSubscription.objects.filter(user=request.user).exists()
+    return JsonResponse({
+        'ok': True,
+        'public_key': public_vapid_key(),
+        'subscribed': has_sub,
+    })
+
+
+def push_subscribe_view(request):
+    """Save (or upsert) a PushSubscription for the current user.
+
+    POST body (JSON): { endpoint, keys: { p256dh, auth } }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only'}, status=405)
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': 'Not signed in'}, status=403)
+    import json
+    try:
+        body = json.loads(request.body or b'{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Bad JSON'}, status=400)
+    endpoint = (body.get('endpoint') or '').strip()
+    keys = body.get('keys') or {}
+    p256dh = (keys.get('p256dh') or '').strip()
+    auth = (keys.get('auth') or '').strip()
+    if not (endpoint and p256dh and auth):
+        return JsonResponse({'ok': False, 'error': 'Missing keys'}, status=400)
+
+    from .models import PushSubscription
+    sub, created = PushSubscription.objects.update_or_create(
+        endpoint=endpoint,
+        defaults={
+            'user': request.user,
+            'p256dh': p256dh,
+            'auth': auth,
+            'user_agent': (request.META.get('HTTP_USER_AGENT') or '')[:300],
+        },
+    )
+    return JsonResponse({'ok': True, 'created': created, 'id': sub.pk})
+
+
+def push_unsubscribe_view(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only'}, status=405)
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': 'Not signed in'}, status=403)
+    import json
+    try:
+        body = json.loads(request.body or b'{}')
+    except json.JSONDecodeError:
+        body = {}
+    endpoint = (body.get('endpoint') or '').strip()
+    from .models import PushSubscription
+    qs = PushSubscription.objects.filter(user=request.user)
+    if endpoint:
+        qs = qs.filter(endpoint=endpoint)
+    n, _ = qs.delete()
+    return JsonResponse({'ok': True, 'removed': n})
+
+
+def push_test_view(request):
+    """Fire a test notification to the current user's devices."""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only'}, status=405)
+    if not request.user.is_authenticated:
+        return JsonResponse({'ok': False, 'error': 'Not signed in'}, status=403)
+    from .push import notify_user
+    sent = notify_user(
+        request.user,
+        title="DocPing — push is alive ✓",
+        body="If you see this on your phone, you're set up. Hot-lead alerts will arrive the same way.",
+        url='/admin/',
+        tag='docping-test',
+    )
+    return JsonResponse({'ok': True, 'sent': sent})
+
+
 # ─── Header signals (light, runs on every admin page) ───────────────────
 
 @require_GET

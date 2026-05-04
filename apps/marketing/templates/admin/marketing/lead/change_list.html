@@ -646,6 +646,31 @@
     padding: 9px 14px !important; font-size: 13px !important;
     background: var(--bg) !important; width: 360px !important; color: var(--text) !important;
     transition: all .15s ease !important;
+    min-width: 0 !important;
+  }
+  /* On phones the 360px input overflowed and pushed the submit button off
+     the right edge. The form has one inner <div> wrapping label + input +
+     submit — apply flex to THAT div so the submit stays visible. */
+  @media (max-width: 768px) {
+    body.change-list #toolbar form#changelist-search,
+    body.change-list #toolbar form#changelist-search > div {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      gap: 8px !important;
+      width: 100% !important;
+      max-width: none !important;
+    }
+    body.change-list #toolbar form#changelist-search input[type="text"] {
+      flex: 1 1 0 !important; width: auto !important; min-width: 0 !important;
+    }
+    body.change-list #toolbar form#changelist-search input[type="submit"] {
+      flex-shrink: 0 !important;
+      flex-grow: 0 !important;
+      padding: 9px 16px !important;
+      display: inline-block !important;
+      visibility: visible !important;
+    }
   }
   body.change-list #toolbar form#changelist-search input[type="text"]::placeholder { color: var(--text-dim) !important; }
   body.change-list #toolbar form#changelist-search input[type="text"]:focus {
@@ -768,36 +793,55 @@
   body.change-list select.s-not_interested{ background-color: rgba(239,68,68,.12) !important; color: #fca5a5 !important; border-color: rgba(239,68,68,.3) !important; }
   body.change-list select.s-invalid       { background-color: rgba(82,82,91,.12) !important; color: #a1a1aa !important; border-color: rgba(82,82,91,.3) !important; }
 
-  /* Save button row at bottom of list_editable */
+  /* Save button row — sticky to the viewport bottom so it stays visible
+     no matter how long the lead list is. Replaces the previous behaviour
+     of sitting at the very end of the page (where it'd scroll out of
+     reach for any list past one screenful). */
   body.change-list .submit-row {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 50 !important;
     background: var(--surface-2) !important; border: 0 !important;
     border-top: 1px solid var(--border) !important;
     padding: 14px 18px !important; margin: 0 !important;
+    box-shadow: 0 -8px 24px rgba(0,0,0,.4) !important;
+    backdrop-filter: blur(8px);
   }
   body.change-list .submit-row input {
     background: var(--accent) !important; color: #06060a !important; border: 0 !important;
-    padding: 9px 20px !important; border-radius: 8px !important;
-    font-size: 13px !important; font-weight: 600 !important; cursor: pointer;
+    padding: 10px 22px !important; border-radius: 8px !important;
+    font-size: 13px !important; font-weight: 700 !important; cursor: pointer;
     transition: all .15s ease !important;
   }
   body.change-list .submit-row input:hover { background: var(--accent-hover) !important; }
+  /* The floating cyan pill is now redundant — the sticky Save bar always
+     shows. Hide the FAB site-wide. */
+  #lp-fab-save-list { display: none !important; }
 
-  /* Mobile: pin Save bar to bottom of viewport so it's always reachable */
+  /* Mobile: pin Save bar to bottom of viewport, full-width + prominent. */
   @media (max-width: 900px) {
     body.change-list .submit-row {
       position: fixed !important;
       bottom: 0 !important; left: 0 !important; right: 0 !important;
       z-index: 100 !important;
-      padding: 12px 14px !important;
-      box-shadow: 0 -8px 24px rgba(0,0,0,.5) !important;
+      padding: 14px 16px !important;
+      background: var(--surface-2) !important;
+      border-top: 1px solid var(--border) !important;
+      box-shadow: 0 -10px 30px rgba(0,0,0,.6) !important;
       backdrop-filter: blur(8px);
     }
     body.change-list .submit-row input {
-      width: 100% !important; padding: 12px 18px !important;
-      font-size: 14px !important;
+      width: 100% !important;
+      padding: 14px 18px !important;
+      font-size: 15px !important;
+      font-weight: 700 !important;
+      border-radius: 10px !important;
     }
     /* Push content up so the fixed Save bar doesn't overlap last row */
-    body.change-list #content { padding-bottom: 90px !important; }
+    body.change-list #content { padding-bottom: 100px !important; }
+    /* Hide the small floating FAB pill on mobile — the full-width sticky
+       bar above is the canonical Save here. Less noise, bigger target. */
+    #lp-fab-save-list { display: none !important; }
   }
 
   /* Floating Save FAB — always visible on the changelist when there are

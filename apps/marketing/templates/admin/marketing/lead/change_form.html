@@ -4,54 +4,31 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
-  /* ─── Always-visible Save controls ───────────────────────────────
-     Two parts:
-     1) A floating Save FAB injected via JS — visible from anywhere on
-        the page, on every viewport. Submits the form when tapped.
-     2) A sticky bottom bar that pins the original .submit-row on
-        narrow screens so the native Save/Delete/Save and continue
-        buttons stay reachable.                                       */
-
-  /* The floating action button — global, always visible */
-  #lp-fab-save {
-    position: fixed !important;
-    right: 16px !important;
-    bottom: 88px !important;
-    z-index: 9999 !important;
-    background: #22d3ee !important;
-    color: #06060a !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    font-weight: 700 !important;
-    font-size: 14px !important;
-    padding: 12px 22px !important;
-    cursor: pointer !important;
-    box-shadow: 0 10px 30px rgba(34,211,238,.45),
-                0 4px 12px rgba(0,0,0,.4) !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    transition: transform .15s ease, box-shadow .15s ease !important;
+  /* The native Save / Delete / Save-and-continue row, pinned to the
+     bottom of the viewport. Sticky on desktop (so it doesn't scroll out
+     of view on long edit forms) and fixed full-width on mobile. */
+  body.change-form .submit-row {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 50 !important;
+    margin: 0 !important;
+    padding: 14px 18px !important;
+    background: #1c1c25 !important;
+    border-top: 1px solid #26262f !important;
+    box-shadow: 0 -8px 24px rgba(0,0,0,.5) !important;
+    backdrop-filter: blur(8px);
   }
-  #lp-fab-save:hover { transform: translateY(-1px); }
-  #lp-fab-save:active { transform: scale(.97); }
 
-  /* On narrow screens, pin the native submit-row to the bottom of the
-     viewport so Save / Delete / Save and continue stay reachable. */
   @media (max-width: 900px) {
     body.change-form .submit-row {
       position: fixed !important;
       bottom: 0 !important; left: 0 !important; right: 0 !important;
-      z-index: 100 !important;
-      margin: 0 !important;
       padding: 10px 12px !important;
-      background: #1c1c25 !important;
-      border-top: 1px solid #26262f !important;
-      box-shadow: 0 -8px 24px rgba(0,0,0,.5) !important;
       display: flex !important;
       flex-wrap: wrap !important;
       gap: 8px !important;
       justify-content: stretch !important;
+      z-index: 100 !important;
     }
     body.change-form .submit-row input,
     body.change-form .submit-row a.deletelink {
@@ -65,32 +42,12 @@
       order: -1 !important;
       flex-basis: 100% !important;
     }
-    /* Don't let the fixed bar cover the last form field */
     body.change-form #content,
     body.change-form .content { padding-bottom: 130px !important; }
-    /* FAB sits above the sticky bar */
-    #lp-fab-save { bottom: 78px !important; }
   }
-</style>
-{% endblock %}
 
-{% block extrahead %}
-{{ block.super }}
-<script>
-  // Inject a floating Save button so the operator never has to scroll
-  // to find Save on mobile. The native .submit-row stays in place — this
-  // FAB just submits the same form.
-  document.addEventListener('DOMContentLoaded', function () {
-    var form = document.getElementById('lead_form');
-    if (!form) return;
-    var fab = document.createElement('button');
-    fab.id = 'lp-fab-save';
-    fab.type = 'submit';
-    fab.name = '_save';
-    fab.value = 'Save';
-    fab.setAttribute('form', 'lead_form');
-    fab.innerHTML = '<span style="font-size:15px;line-height:1;">✓</span><span>Save</span>';
-    document.body.appendChild(fab);
-  });
-</script>
+  /* Hide the redundant floating Save FAB — the sticky/fixed Save bar
+     handles every viewport now. */
+  #lp-fab-save { display: none !important; }
+</style>
 {% endblock %}

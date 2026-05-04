@@ -254,6 +254,13 @@
   .wr-funnel-row {
     display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
   }
+  @media (max-width: 720px) {
+    .wr-funnel-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 420px) {
+    .wr-funnel-row { grid-template-columns: 1fr; }
+  }
+  .wr-stage-label, .wr-stage-count { white-space: nowrap; overflow: visible; }
   .wr-stage {
     background: #1c1c25; border: 1px solid #26262f;
     border-radius: 12px; padding: 16px 16px 14px;
