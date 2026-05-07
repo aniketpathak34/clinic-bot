@@ -36,13 +36,22 @@ def public_vapid_key() -> str:
     return _settings().vapid_public_key
 
 
-def send_push(subscription, title: str, body: str, *, url: str = '/admin/',
+def send_push(subscription, title: str, body: str, *, url: str | None = None,
               tag: str = 'docping', icon: str | None = None) -> bool:
     """Deliver one notification to one PushSubscription. Returns True on
     success. Marks the subscription failed (and prunes if the push service
     says it's permanently gone) on error.
+
+    `url` defaults to the admin index resolved via reverse() so the
+    notification opens the correct page regardless of ADMIN_URL_PATH.
     """
     from pywebpush import webpush, WebPushException
+    if url is None:
+        from django.urls import reverse, NoReverseMatch
+        try:
+            url = reverse('admin:index')
+        except NoReverseMatch:
+            url = '/admin/'
     s = _settings()
     if not s.vapid_private_key:
         logger.warning("[push] No VAPID private key — refusing to send.")

@@ -23,6 +23,23 @@ from apps.marketing.models import Lead
 FUNNEL_STAGES = ('new', 'sent', 'replied', 'demo_booked', 'pilot', 'not_interested', 'invalid')
 
 
+def _admin_url(path: str = '') -> str:
+    """Return the admin URL prefix + the given relative path, respecting
+    the deploy's ADMIN_URL_PATH override (e.g. /mynameisaniket/ instead of
+    /admin/). `path` should start with '/' or '?'.
+
+    Used everywhere we need to generate admin-side links for push payloads,
+    notifications tray, command palette etc. Hardcoding /admin/ would 404
+    on any prod where admin isn't at the default path.
+    """
+    from django.urls import reverse, NoReverseMatch
+    try:
+        prefix = reverse('admin:index').rstrip('/')
+    except NoReverseMatch:
+        prefix = '/admin'
+    return prefix + path
+
+
 def _funnel_counts() -> dict[str, int]:
     """One query: status → count."""
     rows = Lead.objects.values('status').annotate(c=Count('id'))
@@ -162,7 +179,7 @@ def _next_moves() -> list[dict]:
             'emoji': '📲',
             'title': f"{n} hot follow-up{'s' if n != 1 else ''} ready to send",
             'sub': "Open the queue and clear them in 5 min",
-            'href': "/admin/marketing/lead/?needs_followup=1",
+            'href': _admin_url("/marketing/lead/?needs_followup=1"),
         })
 
     # Fresh leads not yet contacted today
@@ -176,7 +193,7 @@ def _next_moves() -> list[dict]:
             'emoji': '🌱',
             'title': f"{new_today} fresh lead{'s' if new_today != 1 else ''} from today",
             'sub': "First-touch them while they're top of mind",
-            'href': "/admin/marketing/lead/?status__exact=new",
+            'href': _admin_url("/marketing/lead/?status__exact=new"),
         })
 
     if not moves:
@@ -185,7 +202,7 @@ def _next_moves() -> list[dict]:
             'emoji': '✨',
             'title': "All caught up — work on the product",
             'sub': "No urgent moves on the pipeline right now",
-            'href': "/admin/marketing/lead/",
+            'href': _admin_url("/marketing/lead/"),
         })
 
     return moves[:3]
@@ -226,7 +243,7 @@ def _stuck_leads() -> list[dict]:
                 'label': label,
                 'count': cnt,
                 'days': threshold_days,
-                'href': f"/admin/marketing/lead/?status__exact={status}",
+                'href': _admin_url(f"/marketing/lead/?status__exact={status}"),
             })
     return out
 
@@ -572,7 +589,7 @@ def push_test_view(request):
         request.user,
         title="DocPing — push is alive ✓",
         body="If you see this on your phone, you're set up. Hot-lead alerts will arrive the same way.",
-        url='/admin/',
+        url=_admin_url('/'),
         tag='docping-test',
     )
     return JsonResponse({'ok': True, 'sent': sent})
@@ -618,7 +635,7 @@ def notifications_view(request):
             'emoji': '🔥',
             'title': f"{lead.name} is on their page",
             'sub': f"visit #{lead.visit_count} · {timezone.localtime(lead.last_visited_at).strftime('%I:%M %p').lstrip('0')}",
-            'href': f"/admin/marketing/lead/?_drawer={lead.pk}",
+            'href': _admin_url(f"/marketing/lead/?_drawer={lead.pk}"),
             'ts': lead.last_visited_at.isoformat(),
         })
 
@@ -649,7 +666,7 @@ def notifications_view(request):
                 'emoji': '⏰',
                 'title': f"{ap.patient.name} · Dr. {ap.doctor.name}",
                 'sub': f"{ap.slot.time.strftime('%I:%M %p').lstrip('0')} — coming up",
-                'href': f"/admin/clinic/appointment/{ap.pk}/change/",
+                'href': _admin_url(f"/clinic/appointment/{ap.pk}/change/"),
                 'ts': now.isoformat(),
             })
     except Exception:
@@ -660,39 +677,42 @@ def notifications_view(request):
 
 # ─── ⌘K command palette search ───────────────────────────────────────────
 
-# Static command catalog. Each entry: (keywords, emoji, title, desc, href).
-# The href can be relative to /admin or absolute. Keywords are lowercase.
+# Static command catalog. Each entry: (keywords, emoji, title, desc, path).
+# The `path` is RELATIVE to the admin prefix (no leading /admin/) — the
+# request-time resolver in command_search_view prepends the actual prefix
+# via _admin_url() so commands work whether admin lives at /admin/ or
+# /mynameisaniket/ or any other custom path.
 _COMMANDS = [
     ('home dashboard war room',          '🏠',  'Open dashboard',           'Back to the war-room home',
-     '/admin/'),
+     '/'),
     ('leads list',                       '👥',  'Open leads list',           'All leads, filterable',
-     '/admin/marketing/lead/'),
+     '/marketing/lead/'),
     ('hot followup needs follow-up due', '🔥',  'Leads needing follow-up',   'Filter to anyone due a ping',
-     '/admin/marketing/lead/?needs_followup=1'),
+     '/marketing/lead/?needs_followup=1'),
     ('engaged hot active visiting',      '👀',  'Currently engaged leads',   'Leads who opened their page recently',
-     '/admin/marketing/lead/?engaged=1'),
+     '/marketing/lead/?engaged=1'),
     ('demo booked demos',                '📅',  'Demos booked',              'Filter to demo-booked leads',
-     '/admin/marketing/lead/?status__exact=demo_booked'),
+     '/marketing/lead/?status__exact=demo_booked'),
     ('pilot pilots active',              '🎉',  'Active pilots',             'Filter to pilot-stage leads',
-     '/admin/marketing/lead/?status__exact=pilot'),
+     '/marketing/lead/?status__exact=pilot'),
     ('appointments today schedule',      '🗓',  'Appointments',              "Today's clinic appointments",
-     '/admin/clinic/appointment/'),
+     '/clinic/appointment/'),
     ('available slots calendar',         '⏱',  'Available slots',           'Demo doctor calendar',
-     '/admin/clinic/availableslot/'),
+     '/clinic/availableslot/'),
     ('patients',                         '🧑',  'Patients',                   'All registered patients',
-     '/admin/clinic/patient/'),
+     '/clinic/patient/'),
     ('doctors',                          '🩺',  'Doctors',                   'All registered doctors',
-     '/admin/clinic/doctor/'),
+     '/clinic/doctor/'),
     ('run lead-gen leadgen places google fetch', '🌱',  'Run lead-gen now',
      'Pull fresh clinics from Google Places',
-     '/admin/marketing/lead/run-leadgen-now/'),
+     '/marketing/lead/run-leadgen-now/'),
     ('config dashboard goals targets arpu',      '⚙',  'Dashboard config',
      'Tune ARPU, goal targets, conversion thresholds',
-     '/admin/marketing/dashboardconfig/'),
+     '/marketing/dashboardconfig/'),
     ('demo videos library',              '🎥',  'Demo videos',               'Marketing demo videos library',
-     '/admin/marketing/demovideo/'),
+     '/marketing/demovideo/'),
     ('logout sign out',                  '🚪',  'Log out',                   'End the admin session',
-     '/admin/logout/'),
+     '/logout/'),
 ]
 
 
@@ -721,23 +741,25 @@ def command_search_view(request):
                 'phone': lead.phone,
                 'status': lead.get_status_display(),
                 'score': lead.score,
-                'href': f"/admin/marketing/lead/?_drawer={lead.pk}",
+                'href': _admin_url(f"/marketing/lead/?_drawer={lead.pk}"),
             })
 
         # Command match — every term in q must appear in either keywords
         # or title (substring), so multi-word queries narrow down.
         terms = q.split()
-        for keywords, emoji, title, desc, href in _COMMANDS:
+        for keywords, emoji, title, desc, path in _COMMANDS:
             haystack = (keywords + ' ' + title.lower()).strip()
             if all(t in haystack for t in terms):
                 cmds_out.append({
-                    'emoji': emoji, 'title': title, 'desc': desc, 'href': href,
+                    'emoji': emoji, 'title': title, 'desc': desc,
+                    'href': _admin_url(path),
                 })
     else:
         # Empty query — show top 6 commands as suggestions.
-        for keywords, emoji, title, desc, href in _COMMANDS[:6]:
+        for keywords, emoji, title, desc, path in _COMMANDS[:6]:
             cmds_out.append({
-                'emoji': emoji, 'title': title, 'desc': desc, 'href': href,
+                'emoji': emoji, 'title': title, 'desc': desc,
+                'href': _admin_url(path),
             })
 
     return JsonResponse({'ok': True, 'leads': leads_out, 'commands': cmds_out})
@@ -774,6 +796,6 @@ def engagement_pulse_view(request):
             'visit_count': r['visit_count'],
             'last_seen_iso': r['last_visited_at'].isoformat() if r['last_visited_at'] else None,
             'first_open_iso': r['engaged_at'].isoformat() if r['engaged_at'] else None,
-            'drawer_url': f"/admin/marketing/lead/?_drawer={r['id']}",
+            'drawer_url': _admin_url(f"/marketing/lead/?_drawer={r['id']}"),
         })
     return JsonResponse({'ok': True, 'items': items, 'now_iso': timezone.now().isoformat()})

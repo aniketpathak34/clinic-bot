@@ -4,27 +4,43 @@
 {% block extrastyle %}
 {{ block.super }}
 <style>
-  /* The native Save / Delete / Save-and-continue row, pinned to the
-     bottom of the viewport. Sticky on desktop (so it doesn't scroll out
-     of view on long edit forms) and fixed full-width on mobile. */
+  /* Save / Delete / Save-and-continue row — pinned to the TOP of the
+     viewport (right under the global header), so it's always visible
+     without scrolling to the end of a long lead edit form. */
   body.change-form .submit-row {
-    position: sticky !important;
-    bottom: 0 !important;
+    position: fixed !important;
+    top: 56px !important;          /* sits flush under the 56px header */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: auto !important;
     z-index: 50 !important;
     margin: 0 !important;
-    padding: 14px 18px !important;
+    padding: 12px 18px !important;
     background: #1c1c25 !important;
-    border-top: 1px solid #26262f !important;
-    box-shadow: 0 -8px 24px rgba(0,0,0,.5) !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid #26262f !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5) !important;
     backdrop-filter: blur(8px);
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
   }
+
+  /* Push the form content down so the fixed bar doesn't overlap the
+     first field. ~60px = bar height (24px content + 24px padding) +
+     a little breathing room. */
+  body.change-form #content,
+  body.change-form .content { padding-top: 64px !important; }
+
+  /* Sidebar's sticky offset already accounts for the 56px header — bump
+     it down further so the sidebar starts BELOW the new save bar too. */
+  body.change-form #nav-sidebar { top: 116px !important; }
 
   @media (max-width: 900px) {
     body.change-form .submit-row {
-      position: fixed !important;
-      bottom: 0 !important; left: 0 !important; right: 0 !important;
+      top: 56px !important;
       padding: 10px 12px !important;
-      display: flex !important;
       flex-wrap: wrap !important;
       gap: 8px !important;
       justify-content: stretch !important;
@@ -42,12 +58,13 @@
       order: -1 !important;
       flex-basis: 100% !important;
     }
+    /* Mobile: bar can wrap to two rows; pad more so first field is clear */
     body.change-form #content,
-    body.change-form .content { padding-bottom: 130px !important; }
+    body.change-form .content { padding-top: 110px !important; }
   }
 
-  /* Hide the redundant floating Save FAB — the sticky/fixed Save bar
-     handles every viewport now. */
+  /* Hide the redundant floating Save FAB — the top sticky bar handles
+     every viewport now. */
   #lp-fab-save { display: none !important; }
 </style>
 {% endblock %}

@@ -818,29 +818,37 @@
      shows. Hide the FAB site-wide. */
   #lp-fab-save-list { display: none !important; }
 
-  /* Mobile: pin Save bar to bottom of viewport, full-width + prominent. */
-  @media (max-width: 900px) {
-    body.change-list .submit-row {
+  /* Mobile: pin Save bar to TOP of viewport (right under the global
+     header). Bumped breakpoint to 1024 so tablets in portrait + every
+     phone hit it. Specificity bumped via html/body[class*=] selectors
+     so no upstream Django/responsive rule can beat us. */
+  @media (max-width: 1024px) {
+    html body.change-list .submit-row,
+    html body[class*="change-list"] .submit-row {
       position: fixed !important;
-      bottom: 0 !important; left: 0 !important; right: 0 !important;
+      top: 56px !important;
+      bottom: auto !important;
+      left: 0 !important; right: 0 !important;
       z-index: 100 !important;
-      padding: 14px 16px !important;
+      margin: 0 !important;
+      padding: 12px 14px !important;
       background: var(--surface-2) !important;
-      border-top: 1px solid var(--border) !important;
-      box-shadow: 0 -10px 30px rgba(0,0,0,.6) !important;
+      border-top: 0 !important;
+      border-bottom: 1px solid var(--border) !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,.6) !important;
       backdrop-filter: blur(8px);
     }
-    body.change-list .submit-row input {
+    html body.change-list .submit-row input,
+    html body[class*="change-list"] .submit-row input {
       width: 100% !important;
-      padding: 14px 18px !important;
+      padding: 12px 18px !important;
       font-size: 15px !important;
       font-weight: 700 !important;
       border-radius: 10px !important;
     }
-    /* Push content up so the fixed Save bar doesn't overlap last row */
-    body.change-list #content { padding-bottom: 100px !important; }
-    /* Hide the small floating FAB pill on mobile — the full-width sticky
-       bar above is the canonical Save here. Less noise, bigger target. */
+    /* Push content DOWN so the fixed Save bar doesn't overlap the first row. */
+    html body.change-list #content { padding-top: 70px !important; padding-bottom: 0 !important; }
+    html body.change-list #nav-sidebar { top: 126px !important; }
     #lp-fab-save-list { display: none !important; }
   }
 
@@ -1471,6 +1479,47 @@
       fab.setAttribute('form', 'changelist-form');
       fab.innerHTML = '<span style="font-size:15px;line-height:1;">✓</span><span>Save</span>';
       document.body.appendChild(fab);
+
+      // Move .submit-row to the TOP of the form (not out of it — Save
+      // input must stay inside <form> for submission to work). This puts
+      // the bar visually before the lead table while preserving function.
+      var sr = document.querySelector('.submit-row');
+      if (sr && form) {
+        form.insertBefore(sr, form.firstChild);
+      }
+
+      // Pin it position:fixed at the top of the viewport so it stays
+      // visible regardless of scroll, page size, pagination, or anything
+      // else. position:fixed escapes every parent scroll context — sticky
+      // can fail if the parent has weird overflow rules, fixed can't.
+      function pinSaveBarTop() {
+        if (!sr) return;
+        sr.style.setProperty('position', 'fixed', 'important');
+        sr.style.setProperty('top', '56px', 'important');
+        sr.style.setProperty('left', '0', 'important');
+        sr.style.setProperty('right', '0', 'important');
+        sr.style.setProperty('bottom', 'auto', 'important');
+        sr.style.setProperty('z-index', '100', 'important');
+        sr.style.setProperty('margin', '0', 'important');
+        // On desktop the sidebar is 280px wide on the left — offset.
+        var desktop = window.matchMedia('(min-width: 1025px)').matches;
+        if (desktop) {
+          sr.style.setProperty('left', '280px', 'important');
+        }
+      }
+      pinSaveBarTop();
+      window.addEventListener('resize', pinSaveBarTop);
+
+      // Add top padding to the form so the first row isn't hidden under
+      // the now-fixed bar. Re-apply on resize since bar height varies.
+      function padFormForFixedBar() {
+        if (!sr || !form) return;
+        var h = sr.offsetHeight;
+        form.style.setProperty('padding-top', (h + 12) + 'px', 'important');
+      }
+      // Defer once so the bar's actual height is available.
+      setTimeout(padFormForFixedBar, 50);
+      window.addEventListener('resize', padFormForFixedBar);
     });
   })();
 </script>

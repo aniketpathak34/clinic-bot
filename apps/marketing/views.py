@@ -104,13 +104,24 @@ def brand_preview(request):
 @require_safe
 def pwa_manifest(request):
     """Return the PWA manifest as JSON. Browsers fetch this when deciding
-    if a site is installable to the home screen."""
+    if a site is installable to the home screen.
+
+    `start_url` is resolved dynamically via reverse('admin:index') so it
+    respects the deploy's ADMIN_URL_PATH override (e.g. /mynameisaniket/)
+    instead of hard-coding /admin/. Without this, the iPhone home-screen
+    shortcut would point at a 404 URL whenever admin isn't at /admin/.
+    """
     from django.http import JsonResponse
+    from django.urls import reverse, NoReverseMatch
+    try:
+        admin_url = reverse('admin:index')
+    except NoReverseMatch:
+        admin_url = '/admin/'
     return JsonResponse({
         'name': 'DocPing — Ops Console',
         'short_name': 'DocPing',
         'description': 'WhatsApp-based clinic appointment booking — operator dashboard',
-        'start_url': '/admin/',
+        'start_url': admin_url,
         'scope': '/',
         'display': 'standalone',
         'orientation': 'portrait',
@@ -128,10 +139,24 @@ def pwa_manifest(request):
 @require_safe
 def service_worker(request):
     """Service worker — must be served from /sw.js (root scope) and with a
-    JS content type. The body is small: register push handler + click handler."""
+    JS content type. The body is small: register push handler + click handler.
+
+    Fallback URL is resolved at server-side via reverse() so it lands on the
+    correct admin path on prod (where ADMIN_URL_PATH might be /mynameisaniket/
+    instead of /admin/). This is the URL used when a push payload is missing
+    `url` field — every well-formed payload includes one explicitly.
+    """
     from django.http import HttpResponse
-    body = """// DocPing service worker — handles web push notifications.
+    from django.urls import reverse, NoReverseMatch
+    try:
+        fallback_url = reverse('admin:index')
+    except NoReverseMatch:
+        fallback_url = '/admin/'
+
+    body = ("""// DocPing service worker — handles web push notifications.
 // Cache: nothing (we don't do offline; this SW only exists for push).
+var FALLBACK_URL = """ + repr(fallback_url) + """;
+
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });
 
@@ -147,7 +172,7 @@ self.addEventListener('push', function (event) {
     tag: payload.tag || 'docping',
     renotify: true,
     requireInteraction: false,
-    data: { url: payload.url || '/admin/' },
+    data: { url: payload.url || FALLBACK_URL },
     vibrate: [60, 30, 60],
   };
   event.waitUntil(self.registration.showNotification(title, opts));
@@ -155,7 +180,7 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
-  var url = (event.notification.data && event.notification.data.url) || '/admin/';
+  var url = (event.notification.data && event.notification.data.url) || FALLBACK_URL;
   event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (winList) {
     for (var i = 0; i < winList.length; i++) {
       var c = winList[i];
@@ -168,7 +193,7 @@ self.addEventListener('notificationclick', function (event) {
     if (clients.openWindow) return clients.openWindow(url);
   }));
 });
-"""
+""")
     resp = HttpResponse(body, content_type='application/javascript; charset=utf-8')
     # Allow the SW to control the entire site root.
     resp['Service-Worker-Allowed'] = '/'
@@ -274,13 +299,18 @@ def lead_landing(request, slug: str):
         # buying signal — but the title text differs so the operator knows.
         try:
             from .push import notify_all_staff
+            from django.urls import reverse, NoReverseMatch
+            try:
+                drawer_url = reverse('admin:marketing_lead_changelist') + f"?_drawer={lead.pk}"
+            except NoReverseMatch:
+                drawer_url = f"/admin/marketing/lead/?_drawer={lead.pk}"
             notify_all_staff(
                 title=("🔥 " + lead.name + " is on their page" if was_first_visit
                        else "👀 " + lead.name + " came back"),
                 body=(f"First open · score {lead.score} · tap to open the lead drawer"
                       if was_first_visit else
                       f"Visit #{lead.visit_count} · {timezone.localtime(now).strftime('%I:%M %p').lstrip('0')}"),
-                url=f"/admin/marketing/lead/?_drawer={lead.pk}",
+                url=drawer_url,
                 tag=f"docping-engaged-{lead.pk}",
             )
         except Exception:

@@ -158,14 +158,17 @@
 
   /* Dropdown / tray panels (shared style)
      Use position: fixed so the dropdown escapes every parent stacking
-     context — there's no way for the page's main column to paint over it. */
+     context — there's no way for the page's main column to paint over it.
+     Also moved to <body> via JS so the constrained stacking context of
+     the parent #header (z-index 200) doesn't cap them. */
   .dp-pop {
-    position: fixed;
+    position: fixed !important;
     top: 60px;
     right: 14px;
     background: #14141b; border: 1px solid #26262f;
     border-radius: 12px; padding: 6px;
-    min-width: 220px; z-index: 99999;
+    min-width: 220px;
+    z-index: 999999 !important;
     box-shadow: 0 12px 36px rgba(0,0,0,.6);
     opacity: 0; pointer-events: none;
     transform: translateY(-4px);
@@ -218,6 +221,18 @@
   .dp-tray-item.tone-hot   { border-color: rgba(239,68,68,.25); background: rgba(239,68,68,.05); }
   .dp-tray-item.tone-amber { border-color: rgba(245,158,11,.22); background: rgba(245,158,11,.04); }
   .dp-tray-item.tone-cyan  { border-color: rgba(34,211,238,.22); }
+  /* Unseen items get a small cyan dot badge on the left edge. Seen items
+     keep the same border tone but no dot, so the user can tell at a glance
+     what's new vs already-acknowledged. */
+  .dp-tray-item.unseen { position: relative; }
+  .dp-tray-item.unseen::before {
+    content: ""; position: absolute;
+    left: -3px; top: 50%; transform: translateY(-50%);
+    width: 6px; height: 6px; border-radius: 999px;
+    background: #22d3ee;
+    box-shadow: 0 0 8px rgba(34,211,238,.7);
+  }
+  .dp-tray-item:not(.unseen) { opacity: .7; }
   .dp-tray-emoji {
     font-size: 18px; line-height: 1; flex-shrink: 0; padding-top: 2px;
   }
@@ -581,51 +596,90 @@ function dpHeaderInit() {
   var bellList  = document.querySelector('[data-bell-list]');
   var bellTime  = document.querySelector('[data-bell-time]');
 
+  // Track seen notifications by stable identity (href) rather than by
+  // timestamp. The server stamps stuck-lead items with ts=now on every
+  // poll, so a timestamp-based "seen" check made the badge re-appear
+  // forever. Identity-based check stays cleared until something genuinely
+  // new arrives.
+  function getSeenIds() {
+    try { return JSON.parse(localStorage.getItem('dp:bell:seenIds') || '[]'); }
+    catch (e) { return []; }
+  }
+  function setSeenIds(ids) {
+    try { localStorage.setItem('dp:bell:seenIds', JSON.stringify(ids.slice(-80))); }
+    catch (e) {}
+  }
+  function itemId(it) { return (it.href || '') + '|' + (it.title || ''); }
+
   function refreshNotifs(opts) {
     opts = opts || {};
     return fetch(NOTIFS_URL, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j.ok) return;
-        // Badge (only counts items the user hasn't acknowledged yet)
-        var lastSeen = parseInt(localStorage.getItem('dp:bell:lastSeen') || '0', 10);
-        var unseen = j.items.filter(function (it) {
-          return new Date(it.ts).getTime() > lastSeen;
-        }).length;
-        if (unseen > 0) {
-          bellBadge.textContent = unseen > 9 ? '9+' : unseen;
+        var seen = getSeenIds();
+        var unseenCount = j.items.reduce(function (n, it) {
+          return n + (seen.indexOf(itemId(it)) === -1 ? 1 : 0);
+        }, 0);
+        if (unseenCount > 0) {
+          bellBadge.textContent = unseenCount > 9 ? '9+' : unseenCount;
           bellBadge.classList.add('show');
         } else {
           bellBadge.classList.remove('show');
         }
 
         if (opts.render === false) return;
-        // Tray content
         bellTime.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         if (!j.items.length) {
           bellList.innerHTML = '<div class="dp-tray-empty">Nothing needs your attention right now.</div>';
           return;
         }
         bellList.innerHTML = j.items.map(function (it) {
-          return '<a class="dp-tray-item tone-' + it.tone + '" href="' + it.href + '">' +
+          var isUnseen = seen.indexOf(itemId(it)) === -1;
+          return '<a class="dp-tray-item tone-' + it.tone + (isUnseen ? ' unseen' : '') +
+            '" href="' + it.href + '" data-item-id="' + escapeHtml(itemId(it)) + '">' +
             '<span class="dp-tray-emoji">' + it.emoji + '</span>' +
             '<span class="dp-tray-text">' +
             '<span class="dp-tray-title">' + escapeHtml(it.title) + '</span>' +
             '<span class="dp-tray-sub">' + escapeHtml(it.sub) + '</span>' +
             '</span></a>';
         }).join('');
+
+        // Clicking an item marks just that one as seen *before* navigation.
+        bellList.querySelectorAll('[data-item-id]').forEach(function (a) {
+          a.addEventListener('click', function () {
+            var ids = getSeenIds();
+            var id = a.getAttribute('data-item-id');
+            if (id && ids.indexOf(id) === -1) ids.push(id);
+            setSeenIds(ids);
+          });
+        });
       })
       .catch(function () {});
   }
+
   if (bell) {
     bell.addEventListener('click', function (e) {
-      // If they clicked the inner tray, ignore.
       if (e.target.closest('[data-bell-tray]')) return;
+      e.stopPropagation();
       var open = tray.classList.toggle('open');
       if (open) {
-        refreshNotifs({ render: true });
-        localStorage.setItem('dp:bell:lastSeen', Date.now().toString());
-        bellBadge.classList.remove('show');
+        refreshNotifs({ render: true }).then(function () {
+          // Mark every item currently visible as seen, then reset the
+          // badge. New items showing up later will count as unseen again.
+          fetch(NOTIFS_URL, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+              if (!j.ok) return;
+              var ids = getSeenIds();
+              j.items.forEach(function (it) {
+                var id = itemId(it);
+                if (ids.indexOf(id) === -1) ids.push(id);
+              });
+              setSeenIds(ids);
+              bellBadge.classList.remove('show');
+            }).catch(function () {});
+        });
       }
     });
     refreshNotifs({ render: false });
@@ -854,6 +908,18 @@ function dpHeaderInit() {
   var PUSH_SUB_URL     = "/admin/marketing/lead/push/subscribe/";
   var PUSH_UNSUB_URL   = "/admin/marketing/lead/push/unsubscribe/";
   var PUSH_TEST_URL    = "/admin/marketing/lead/push/test/";
+
+  // Move both dropdown panels to be direct children of <body>. Their
+  // parents (#header for the user menu, .dp-bell for the tray) create
+  // stacking contexts that can be outranked by sibling page elements
+  // like the sticky save bar. Direct-child-of-body = root stacking
+  // context = always paints above the rest of the page.
+  ['[data-bell-tray]', '[data-user-menu]'].forEach(function (sel) {
+    var el = document.querySelector(sel);
+    if (el && el.parentElement !== document.body) {
+      document.body.appendChild(el);
+    }
+  });
 
   var pushBtn   = document.querySelector('[data-push-toggle]');
   var pushIcon  = document.querySelector('[data-push-icon]');
