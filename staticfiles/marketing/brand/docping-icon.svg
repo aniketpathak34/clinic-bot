@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DocPing — DP monogram (same style as the old MS that was liked).
+  Bold geometric letterform: "D" in white, "P" in cyan, on dark rounded-square.
+  Designed to read at every size from 16px favicon to 1024px app icon.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1024 1024" width="1024" height="1024"
+     role="img" aria-label="DocPing">
+  <rect width="1024" height="1024" rx="200" fill="#0a0a0f"/>
+
+  <!-- "D" — vertical stem + half-circle bowl, in white -->
+  <g fill="#fafafa">
+    <!-- Vertical stem of D -->
+    <rect x="232" y="280" width="64" height="464" rx="16"/>
+    <!-- Bowl of D — half-circle (right side) -->
+    <path d="M 296 280
+             L 380 280
+             C 480 280, 540 360, 540 512
+             C 540 664, 480 744, 380 744
+             L 296 744
+             L 296 680
+             L 380 680
+             C 432 680, 476 624, 476 512
+             C 476 400, 432 344, 380 344
+             L 296 344 Z"/>
+  </g>
+
+  <!-- "P" — vertical stem + half-circle bowl on top, in cyan -->
+  <g fill="#22d3ee">
+    <!-- Vertical stem of P -->
+    <rect x="600" y="280" width="64" height="464" rx="16"/>
+    <!-- Bowl of P — half-circle (right side, top half only) -->
+    <path d="M 664 280
+             L 748 280
+             C 848 280, 908 340, 908 416
+             C 908 492, 848 552, 748 552
+             L 664 552
+             L 664 488
+             L 748 488
+             C 800 488, 844 460, 844 416
+             C 844 372, 800 344, 748 344
+             L 664 344 Z"/>
+  </g>
+</svg>

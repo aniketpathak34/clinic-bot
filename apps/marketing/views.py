@@ -87,9 +87,16 @@ def landing(request):
         Appointment.objects.filter(status='booked', slot__date=date.today()).count(),
         3,
     )
+    # Only emit the founder <img> if the file actually exists. Under prod's
+    # ManifestStaticFilesStorage, {% static %} on a missing file raises at
+    # render time (500) — an onerror fallback can't save it. Drop a photo at
+    # marketing/static/marketing/brand/founder.jpg and it appears automatically.
+    from django.contrib.staticfiles import finders
+    founder_photo = bool(finders.find('marketing/brand/founder.jpg'))
     return render(request, 'marketing/landing.html', {
         'videos': videos,
         'today_bookings': today_bookings,
+        'founder_photo': founder_photo,
         **_public_contacts(),
     })
 
