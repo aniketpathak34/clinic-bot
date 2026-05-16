@@ -20,3 +20,7 @@ ssh-key*
 # Pre-encode backups of demo videos — keep only the web-optimized copy
 media/**/*.orig.mp4
 media/**/*.orig.mov
+
+# Database dumps from migration / backups — contain full data, never commit
+docping_backup_*.sql
+*.dump

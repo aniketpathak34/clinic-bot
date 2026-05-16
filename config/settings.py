@@ -83,6 +83,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database — SQLite for dev, PostgreSQL when DATABASE_URL is set (Render).
+# NOTE: when pointing at Neon, use the DIRECT (unpooled) connection string —
+# the host WITHOUT "-pooler". Neon's pooled endpoint has an empty search_path
+# and rejects the libpq `options` param, so Django's unqualified table names
+# fail. The direct endpoint has search_path = "$user", public by default.
 _database_url = os.getenv('DATABASE_URL', '').strip()
 if _database_url:
     import dj_database_url

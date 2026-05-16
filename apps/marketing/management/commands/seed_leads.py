@@ -12,9 +12,10 @@ from django.core.management.base import BaseCommand
 
 from apps.marketing.models import Lead
 from apps.marketing.places import (
-    DEFAULT_QUERIES,
     PlacesAPIError,
     SCORE_THRESHOLD,
+    generate_queries,
+    queries_for_today,
     score_and_dedupe,
     search_text,
 )
@@ -40,7 +41,11 @@ class Command(BaseCommand):
         parser.add_argument('--top', type=int, default=20,
                             help='Max number of new leads to save (default 20).')
         parser.add_argument('--query', type=str, default='',
-                            help='Custom single query instead of the default Pune set.')
+                            help='Custom single query instead of the rotating set.')
+        parser.add_argument('--per-day', type=int, default=25,
+                            help='How many queries from the rotating set to run (default 25).')
+        parser.add_argument('--all-queries', action='store_true',
+                            help='Run the ENTIRE query space (~1,600). One-time big harvest.')
         parser.add_argument('--dry-run', action='store_true',
                             help='Print what would be saved, write nothing.')
         parser.add_argument('--min-score', type=int, default=SCORE_THRESHOLD,
@@ -52,13 +57,23 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         min_score = options['min_score']
 
-        queries = [custom_query] if custom_query else DEFAULT_QUERIES
+        # Query selection:
+        #  --query "..."   → that single query
+        #  --all-queries   → the whole ~1,600-query space (one-off harvest)
+        #  default         → today's rotating slice (fresh queries each day)
+        if custom_query:
+            queries = [custom_query]
+        elif options['all_queries']:
+            queries = generate_queries()
+        else:
+            queries = queries_for_today(per_day=options['per_day'])
+        self.stdout.write(f"Running {len(queries)} queries (3 pages each)…\n")
 
         all_places: list[dict] = []
         for q in queries:
             try:
                 self.stdout.write(f"  → {q}")
-                results = search_text(q, max_results=20)
+                results = search_text(q, max_pages=3)
                 self.stdout.write(self.style.SUCCESS(f"     {len(results)} results"))
                 all_places.extend(results)
             except PlacesAPIError as e:
