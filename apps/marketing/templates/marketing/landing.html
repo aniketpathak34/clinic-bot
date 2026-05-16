@@ -67,9 +67,9 @@
           },
           "contactPoint": {
             "@type": "ContactPoint",
-            "telephone": "+91-7020162229",
+            "telephone": "+{{ contact_number }}",
             "contactType": "customer service",
-            "email": "info@docping.in",
+            "email": "{{ official_mail }}",
             "availableLanguage": ["English", "Hindi", "Marathi"]
           },
           "sameAs": []
@@ -261,6 +261,31 @@
             opacity: 0;
             animation: pop 0.3s ease-out forwards;
         }
+        /* Interactive (tappable) buttons in the doctor try-out chat */
+        .wa-btn.tappable {
+            cursor: pointer;
+            transition: background .15s, color .15s, transform .1s;
+        }
+        .wa-btn.tappable:hover {
+            background: #00a884; color: white; border-color: #00a884;
+        }
+        .wa-btn.tappable:active { transform: scale(0.96); }
+        /* Final call-to-action button inside the doctor chat */
+        .wa-cta {
+            display: block; text-align: center;
+            background: #25D366; color: white !important;
+            padding: 10px 14px; border-radius: 8px;
+            font-size: 13px; font-weight: 700;
+            text-decoration: none; margin-top: 4px; margin-bottom: 6px;
+            box-shadow: 0 4px 12px -2px rgba(37,211,102,0.5);
+            opacity: 0; animation: pop 0.3s ease-out forwards;
+        }
+        .wa-replay {
+            display: inline-block; cursor: pointer;
+            color: #00a884; font-size: 12px; font-weight: 600;
+            margin-top: 2px; margin-bottom: 6px;
+        }
+        .wa-replay:hover { text-decoration: underline; }
 
         /* ─── Floating WA button ──────────────────────────────── */
         .fab {
@@ -332,7 +357,7 @@
     </nav>
 
     <!-- ═══════ HERO with Interactive Chat ═══════ -->
-    <section class="pt-14 pb-20 sm:pt-20 sm:pb-28">
+    <section class="pt-10 pb-14 sm:pt-14 sm:pb-20">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-12 items-center">
             <div>
                 <div id="liveCounter"
@@ -383,49 +408,49 @@
     </section>
 
     <!-- ═══════ FEATURES ═══════ -->
-    <section id="features" class="py-16 sm:py-20 bg-white border-y border-slate-200">
+    <section id="features" class="py-10 sm:py-14 bg-white border-y border-slate-200">
         <div class="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">Everything your clinic needs</h2>
             <p class="mt-3 text-center text-slate-600 max-w-2xl mx-auto">
                 Booking, reminders, cancellations, doctor alerts — all on the one app your patients already use.
             </p>
-            <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
-                    <div class="text-3xl">📅</div>
-                    <h3 class="mt-3 font-semibold text-lg">24×7 booking</h3>
-                    <p class="mt-2 text-sm text-slate-600">Patients book at 2 AM. Your clinic opens at 9 AM to a full schedule. No missed calls.</p>
+            <div class="mt-8 grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
+                    <div class="text-2xl sm:text-3xl">📅</div>
+                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">24×7 booking</h3>
+                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Patients book at 2 AM. Your clinic opens to a full schedule.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
-                    <div class="text-3xl">🔔</div>
-                    <h3 class="mt-3 font-semibold text-lg">Instant doctor alerts</h3>
-                    <p class="mt-2 text-sm text-slate-600">The moment a patient books, the doctor gets a WhatsApp notification — name, date, time.</p>
+                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
+                    <div class="text-2xl sm:text-3xl">🔔</div>
+                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Instant doctor alerts</h3>
+                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Patient books → doctor gets a WhatsApp ping: name, date, time.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
-                    <div class="text-3xl">⏰</div>
-                    <h3 class="mt-3 font-semibold text-lg">Automatic reminders</h3>
-                    <p class="mt-2 text-sm text-slate-600">Day-before at 6 PM + 1-hour-before reminder. No-shows drop dramatically.</p>
+                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
+                    <div class="text-2xl sm:text-3xl">⏰</div>
+                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Auto reminders</h3>
+                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Day-before + 1-hour-before. No-shows drop dramatically.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
-                    <div class="text-3xl">🌐</div>
-                    <h3 class="mt-3 font-semibold text-lg">English · हिंदी · मराठी</h3>
-                    <p class="mt-2 text-sm text-slate-600">Patients pick their language on first message — and it sticks for every future visit.</p>
+                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
+                    <div class="text-2xl sm:text-3xl">🌐</div>
+                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">3 languages</h3>
+                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">English · हिंदी · मराठी — patient picks once, it sticks.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
-                    <div class="text-3xl">🕐</div>
-                    <h3 class="mt-3 font-semibold text-lg">Split-shift support</h3>
-                    <p class="mt-2 text-sm text-slate-600">Open 9–1 and 4–9? Closed Sunday? Every clinic has its own hours — the bot adapts automatically.</p>
+                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
+                    <div class="text-2xl sm:text-3xl">🕐</div>
+                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Split-shift ready</h3>
+                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Open 9–1 and 4–9? Closed Sunday? The bot adapts to your hours.</p>
                 </div>
-                <div class="p-6 bg-slate-50 rounded-2xl hover:shadow-md transition">
-                    <div class="text-3xl">📊</div>
-                    <h3 class="mt-3 font-semibold text-lg">Live clinic dashboard</h3>
-                    <p class="mt-2 text-sm text-slate-600">Doctors see today's patients and upcoming bookings — all inside WhatsApp.</p>
+                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
+                    <div class="text-2xl sm:text-3xl">📊</div>
+                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Live dashboard</h3>
+                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">See today's patients + upcoming bookings, inside WhatsApp.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ═══════ ROI CALCULATOR ═══════ -->
-    <section id="roi" class="py-16 sm:py-20 bg-gradient-to-br from-slate-50 to-green-50">
+    <section id="roi" class="py-10 sm:py-14 bg-gradient-to-br from-slate-50 to-green-50">
         <div class="max-w-4xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">How much is your clinic losing?</h2>
             <p class="mt-3 text-center text-slate-600">Slide to match your numbers. We'll show the math.</p>
@@ -489,106 +514,99 @@
     </section>
 
     <!-- ═══════ DEMO VIDEOS ═══════ -->
-    <section id="demo" class="py-16 sm:py-24 bg-white">
+    <section id="demo" class="py-10 sm:py-14 bg-white">
         <div class="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">See it in action</h2>
             <p class="mt-3 text-center text-slate-600">Both sides of every booking — patient and doctor.</p>
 
-            <div class="mt-14">
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
-                        👤 For Patients
-                    </span>
+            <div class="mt-8 grid md:grid-cols-2 gap-8 items-start">
+                <!-- Patient video -->
+                <div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+                            👤 For Patients
+                        </span>
+                    </div>
+                    {% if videos.patient %}
+                        {% for v in videos.patient %}
+                            {% include "marketing/_video_card.html" with v=v %}
+                        {% endfor %}
+                    {% else %}
+                    <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
+                        <p class="text-slate-500">Patient flow video coming soon.</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% if videos.patient %}
-                <div class="grid md:grid-cols-{% if videos.patient|length == 1 %}1{% else %}2{% endif %} gap-6">
-                    {% for v in videos.patient %}
-                        {% include "marketing/_video_card.html" with v=v %}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
-                    <p class="text-slate-500">Patient flow video coming soon.</p>
-                </div>
-                {% endif %}
-            </div>
 
-            <div class="mt-20">
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
-                        🩺 For Doctors
-                    </span>
+                <!-- Doctor video -->
+                <div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
+                            🩺 For Doctors
+                        </span>
+                    </div>
+                    {% if videos.provider %}
+                        {% for v in videos.provider %}
+                            {% include "marketing/_video_card.html" with v=v %}
+                        {% endfor %}
+                    {% else %}
+                    <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
+                        <p class="text-slate-500">Doctor flow video coming soon.</p>
+                    </div>
+                    {% endif %}
                 </div>
-                {% if videos.provider %}
-                <div class="grid md:grid-cols-{% if videos.provider|length == 1 %}1{% else %}2{% endif %} gap-6">
-                    {% for v in videos.provider %}
-                        {% include "marketing/_video_card.html" with v=v %}
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
-                    <p class="text-slate-500">Doctor flow video coming soon.</p>
-                </div>
-                {% endif %}
             </div>
         </div>
     </section>
 
-    <!-- ═══════ TESTIMONIALS ═══════ -->
-    <section class="py-16 bg-slate-50 border-y border-slate-200">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 class="text-3xl sm:text-4xl font-bold text-center">Pilot clinics are loving it</h2>
-            <p class="mt-3 text-center text-slate-600">Early results from our first partners in Pune.</p>
+    <!-- ═══════ TRY IT YOURSELF (interactive doctor demo) ═══════ -->
+    <section id="tryout" class="py-10 sm:py-14 bg-gradient-to-br from-purple-50 via-white to-green-50 border-y border-slate-200">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center">Try it yourself — right now</h2>
+            <p class="mt-3 text-center text-slate-600">
+                No signup, no download. Tap through and feel how a booking lands in your clinic.
+            </p>
 
-            <div class="mt-12 grid md:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">SP</div>
-                        <div>
-                            <div class="font-semibold">Dr. S. Patil</div>
-                            <div class="text-xs text-slate-500">Physiotherapist · Kothrud</div>
-                        </div>
-                    </div>
-                    <div class="mt-4 flex text-yellow-400">★★★★★</div>
-                    <p class="mt-3 text-slate-700 italic">
-                        "Saves me 2 hours of phone calls every day. Patients book at midnight and I wake up to a full schedule."
+            <div class="mt-8 grid md:grid-cols-2 gap-10 items-center">
+                <!-- pitch copy -->
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900">Your clinic, run from WhatsApp</h3>
+                    <p class="mt-3 text-slate-600">
+                        No new app. No software to learn. Bookings land on your WhatsApp —
+                        even after hours. One tap to confirm. Reminders go out on their own.
+                    </p>
+                    <ul class="mt-5 space-y-2.5 text-[15px] text-slate-700">
+                        <li class="flex gap-2"><span>✅</span> Patients book 24×7 — you answer zero calls</li>
+                        <li class="flex gap-2"><span>✅</span> One tap to confirm or reschedule</li>
+                        <li class="flex gap-2"><span>✅</span> Auto-reminders cut no-shows ~30%</li>
+                    </ul>
+                    <p class="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-purple-700 bg-white px-3 py-1.5 rounded-full shadow-sm">
+                        👉 Tap the buttons in the chat
                     </p>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center text-white font-bold">MR</div>
-                        <div>
-                            <div class="font-semibold">Dr. M. Rao</div>
-                            <div class="text-xs text-slate-500">Dental · Aundh</div>
+
+                <!-- interactive phone — visitor drives this -->
+                <div class="phone-frame mx-auto w-full max-w-[330px]">
+                    <div class="phone-screen">
+                        <div class="wa-header">
+                            <div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-lg">📲</div>
+                            <div>
+                                <div class="font-semibold text-sm">DocPing</div>
+                                <div class="text-xs opacity-80">your clinic assistant</div>
+                            </div>
                         </div>
+                        <div id="docChatBody" class="wa-chat"></div>
                     </div>
-                    <div class="mt-4 flex text-yellow-400">★★★★★</div>
-                    <p class="mt-3 text-slate-700 italic">
-                        "No-shows dropped from 5 a week to almost zero. The 1-hour reminder is genius."
-                    </p>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold">AK</div>
-                        <div>
-                            <div class="font-semibold">Dr. A. Kulkarni</div>
-                            <div class="text-xs text-slate-500">Family GP · Baner</div>
-                        </div>
-                    </div>
-                    <div class="mt-4 flex text-yellow-400">★★★★★</div>
-                    <p class="mt-3 text-slate-700 italic">
-                        "My receptionist thanked me. She actually has time to greet patients now, not juggle phone lines."
-                    </p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ═══════ HOW IT WORKS ═══════ -->
-    <section class="py-16 bg-white">
+    <section class="py-10 bg-white">
         <div class="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">How it works</h2>
-            <div class="mt-12 grid md:grid-cols-3 gap-8">
+            <div class="mt-8 grid md:grid-cols-3 gap-8">
                 <div class="text-center">
                     <div class="mx-auto w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xl font-bold">1</div>
                     <h3 class="mt-4 font-semibold">We onboard your clinic</h3>
@@ -609,7 +627,7 @@
     </section>
 
     <!-- ═══════ FAQ ═══════ -->
-    <section id="faq" class="py-16 sm:py-20 bg-slate-50 border-y border-slate-200">
+    <section id="faq" class="py-10 sm:py-14 bg-slate-50 border-y border-slate-200">
         <div class="max-w-3xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">Frequently asked questions</h2>
             <div class="mt-10 space-y-3">
@@ -672,28 +690,46 @@
     </section>
 
     <!-- ═══════ ABOUT / CONTACT ═══════ -->
-    <section id="about" class="py-20 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200">
+    <section id="about" class="py-12 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
             <div class="inline-block bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-semibold tracking-wide mb-6">
-                ABOUT THE BUILDER
+                MEET THE FOUNDER
             </div>
 
-            <div class="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-3xl font-bold text-white shadow-lg">
+            {% comment %}
+            Founder photo. Drop a square photo at
+            apps/marketing/static/marketing/brand/founder.jpg and it shows
+            automatically; until then it falls back to the initials circle.
+            {% endcomment %}
+            <img src="{% static 'marketing/brand/founder.jpg' %}" alt="Aniket Pathak"
+                 class="mx-auto w-28 h-28 rounded-full object-cover shadow-lg ring-4 ring-white"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <div class="mx-auto w-28 h-28 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 items-center justify-center text-3xl font-bold text-white shadow-lg ring-4 ring-white"
+                 style="display:none;">
                 AP
             </div>
 
             <h2 class="mt-6 text-2xl sm:text-3xl font-bold">Hi, I'm Aniket Pathak 👋</h2>
-            <p class="mt-2 text-slate-500">Backend Developer · 📍 Pune, India</p>
+            <p class="mt-2 text-slate-500">Founder, DocPing · 📍 Pune, India</p>
+
+            <div class="mt-4 inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-semibold">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.2 13.2-3-3 1.4-1.4 1.6 1.6 4-4 1.4 1.4-5.4 5.4z"/>
+                </svg>
+                Verified Meta Business
+            </div>
 
             <p class="mt-8 text-slate-600 max-w-2xl mx-auto leading-relaxed">
-                I build WhatsApp automation for small businesses. This bot was born
+                I build WhatsApp automation for small businesses. DocPing was born
                 out of watching clinic owners miss patient calls during rush hours,
                 scribble appointments on sticky notes, and lose money to no-shows.
                 It&rsquo;s the kind of tool I wished existed — so I built it.
             </p>
             <p class="mt-4 text-slate-600 max-w-2xl mx-auto leading-relaxed">
-                Free for the first 30 days. No credit card. No long contracts.
-                If it helps your clinic, keep it. If not, switch it off — no hard feelings.
+                I run this myself — no call centre, no sales team. When you message,
+                you reach <b>me</b>. I set your clinic up personally, usually in under
+                10 minutes. Free for the first 30 days — no card, no contract. If it
+                helps your clinic, keep it. If not, switch it off, no hard feelings.
             </p>
 
             <div class="mt-10 grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
@@ -722,12 +758,54 @@
         </div>
     </section>
 
+    <!-- ═══════ FOUNDING CLINICS OFFER ═══════ -->
+    <section class="py-10 sm:py-14 bg-gradient-to-br from-slate-900 to-slate-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+            <div class="inline-flex items-center gap-2 bg-green-500/15 text-green-300 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide">
+                🌱 FOUNDING CLINICS — LIMITED
+            </div>
+            <h2 class="mt-5 text-3xl sm:text-4xl font-bold text-white">
+                Be one of our first 10 clinics
+            </h2>
+            <p class="mt-4 text-slate-300 max-w-2xl mx-auto leading-relaxed">
+                DocPing is new — and the clinics that join now get treated like
+                partners, not customers. We&rsquo;re hand-picking our first 10.
+            </p>
+
+            <div class="mt-10 grid sm:grid-cols-3 gap-5 text-left">
+                <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <div class="text-2xl">🛠️</div>
+                    <div class="mt-2 font-bold text-white">Free setup</div>
+                    <div class="mt-1 text-sm text-slate-400">We configure everything for your clinic ourselves — you do nothing.</div>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <div class="text-2xl">🔒</div>
+                    <div class="mt-2 font-bold text-white">Lifetime founder pricing</div>
+                    <div class="mt-1 text-sm text-slate-400">Lock today&rsquo;s rate forever — it never goes up, even as we add features.</div>
+                </div>
+                <div class="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <div class="text-2xl">📞</div>
+                    <div class="mt-2 font-bold text-white">Direct line to the founder</div>
+                    <div class="mt-1 text-sm text-slate-400">Message Aniket directly — feature requests shipped, not ticketed.</div>
+                </div>
+            </div>
+
+            {% if contact_number %}
+            <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20be%20a%20founding%20clinic%20for%20DocPing"
+               class="mt-10 inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-white px-8 py-4 rounded-xl font-bold text-lg transition">
+                💬 Claim a founding spot
+            </a>
+            <p class="mt-3 text-xs text-slate-500">Free 30-day pilot · no card · no contract</p>
+            {% endif %}
+        </div>
+    </section>
+
     <!-- ═══════ PRICING ═══════ -->
-    <section id="pricing" class="py-16 sm:py-20 bg-white">
+    <section id="pricing" class="py-10 sm:py-14 bg-white">
         <div class="max-w-6xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">Straightforward pricing</h2>
             <p class="mt-3 text-center text-slate-600">Pay once a month. Cancel anytime. First 30 days free.</p>
-            <div class="mt-14 grid md:grid-cols-3 gap-6">
+            <div class="mt-8 grid md:grid-cols-3 gap-6">
                 <div class="p-8 bg-slate-50 rounded-2xl border border-slate-200">
                     <h3 class="font-semibold text-lg">Basic</h3>
                     <p class="mt-2 text-3xl font-extrabold">₹999<span class="text-base font-normal text-slate-500">/mo</span></p>
@@ -768,7 +846,7 @@
 
     <!-- ═══════ FINAL CTA ═══════ -->
     {% if bot_number %}
-    <section class="py-16 bg-gradient-to-br from-green-500 to-emerald-600">
+    <section class="py-12 bg-gradient-to-br from-green-500 to-emerald-600">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
             <h2 class="text-3xl sm:text-4xl font-bold text-white">Ready to try it yourself?</h2>
             <p class="mt-4 text-green-50 text-lg">
@@ -783,30 +861,75 @@
     {% endif %}
 
     <!-- ═══════ FOOTER ═══════ -->
-    <footer class="py-10 bg-slate-900 text-slate-400 text-center text-sm">
-        <div class="max-w-6xl mx-auto px-4">
-            <a href="/" class="inline-flex items-center gap-2 mb-3">
-                <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="32" height="32" class="rounded-lg">
-                <span class="font-extrabold text-lg text-white">Doc<span class="text-cyan-400">Ping</span></span>
-            </a>
-            <p>WhatsApp appointment booking for clinics, hospitals, and doctors across India</p>
-            <p class="mt-2">Built by Aniket Pathak · 📍 Pune, India</p>
-            <p class="mt-3 text-slate-500 text-xs">
-                Questions?
-                {% if contact_number %}
-                <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}" class="underline hover:text-white">Message {{ contact_name }} on WhatsApp</a>
-                <span class="mx-2 text-slate-700">·</span>
-                {% endif %}
-                <a href="mailto:info@docping.in" class="underline hover:text-white">info@docping.in</a>
-            </p>
-            <p class="mt-5 text-xs text-slate-500">
-                <a href="/privacy/" class="hover:text-white underline-offset-4 hover:underline">Privacy Policy</a>
-                <span class="mx-2 text-slate-700">·</span>
-                <a href="/terms/" class="hover:text-white underline-offset-4 hover:underline">Terms of Service</a>
-                <span class="mx-2 text-slate-700">·</span>
-                <a href="/data-deletion/" class="hover:text-white underline-offset-4 hover:underline">Data Deletion</a>
-            </p>
-            <p class="mt-3 text-xs text-slate-600">© 2026 DocPing. All rights reserved.</p>
+    <footer class="bg-slate-950 text-slate-400">
+        <div class="max-w-6xl mx-auto px-5 sm:px-6 py-12 sm:py-14">
+            <div class="grid grid-cols-2 md:grid-cols-12 gap-x-6 gap-y-9 sm:gap-10">
+
+                <!-- Brand -->
+                <div class="col-span-2 md:col-span-5">
+                    <a href="/" class="inline-flex items-center gap-2.5">
+                        <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="34" height="34" class="rounded-lg">
+                        <span class="font-extrabold text-xl text-white">Doc<span class="text-cyan-400">Ping</span></span>
+                    </a>
+                    <p class="mt-4 text-sm leading-relaxed text-slate-400 max-w-xs">
+                        WhatsApp appointment booking for clinics, hospitals, and doctors across India.
+                    </p>
+                    <div class="mt-5 inline-flex items-center gap-2 bg-slate-800/80 text-slate-200 px-3 py-1.5 rounded-full text-xs font-semibold">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#34d399" aria-hidden="true">
+                            <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.2 13.2-3-3 1.4-1.4 1.6 1.6 4-4 1.4 1.4-5.4 5.4z"/>
+                        </svg>
+                        Verified Meta Business
+                    </div>
+                </div>
+
+                <!-- Product links -->
+                <nav class="md:col-span-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Product</h3>
+                    <ul class="mt-4 space-y-2.5 text-sm">
+                        <li><a href="#features" class="hover:text-white transition-colors">Features</a></li>
+                        <li><a href="#roi" class="hover:text-white transition-colors">ROI calculator</a></li>
+                        <li><a href="#demo" class="hover:text-white transition-colors">Watch demo</a></li>
+                        <li><a href="#pricing" class="hover:text-white transition-colors">Pricing</a></li>
+                        <li><a href="#faq" class="hover:text-white transition-colors">FAQ</a></li>
+                    </ul>
+                </nav>
+
+                <!-- Company / legal links -->
+                <nav class="md:col-span-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Company</h3>
+                    <ul class="mt-4 space-y-2.5 text-sm">
+                        <li><a href="#about" class="hover:text-white transition-colors">About</a></li>
+                        <li><a href="/privacy/" class="hover:text-white transition-colors">Privacy</a></li>
+                        <li><a href="/terms/" class="hover:text-white transition-colors">Terms</a></li>
+                        <li><a href="/data-deletion/" class="hover:text-white transition-colors">Data deletion</a></li>
+                    </ul>
+                </nav>
+
+                <!-- Contact -->
+                <div class="col-span-2 md:col-span-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Get in touch</h3>
+                    <div class="mt-4 space-y-3 text-sm">
+                        {% if contact_number %}
+                        <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}"
+                           class="inline-flex items-center gap-2 hover:text-white transition-colors">
+                            <svg class="w-4 h-4 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347Z"/></svg>
+                            Chat on WhatsApp
+                        </a>
+                        {% endif %}
+                        <a href="mailto:{{ official_mail }}" class="flex items-center gap-2 hover:text-white transition-colors break-all">
+                            <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M3 8v8a2 2 0 002 2h14a2 2 0 002-2V8M3 8a2 2 0 012-2h14a2 2 0 012 2"/></svg>
+                            {{ official_mail }}
+                        </a>
+                        <p class="text-slate-500 text-xs pt-0.5">📍 Pune, Maharashtra, India</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom bar -->
+            <div class="mt-11 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+                <p>© 2026 DocPing. All rights reserved.</p>
+                <p>Built with care by Aniket Pathak</p>
+            </div>
         </div>
     </footer>
 
@@ -890,6 +1013,135 @@
         }
     }
     playChat();
+
+    // ─── Interactive doctor-side try-out ──────────────────────────
+    // Visitor-driven (not auto-play): a clinic owner taps through and
+    // experiences how bookings arrive + get managed from WhatsApp.
+    // Fully scripted — no backend, no real data, can't break live.
+    (function () {
+        const body = document.getElementById('docChatBody');
+        if (!body) return;
+
+        const STEPS = [
+            {
+                bot: [
+                    '🔔 *New appointment!*\nPriya Desai booked Dr. Patel',
+                    'Tomorrow · 11:00 AM\nKnee pain · first visit',
+                ],
+                buttons: [
+                    { label: '✓ Confirm',  echo: 'Confirm',    next: 1 },
+                    { label: 'Reschedule', echo: 'Reschedule', next: 1 },
+                ],
+            },
+            {
+                bot: [
+                    '✓ Done. Priya is notified on WhatsApp — and gets an automatic reminder 1 hour before her slot.',
+                    'Here is your day so far 👇',
+                ],
+                buttons: [
+                    { label: "📅 See today's schedule", echo: "Show today", next: 2 },
+                ],
+            },
+            {
+                bot: [
+                    '📅 *Today — Dr. Patel*\n─────────────\n09:30   Rahul S.\n11:00   Amit J.\n16:00   Sneha K.\n18:30   Vikram I.',
+                    'Every one booked over WhatsApp. You answered zero calls.',
+                ],
+                buttons: [
+                    { label: "Won't patients no-show?", echo: 'What about no-shows?', next: 3 },
+                ],
+            },
+            {
+                bot: [
+                    'Each patient gets an auto-reminder 1 hour before — no-shows drop about 30%.',
+                    'And bookings never stop — even right now:',
+                    '🔔 *New booking · 9:47 PM*\nMeera D. · Thu, 10:00 AM',
+                    'Booked while your clinic was closed. 🌙',
+                ],
+                buttons: [
+                    { label: '🚀 I want this for my clinic', echo: '', next: 'cta' },
+                ],
+            },
+        ];
+
+        const CTA_TEXT = 'Setup takes 10 minutes. Free for 30 days — no card, no contract.';
+        const CTA_URL = 'https://wa.me/{{ contact_number }}?text=' +
+            encodeURIComponent("Hi! I tried the DocPing demo — I'd like the free 30-day pilot for my clinic.");
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function msg(cls, text) {
+            const d = document.createElement('div');
+            d.className = 'msg ' + cls;
+            // Hardcoded copy only — safe to use innerHTML. *bold* → <strong>.
+            d.innerHTML = text.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+            body.appendChild(d);
+            body.scrollTop = body.scrollHeight;
+        }
+        function typing() {
+            const t = document.createElement('div');
+            t.className = 'typing';
+            t.innerHTML = '<span></span><span></span><span></span>';
+            body.appendChild(t);
+            body.scrollTop = body.scrollHeight;
+            return t;
+        }
+
+        async function runStep(idx) {
+            const step = STEPS[idx];
+            for (const line of step.bot) {
+                const t = typing();
+                await sleep(700);
+                t.remove();
+                msg('msg-in', line);
+                await sleep(320);
+            }
+            const row = document.createElement('div');
+            row.className = 'wa-btn-row';
+            step.buttons.forEach((b, i) => {
+                const el = document.createElement('div');
+                el.className = 'wa-btn tappable';
+                el.textContent = b.label;
+                el.style.animationDelay = (i * 0.08) + 's';
+                el.addEventListener('click', () => {
+                    row.remove();
+                    if (b.echo) msg('msg-out', b.echo);
+                    if (b.next === 'cta') showCta();
+                    else runStep(b.next);
+                });
+                row.appendChild(el);
+            });
+            body.appendChild(row);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        async function showCta() {
+            const t = typing();
+            await sleep(700);
+            t.remove();
+            msg('msg-in', CTA_TEXT);
+            const a = document.createElement('a');
+            a.className = 'wa-cta';
+            a.href = CTA_URL;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = '💬 Start my free pilot';
+            body.appendChild(a);
+            const replay = document.createElement('div');
+            replay.className = 'wa-replay';
+            replay.textContent = '↻ Replay demo';
+            replay.addEventListener('click', start);
+            body.appendChild(replay);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function start() {
+            body.innerHTML = '';
+            runStep(0);
+        }
+
+        start();
+    })();
 
     // ─── ROI calculator ───────────────────────────────────────────
     const pEl   = document.getElementById('roiPatients');

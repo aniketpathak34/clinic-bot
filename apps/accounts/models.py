@@ -24,6 +24,13 @@ class User(AbstractUser):
         help_text="First name shown in CTA copy (e.g. \"Chat with Aniket\"). "
                   "Leave blank to fall back to the account's first_name/username.",
     )
+    official_mail = models.EmailField(
+        blank=True,
+        help_text="Public DocPing email shown on the landing page and the "
+                  "legal pages (Privacy / Terms / Data Deletion), e.g. "
+                  "info@docping.in. Leave blank to fall back to this "
+                  "account's login email.",
+    )
 
     # Helpers so templates always receive a clean digits-only string.
     @property
@@ -37,3 +44,9 @@ class User(AbstractUser):
     @property
     def landing_display_name(self) -> str:
         return self.contact_name or self.first_name or self.username
+
+    @property
+    def public_email(self) -> str:
+        """Email shown on public pages — the official mailbox, falling back to
+        the account's login email so legal pages never render a blank address."""
+        return (self.official_mail or '').strip() or (self.email or '').strip()

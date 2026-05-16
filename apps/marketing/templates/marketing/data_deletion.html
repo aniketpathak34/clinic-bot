@@ -1,4 +1,5 @@
 {% extends "marketing/legal_base.html" %}
+{% load marketing_extras %}
 
 {% block title %}Data Deletion — DocPing{% endblock %}
 {% block doc_id %}DOC: DELETE-V1{% endblock %}
@@ -18,7 +19,7 @@
 <h3>Option 1 — WhatsApp (fastest)</h3>
 <p>
   Send the following message to our bot or to
-  <strong>+91 70303 44210</strong>:
+  <strong>{{ contact_number|pretty_phone }}</strong>:
 </p>
 <div style="background:#14141b;border:1px solid #26262f;border-radius:10px;padding:14px 18px;margin:14px 0;font-family:'JetBrains Mono',monospace;font-size:13px;color:#22d3ee;">
   DELETE MY DATA
@@ -30,7 +31,7 @@
 
 <h3>Option 2 — Email</h3>
 <p>
-  Email <a href="mailto:info@docping.in?subject=DPDP%20Deletion%20Request">info@docping.in</a>
+  Email <a href="mailto:{{ official_mail }}?subject=DPDP%20Deletion%20Request">{{ official_mail }}</a>
   with:
 </p>
 <ul>
@@ -100,7 +101,7 @@
   that window, you can:
 </p>
 <ul>
-  <li>Send a follow-up email to <a href="mailto:info@docping.in">info@docping.in</a></li>
+  <li>Send a follow-up email to <a href="mailto:{{ official_mail }}">{{ official_mail }}</a></li>
   <li>File a complaint with the
     <strong>Data Protection Board of India</strong> at
     <a href="https://www.meity.gov.in/" target="_blank" rel="noopener">meity.gov.in</a>
@@ -119,8 +120,8 @@
 <h2>Contact</h2>
 <p>
   For deletion requests or questions about this process:<br>
-  <strong>Email:</strong> <a href="mailto:info@docping.in">info@docping.in</a><br>
-  <strong>WhatsApp:</strong> +91 70303 44210<br>
+  <strong>Email:</strong> <a href="mailto:{{ official_mail }}">{{ official_mail }}</a><br>
+  <strong>WhatsApp:</strong> {{ contact_number|pretty_phone }}<br>
   <strong>Postal:</strong> Aniket Pathak, Pune, Maharashtra, India
 </p>
 {% endblock %}

@@ -455,9 +455,24 @@ class DemoVideo(models.Model):
          - Allowed by most ad-blockers / privacy extensions
          - GDPR-friendly (no tracking cookies until playback)
          - Drop-in compatible with regular /embed/ URLs
+
+        Tuned to feel like a native product demo, not a YouTube embed:
+         autoplay (muted — browsers block unmuted autoplay), looped,
+         minimal branding, no related-video grid.
         """
         vid = self.youtube_id
-        return f"https://www.youtube-nocookie.com/embed/{vid}?rel=0" if vid else ''
+        if not vid:
+            return ''
+        params = (
+            'rel=0'               # no related videos from other channels
+            '&modestbranding=1'   # minimal YouTube logo / chrome
+            '&autoplay=1'         # start on its own when scrolled into view
+            '&mute=1'             # required — browsers block unmuted autoplay
+            '&loop=1'             # loop the short demo
+            f'&playlist={vid}'    # loop=1 needs playlist set to the same id
+            '&playsinline=1'      # don't hijack fullscreen on mobile
+        )
+        return f"https://www.youtube-nocookie.com/embed/{vid}?{params}"
 
     @property
     def watch_url(self) -> str:

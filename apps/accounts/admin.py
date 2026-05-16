@@ -12,13 +12,15 @@ class UserAdmin(DjangoUserAdmin):
     # Reuse UserAdmin's fieldsets and append a new one for our custom fields.
     fieldsets = DjangoUserAdmin.fieldsets + (
         ('Landing page contacts', {
-            'fields': ('bot_number', 'contact_number', 'contact_name'),
+            'fields': ('bot_number', 'contact_number', 'contact_name', 'official_mail'),
             'description': (
                 "<b>bot_number</b> — Meta WhatsApp number patients message to try the demo "
                 "(e.g. <code>15551773718</code>).<br>"
                 "<b>contact_number</b> — your personal WhatsApp, shown in the \"Talk to me\" card.<br>"
                 "<b>contact_name</b> — first name used in CTA copy (e.g. \"Chat with Aniket\").<br>"
-                "Digits only with country code. No + or spaces."
+                "<b>official_mail</b> — public DocPing email shown on the landing &amp; legal pages "
+                "(e.g. <code>info@docping.in</code>).<br>"
+                "Numbers: digits only with country code. No + or spaces."
             ),
         }),
     )
@@ -26,7 +28,7 @@ class UserAdmin(DjangoUserAdmin):
     add_fieldsets = DjangoUserAdmin.add_fieldsets + (
         ('Landing page contacts (optional)', {
             'classes': ('wide',),
-            'fields': ('bot_number', 'contact_number', 'contact_name'),
+            'fields': ('bot_number', 'contact_number', 'contact_name', 'official_mail'),
         }),
     )
     list_display = DjangoUserAdmin.list_display + ('bot_number', 'contact_number')

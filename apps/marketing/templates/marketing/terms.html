@@ -1,4 +1,5 @@
 {% extends "marketing/legal_base.html" %}
+{% load marketing_extras %}
 
 {% block title %}Terms of Service — DocPing{% endblock %}
 {% block doc_id %}DOC: TERMS-V1{% endblock %}
@@ -173,8 +174,8 @@
 <h2>17. Contact</h2>
 <p>
   For questions about these Terms:<br>
-  <strong>Email:</strong> <a href="mailto:info@docping.in">info@docping.in</a><br>
-  <strong>WhatsApp:</strong> +91 70303 44210<br>
+  <strong>Email:</strong> <a href="mailto:{{ official_mail }}">{{ official_mail }}</a><br>
+  <strong>WhatsApp:</strong> {{ contact_number|pretty_phone }}<br>
   <strong>Address:</strong> Aniket Pathak, Pune, Maharashtra, India
 </p>
 {% endblock %}

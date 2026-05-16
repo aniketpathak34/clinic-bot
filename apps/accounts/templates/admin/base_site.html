@@ -566,9 +566,12 @@
 // null and nothing becomes clickable.
 function dpHeaderInit() {
   // ── Endpoints ────────────────────────────────────────────────
-  var SIGNALS_URL = "/admin/marketing/lead/header-signals/";
-  var NOTIFS_URL  = "/admin/marketing/lead/notifications/";
-  var SEARCH_URL  = "/admin/marketing/lead/command-search/";
+  // Resolved server-side via {% templatetag openblock %} url {% templatetag closeblock %}
+  // so they stay correct when admin isn't mounted at /admin/ (prod uses
+  // ADMIN_URL_PATH, e.g. /mynameisaniket/). Hard-coding /admin/ here 404s on prod.
+  var SIGNALS_URL = "{% url 'admin:marketing_header_signals' %}";
+  var NOTIFS_URL  = "{% url 'admin:marketing_notifications' %}";
+  var SEARCH_URL  = "{% url 'admin:marketing_command_search' %}";
 
   // ── Live signals strip — refresh every 30s ──────────────────
   function refreshSignals() {
@@ -904,10 +907,11 @@ function dpHeaderInit() {
   })();
 
   // ── Web Push: register service worker + handle subscribe toggle ──
-  var PUSH_CONFIG_URL  = "/admin/marketing/lead/push/config/";
-  var PUSH_SUB_URL     = "/admin/marketing/lead/push/subscribe/";
-  var PUSH_UNSUB_URL   = "/admin/marketing/lead/push/unsubscribe/";
-  var PUSH_TEST_URL    = "/admin/marketing/lead/push/test/";
+  // Server-resolved URLs — see note above; hard-coded /admin/ 404s on prod.
+  var PUSH_CONFIG_URL  = "{% url 'admin:marketing_push_config' %}";
+  var PUSH_SUB_URL     = "{% url 'admin:marketing_push_subscribe' %}";
+  var PUSH_UNSUB_URL   = "{% url 'admin:marketing_push_unsubscribe' %}";
+  var PUSH_TEST_URL    = "{% url 'admin:marketing_push_test' %}";
 
   // Move both dropdown panels to be direct children of <body>. Their
   // parents (#header for the user menu, .dp-bell for the tray) create
@@ -1026,13 +1030,34 @@ function dpHeaderInit() {
       .catch(function () { setPushUI('off'); });
   }
 
+  // Idempotent re-sync — POST the browser's current subscription to the
+  // server. The backend upserts on `endpoint`, so calling this repeatedly is
+  // harmless. It self-heals the case where an earlier subscribe POST failed
+  // (e.g. the old hard-coded /admin/ URL 404'd on prod) yet the browser kept
+  // its subscription — leaving the toggle stuck "on" with no matching DB row,
+  // so test/alert pushes silently went nowhere.
+  function syncSubscription(sub) {
+    return fetch(PUSH_SUB_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(sub.toJSON()),
+    });
+  }
+
   function refreshPushUI() {
     if (!pushSupported()) { setPushUI('unsupported'); return; }
     if (Notification.permission === 'denied') { setPushUI('denied'); return; }
     ensureSW().then(function (reg) {
       return reg.pushManager.getSubscription();
     }).then(function (sub) {
-      setPushUI(sub ? 'on' : 'off');
+      if (sub) {
+        setPushUI('on');
+        // Make sure the server actually has this device on file.
+        syncSubscription(sub).catch(function () {});
+      } else {
+        setPushUI('off');
+      }
     }).catch(function () { setPushUI('off'); });
   }
 

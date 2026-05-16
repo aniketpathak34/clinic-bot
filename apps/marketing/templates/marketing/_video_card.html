@@ -17,13 +17,6 @@ Video card.
                     referrerpolicy="strict-origin-when-cross-origin"
                     allowfullscreen></iframe>
         </div>
-        {% if v.watch_url %}
-        <div class="px-4 pt-3 text-xs text-slate-500">
-            Player not loading?
-            <a href="{{ v.watch_url }}" target="_blank" rel="noopener"
-               class="text-blue-600 hover:underline font-medium">Open on YouTube ↗</a>
-        </div>
-        {% endif %}
     {% elif v.file_url %}
         <div class="bg-slate-900">
             <video class="w-full h-auto max-h-[70vh] block"

@@ -31,6 +31,30 @@ def _looks_like_bot(user_agent: str) -> bool:
     return any(h in ua for h in _BOT_UA_HINTS)
 
 
+def _site_user():
+    """The superuser row that holds the public-facing contact details — bot
+    number, contact number, contact name and official email. Edited in one
+    place (the admin user form) so no contact info is ever hard-coded."""
+    User = get_user_model()
+    return (
+        User.objects.filter(is_superuser=True)
+        .exclude(bot_number='', contact_number='')
+        .order_by('id').first()
+    ) or User.objects.filter(is_superuser=True).order_by('id').first()
+
+
+def _public_contacts():
+    """Contact details for public templates (landing + legal pages), all
+    driven by the User row so the number/email live in a single source."""
+    u = _site_user()
+    return {
+        'bot_number':     u.clean_bot_number if u else '',
+        'contact_number': u.clean_contact_number if u else '',
+        'contact_name':   u.landing_display_name if u else 'us',
+        'official_mail':  u.public_email if u else '',
+    }
+
+
 @require_GET
 def landing(request):
     """Marketing home page.
@@ -59,26 +83,14 @@ def landing(request):
         'provider': list(DemoVideo.objects.filter(role='provider', is_active=True)),
         'other': list(DemoVideo.objects.filter(role='other', is_active=True)),
     }
-    User = get_user_model()
-    site_user = (
-        User.objects.filter(is_superuser=True)
-        .exclude(bot_number='', contact_number='')
-        .order_by('id')
-        .first()
-    ) or User.objects.filter(is_superuser=True).order_by('id').first()
-    bot_number = site_user.clean_bot_number if site_user else ''
-    contact_number = site_user.clean_contact_number if site_user else ''
-    contact_name = site_user.landing_display_name if site_user else 'us'
     today_bookings = max(
         Appointment.objects.filter(status='booked', slot__date=date.today()).count(),
         3,
     )
     return render(request, 'marketing/landing.html', {
         'videos': videos,
-        'bot_number': bot_number,
-        'contact_number': contact_number,
-        'contact_name': contact_name,
         'today_bookings': today_bookings,
+        **_public_contacts(),
     })
 
 
@@ -249,17 +261,17 @@ def sitemap_xml(request):
 
 @require_GET
 def privacy(request):
-    return render(request, 'marketing/privacy.html')
+    return render(request, 'marketing/privacy.html', _public_contacts())
 
 
 @require_GET
 def terms(request):
-    return render(request, 'marketing/terms.html')
+    return render(request, 'marketing/terms.html', _public_contacts())
 
 
 @require_GET
 def data_deletion(request):
-    return render(request, 'marketing/data_deletion.html')
+    return render(request, 'marketing/data_deletion.html', _public_contacts())
 
 
 # ────────────────────────────────────────────────────────────────
@@ -318,24 +330,14 @@ def lead_landing(request, slug: str):
             import logging
             logging.getLogger(__name__).exception("hot-lead push failed")
 
-    # Pull the operator's WA contact number off the same User row used by
-    # the public landing page, so this page shows "Aniket | +91 ..." too.
-    User = get_user_model()
-    site_user = (
-        User.objects.filter(is_superuser=True)
-        .exclude(bot_number='', contact_number='')
-        .order_by('id').first()
-    ) or User.objects.filter(is_superuser=True).order_by('id').first()
-    contact_number = site_user.clean_contact_number if site_user else ''
-    contact_name = site_user.landing_display_name if site_user else 'Aniket'
-
     # Specialty-aware demo video (falls back to any provider video).
     demo = (DemoVideo.objects.filter(role='provider', is_active=True).first()
             or DemoVideo.objects.filter(is_active=True).first())
 
+    # Contact details come off the same User row as the public landing page,
+    # so this page shows "Aniket | +91 ..." too.
     return render(request, 'marketing/lead_landing.html', {
         'lead': lead,
-        'contact_number': contact_number,
-        'contact_name': contact_name,
         'demo': demo,
+        **_public_contacts(),
     })

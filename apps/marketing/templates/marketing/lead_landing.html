@@ -1,4 +1,4 @@
-{% load humanize static %}<!DOCTYPE html>
+{% load humanize static marketing_extras %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -209,7 +209,7 @@
         <span class="opacity-80">→</span>
       </a>
       <div class="text-xs mono text-zinc-500 mt-4">
-        Direct message to {{ contact_name }} · +91 {{ contact_number|slice:"2:7" }} {{ contact_number|slice:"7:" }}
+        Direct message to {{ contact_name }} · {{ contact_number|pretty_phone }}
       </div>
     </div>
 
