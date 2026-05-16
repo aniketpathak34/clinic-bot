@@ -30,10 +30,13 @@ services:
         generateValue: true
       - key: DEBUG
         value: "False"
+      # Database moved off Render Postgres (free tier expires every 90 days)
+      # to Neon (free, permanent). DATABASE_URL is now set manually in the
+      # Render dashboard → Environment tab. Paste the Neon DIRECT connection
+      # string there (the host WITHOUT "-pooler"). sync:false tells the
+      # Blueprint not to manage or overwrite it.
       - key: DATABASE_URL
-        fromDatabase:
-          name: clinic-bot-db
-          property: connectionString
+        sync: false
       - key: CELERY_BROKER_URL
         fromService:
           type: redis
