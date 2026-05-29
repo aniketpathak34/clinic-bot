@@ -12,6 +12,41 @@ from apps.conversations.response import BotResponse
 
 logger = logging.getLogger(__name__)
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Structured logging helper — every doctor-flow event is greppable + filterable.
+#
+# Format:   [doctor-flow] event=<name> wa=<phone> flow=<flow> step=<step> ...
+# Examples (Render log shell):
+#   grep '\[doctor-flow\]' app.log
+#   grep '\[doctor-flow\].*wa=917030344210' app.log         # one user's session
+#   grep '\[doctor-flow\] event=match_failed' app.log       # all input rejects
+#   grep '\[doctor-flow\] event=slots_saved' app.log        # all successful saves
+#   grep '\[doctor-flow\] event=step_transition' app.log    # state machine moves
+#
+# Each event LINE is a single logger.info() — no JSON, no multi-line — so the
+# default Render text viewer is enough; no extra infra required.
+# ═════════════════════════════════════════════════════════════════════════════
+def _ev(event: str, state, **kwargs):
+    """Emit one structured doctor-flow log line."""
+    parts = [f'[doctor-flow] event={event}']
+    if state is not None:
+        parts.append(f'wa={state.whatsapp_number}')
+        parts.append(f'flow={state.current_flow or "-"}')
+        parts.append(f'step={state.step or "-"}')
+        if state.clinic_id:
+            parts.append(f'clinic={state.clinic_id}')
+    for k, v in kwargs.items():
+        s = '' if v is None else str(v)
+        s = s.replace('\n', '\\n').replace('\r', '')
+        if len(s) > 80:
+            s = s[:77] + '...'
+        if any(c in s for c in ' \t='):
+            s = f'"{s}"'
+        parts.append(f'{k}={s}')
+    logger.info(' '.join(parts))
+
+
 def _time_key(t: time) -> str:
     return t.strftime('%H:%M')
 
@@ -240,7 +275,15 @@ def _save_selected_availability(state):
     6 PM slot when the clinic closes Saturdays at 1 PM just drops that one.
     """
     context = state.context or {}
-    doctor = Doctor.objects.select_related('clinic').get(whatsapp_number=state.whatsapp_number)
+    try:
+        doctor = Doctor.objects.select_related('clinic').get(
+            whatsapp_number=state.whatsapp_number
+        )
+    except Doctor.DoesNotExist:
+        _ev('save_doctor_not_found', state)
+        return BotResponse.as_text(
+            "❌ Couldn't find your doctor record. Please contact the clinic admin."
+        )
     clinic = doctor.clinic
 
     selected_dates = [
@@ -261,14 +304,25 @@ def _save_selected_availability(state):
             if valid_for_day is not None and t not in valid_for_day:
                 out_of_hours += 1
                 continue
-            _, was_created = AvailableSlot.objects.get_or_create(
-                doctor=doctor, date=d, time=t,
-                defaults={'is_booked': False},
-            )
+            try:
+                _, was_created = AvailableSlot.objects.get_or_create(
+                    doctor=doctor, date=d, time=t,
+                    defaults={'is_booked': False},
+                )
+            except Exception as e:
+                _ev('slot_save_exception', state,
+                    doctor=doctor.pk, date=d.isoformat(), time=t.strftime('%H:%M'),
+                    err=type(e).__name__, msg=str(e)[:80])
+                continue
             if was_created:
                 created += 1
             else:
                 existed += 1
+
+    _ev('slots_saved', state,
+        doctor=doctor.pk, clinic_code=(clinic.clinic_code if clinic else None),
+        dates=len(selected_dates), times=len(selected_times),
+        created=created, existed=existed, out_of_hours=out_of_hours)
 
     # Reset state
     state.current_flow = 'doctor_menu'
@@ -326,7 +380,10 @@ def handle_set_availability(state, text):
             whatsapp_number=state.whatsapp_number
         ).clinic
     except Doctor.DoesNotExist:
-        pass
+        _ev('doctor_lookup_failed', state, wa=state.whatsapp_number)
+
+    _ev('handle_set_availability', state, text=text_raw,
+        clinic_code=(clinic.clinic_code if clinic else None))
 
     # ── STEP 0: Date-mode preset (first screen after Set Availability) ──
     if state.step == 'choose_date_mode':
@@ -431,13 +488,16 @@ def handle_set_availability(state, text):
             context['selected_times'] = all_slots
             state.context = context
             state.save()
+            _ev('time_mode_all', state, session=session, slot_count=len(all_slots))
             return _save_selected_availability(state), state
 
         if text_lower in ('times_custom', '🎯 pick times', 'pick times', 'custom', '2'):
             state.step = 'select_slots'
             state.save()
+            _ev('step_transition', state, to='select_slots', via='custom_button')
             return _time_slots_list(clinic, ref_date, session, []), state
 
+        _ev('time_mode_no_match', state, text=text_raw)
         return _time_mode_buttons(session, len(context.get('selected_dates', []))), state
 
     elif state.step == 'select_slots':
@@ -447,12 +507,24 @@ def handle_set_availability(state, text):
 
         if text_lower in ('done', '✅ done', 'cancel', '⏭️ cancel', 'finish', '✅ finish'):
             if not selected_times:
+                _ev('done_no_slots', state)
                 state.current_flow = 'doctor_menu'
                 state.step = ''
                 state.context = {}
                 state.save()
                 return _with_doctor_menu("No slots were added."), state
             return _save_selected_availability(state), state
+
+        # Bug guard: WhatsApp sometimes re-delivers the same interactive payload
+        # (or the user's previous-step button title arrives after the step has
+        # already transitioned to select_slots). Catch the time-mode button
+        # titles here and re-show the time list instead of bouncing the user
+        # with "not in clinic hours".
+        if text_lower in ('times_custom', '🎯 pick times', 'pick times',
+                          'times_all', '✅ all slots', 'all slots'):
+            _ev('stale_time_mode_input', state, text=text_raw,
+                hint='button from previous step delivered after transition')
+            return _time_slots_list(clinic, ref_date, session, selected_times), state
 
         # Strip any checkbox marker, then match to this clinic's known slots
         text_clean = text_raw
@@ -462,12 +534,19 @@ def handle_set_availability(state, text):
                 break
         text_upper = text_clean.strip().upper()
         matched = None
-        for time_key, time_display in _clinic_session_slots(clinic, ref_date, session):
+        candidates = _clinic_session_slots(clinic, ref_date, session)
+        for time_key, time_display in candidates:
             if text_upper == time_key or text_upper == time_display.upper():
                 matched = time_key
                 break
 
         if not matched:
+            _ev('time_match_failed', state,
+                input=text_raw, cleaned=text_upper, session=session,
+                ref_date=(ref_date.isoformat() if ref_date else None),
+                candidate_count=len(candidates),
+                candidates_sample=[k for k, _ in candidates[:5]],
+                clinic_code=(clinic.clinic_code if clinic else None))
             return BotResponse.as_text(
                 "❌ That time isn't in this clinic's hours. Please tap from the list."
             ), state

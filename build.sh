@@ -53,8 +53,17 @@ else:
 PYEOF
 
 # Seed the full demo dataset (doctor + slots + patients + appointments).
-# Idempotent — safe to run on every deploy. No-ops if TEST01 clinic doesn't exist yet.
-python manage.py seed_demo || true
+# OFF by default — was being run on every deploy and (a) re-creating the demo
+# doctor, which fired the welcome-WhatsApp signal and burned a Meta 131030
+# error into the build log every time, and (b) bulk-creating 3 weeks of slots
+# even when the user wanted to manage them manually.
+# Set SEED_DEMO=1 in the Render env if you ever want to re-seed.
+if [ "${SEED_DEMO:-}" = "1" ]; then
+  echo "SEED_DEMO=1 — running demo dataset seed"
+  python manage.py seed_demo || true
+else
+  echo "SEED_DEMO not set — skipping demo doctor/slots/patients/appointments seed"
+fi
 
 # Seed django-celery-beat with the project's recurring tasks. Idempotent.
 # After this they're editable from /admin/django_celery_beat/periodictask/

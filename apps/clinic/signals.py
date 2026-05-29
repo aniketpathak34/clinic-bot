@@ -74,16 +74,52 @@ def _send_welcome(doctor_pk: int):
         result = service.send_message(doctor.whatsapp_number, msg)
 
         if result.get('status') == 'error':
-            logger.error(
-                f"[welcome] Failed to send to Dr. {doctor.name} "
-                f"({doctor.whatsapp_number}): {result}"
-            )
+            # Try to extract Meta's error code — some failures are expected
+            # config issues, not engineering bugs. Log those as WARNING with
+            # a single actionable line; only unknown failures stay ERROR.
+            meta_code = None
+            try:
+                import json as _json
+                body = result.get('body') or '{}'
+                if isinstance(body, str):
+                    body = _json.loads(body)
+                meta_code = (body.get('error') or {}).get('code')
+            except Exception:
+                pass
+
+            if meta_code == 131030:
+                # Recipient phone number not on the Meta test-mode allow-list.
+                # Expected during development — not an engineering failure.
+                logger.warning(
+                    "[welcome] skipped doctor=%s wa=%s reason=meta_131030 "
+                    "fix='Add %s to WhatsApp Manager > Phone numbers > To list, "
+                    "or switch the Meta app to Live mode'",
+                    doctor.name, doctor.whatsapp_number, doctor.whatsapp_number,
+                )
+            elif meta_code in (131047, 131051):
+                # 131047: re-engagement window expired (24h rule)
+                # 131051: unsupported message type — both are config/policy, not bugs
+                logger.warning(
+                    "[welcome] skipped doctor=%s wa=%s meta_code=%s",
+                    doctor.name, doctor.whatsapp_number, meta_code,
+                )
+            else:
+                logger.error(
+                    "[welcome] failed doctor=%s wa=%s meta_code=%s body=%s",
+                    doctor.name, doctor.whatsapp_number, meta_code, result,
+                )
             return
 
         Doctor.objects.filter(pk=doctor_pk, welcomed_at__isnull=True).update(
             welcomed_at=timezone.now()
         )
-        logger.info(f"[welcome] Sent to Dr. {doctor.name} at {doctor.whatsapp_number}")
+        logger.info(
+            "[welcome] sent doctor=%s wa=%s clinic=%s",
+            doctor.name, doctor.whatsapp_number, clinic.clinic_code,
+        )
 
     except Exception as e:
-        logger.exception(f"[welcome] Unexpected error for Dr. {doctor.name}: {e}")
+        logger.exception(
+            "[welcome] unexpected_error doctor=%s wa=%s err=%s",
+            doctor.name, doctor.whatsapp_number, e,
+        )
