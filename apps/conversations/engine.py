@@ -157,9 +157,11 @@ def handle_message(phone: str, text: str, clinic=None):
             )
 
     # --- STEP 3: Route to correct graph ---
-    log.event('route_dispatched',
-              message=f'Dispatching to {state.user_type} flow',
-              target=state.user_type)
+    # Debug-only: this fires on every message and is implicit from the next
+    # downstream event (handle_set_availability, main_menu_choice, etc).
+    # Keeping it at debug means it lands in the DB only if you bump the level,
+    # but the downstream events tell the routing story regardless.
+    log.debug('route_dispatched', target=state.user_type)
     if state.user_type == 'doctor':
         response = run_doctor_graph(state, text)
     else:

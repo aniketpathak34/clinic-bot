@@ -128,17 +128,14 @@
   {# ─── Observability ─── #}
   <div class="dp-section">
     <div class="dp-section-head">Observability</div>
-    <a href="{% admin_url 'admin:observability_logevent_changelist' %}" class="dp-link">
+    <a href="{% admin_url 'admin:observability_requestlog_changelist' %}" class="dp-link">
       <span class="dp-link-name">Logs</span>
     </a>
-    <a href="{% admin_url 'admin:observability_logevent_changelist' %}?level__exact=error" class="dp-link dp-sublink">
+    <a href="{% admin_url 'admin:observability_requestlog_changelist' %}?level__exact=error" class="dp-link dp-sublink">
       <span class="dp-link-name">Errors only</span>
     </a>
-    <a href="{% admin_url 'admin:observability_logevent_changelist' %}?level__exact=warn" class="dp-link dp-sublink">
+    <a href="{% admin_url 'admin:observability_requestlog_changelist' %}?level__exact=warn" class="dp-link dp-sublink">
       <span class="dp-link-name">Warnings only</span>
-    </a>
-    <a href="{% admin_url 'admin:observability_logeventarchive_changelist' %}" class="dp-link">
-      <span class="dp-link-name">Archive</span>
     </a>
   </div>
 

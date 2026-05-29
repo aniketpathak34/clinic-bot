@@ -15,7 +15,7 @@ Usage in middle layers (just call `log.event(...)` — context picked up automat
 """
 from contextvars import ContextVar
 from uuid import uuid4
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 
 # Top-level trace ID — one per inbound request / task run
@@ -28,6 +28,16 @@ user_type_var:   ContextVar[Optional[str]] = ContextVar('docping_user_type',   d
 flow_var:        ContextVar[Optional[str]] = ContextVar('docping_flow',        default=None)
 step_var:        ContextVar[Optional[str]] = ContextVar('docping_step',        default=None)
 
+# Per-request event buffer. log.event() appends; log.flush() consumes it and
+# writes ONE RequestLog row. Set to None outside a request → buffering off.
+events_buffer_var: ContextVar[Optional[List[Dict[str, Any]]]] = ContextVar(
+    'docping_events_buffer', default=None,
+)
+
+# Marks whether log.flush() has already run for this trace — prevents
+# double-writes if a middleware and a view both try to flush.
+flushed_var: ContextVar[bool] = ContextVar('docping_flushed', default=False)
+
 
 def new_trace(parent: Optional[str] = None) -> str:
     """Start a new trace context. Returns the trace ID.
@@ -36,8 +46,7 @@ def new_trace(parent: Optional[str] = None) -> str:
     stale state from the previous request/task on the same worker thread.
     The webhook / engine will repopulate them as soon as they're known.
 
-    If `parent` is given, the new trace inherits it (use this when a Celery
-    task is spawned from a webhook event and you want the timelines linked).
+    Resets the events buffer to an empty list — buffering ON for this trace.
     """
     tid = parent or uuid4().hex[:16]
     trace_id_var.set(tid)
@@ -46,6 +55,8 @@ def new_trace(parent: Optional[str] = None) -> str:
     user_type_var.set(None)
     flow_var.set(None)
     step_var.set(None)
+    events_buffer_var.set([])
+    flushed_var.set(False)
     return tid
 
 
@@ -89,3 +100,5 @@ def reset() -> None:
     user_type_var.set(None)
     flow_var.set(None)
     step_var.set(None)
+    events_buffer_var.set(None)
+    flushed_var.set(False)

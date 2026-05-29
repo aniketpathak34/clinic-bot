@@ -35,65 +35,60 @@ def whatsapp_webhook_verify(request: HttpRequest):
 
 @router.post("/whatsapp/")
 def whatsapp_webhook_receive(request: HttpRequest):
-    """Receive incoming WhatsApp messages from Meta."""
-    # Fresh trace — every inbound webhook gets its own ID, threaded through
-    # every downstream log call automatically via contextvars.
+    """Receive incoming WhatsApp messages from Meta.
+
+    Logs ONE RequestLog row per real user message (events buffered + flushed
+    at the end). Status callbacks (sent/delivered/read) emit nothing — they
+    early-exit before opening a trace.
+    """
+    import time as _time
+
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        return {"status": "invalid_json"}
+
+    phone, text, display_number = extract_message_from_webhook(payload)
+
+    # Meta status callbacks (sent/delivered/read) — silent ack
+    if not phone or not text:
+        return {"status": "no_message"}
+
+    # Real user message — open a trace + start the buffer
     new_trace()
+    set_correlation(whatsapp_number=phone)
+    started = _time.monotonic()
 
-    with log.span('webhook') as webhook_span:
-        try:
-            payload = json.loads(request.body)
-        except json.JSONDecodeError as e:
-            log.warn('webhook_invalid_json', exc=e,
-                     message='Body was not valid JSON')
-            return {"status": "invalid_json"}
+    clinic = Clinic.find_by_display_number(display_number) if display_number else None
+    if not clinic:
+        log.warn('webhook_unmatched_clinic',
+                 message='No Clinic registered for this display_phone_number',
+                 display_number=display_number, sender_digit10=phone[-10:])
+        log.flush(inbound_text=text,
+                  latency_ms=int((_time.monotonic() - started) * 1000))
+        return {"status": "unknown_clinic"}
 
-        phone, text, display_number = extract_message_from_webhook(payload)
+    set_correlation(clinic_id=clinic.id)
+    log.event('webhook_received',
+              message=f'Inbound from …{phone[-4:]} to {clinic.clinic_code}',
+              clinic_code=clinic.clinic_code,
+              sender_digit10=phone[-10:],
+              text_preview=text[:60])
 
-        if not phone or not text:
-            # Status callback, read receipt, or empty — ack and move on.
-            log.event('webhook_non_message',
-                      message='Webhook had no user message (likely status callback)',
-                      had_phone=bool(phone), had_text=bool(text),
-                      display_number=display_number)
-            return {"status": "no_message"}
+    try:
+        response = handle_message(phone, text, clinic=clinic)
+        send_bot_response(phone, response, clinic=clinic)
+    except Exception as e:
+        log.error('webhook_handler_crashed', exc=e,
+                  message='Engine or send_bot_response raised — bot did NOT reply')
+        log.flush(inbound_text=text,
+                  latency_ms=int((_time.monotonic() - started) * 1000))
+        return {"status": "error"}
 
-        # Set correlation context BEFORE clinic lookup so we know who texted
-        # even if the clinic lookup fails.
-        set_correlation(whatsapp_number=phone)
-
-        clinic = Clinic.find_by_display_number(display_number) if display_number else None
-        if not clinic:
-            log.warn('webhook_unmatched_clinic',
-                     message='No Clinic registered for this display_phone_number',
-                     display_number=display_number, sender_digit10=phone[-10:])
-            return {"status": "unknown_clinic"}
-
-        set_correlation(clinic_id=clinic.id)
-        webhook_span.data.update({
-            'clinic_code': clinic.clinic_code,
-            'sender_digit10': phone[-10:],
-            'text_preview': text[:60],
-        })
-        log.event('webhook_received',
-                  message=f'Inbound from …{phone[-4:]} to {clinic.clinic_code}',
-                  clinic_code=clinic.clinic_code,
-                  sender_digit10=phone[-10:],
-                  text_preview=text[:60])
-
-        try:
-            response = handle_message(phone, text, clinic=clinic)
-            with log.span('send_response',
-                          clinic_code=clinic.clinic_code,
-                          recipient_digit10=phone[-10:]):
-                send_bot_response(phone, response, clinic=clinic)
-        except Exception as e:
-            log.error('webhook_handler_crashed', exc=e,
-                      message='Engine or send_bot_response raised — bot did NOT reply')
-            # Return 200 anyway so Meta doesn't retry
-            return {"status": "error"}
-
-        return {"status": "ok"}
+    # One DB write — the consolidated row for this whole webhook
+    log.flush(inbound_text=text,
+              latency_ms=int((_time.monotonic() - started) * 1000))
+    return {"status": "ok"}
 
 
 def send_bot_response(phone: str, response, clinic=None):
