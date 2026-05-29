@@ -11,6 +11,8 @@ Multi-clinic architecture:
 import logging
 
 from apps.clinic.models import Doctor
+from apps.observability import log
+from apps.observability.context import set_correlation
 
 from .models import ConversationState
 from .response import BotResponse
@@ -29,20 +31,42 @@ def handle_message(phone: str, text: str, clinic=None):
     """
     incoming_clinic = clinic
 
-    state, _ = ConversationState.objects.get_or_create(
+    # Defense-in-depth: even if a caller forgets to set correlation,
+    # every event from here on at least carries the sender phone + clinic.
+    set_correlation(
+        whatsapp_number=phone,
+        clinic_id=(incoming_clinic.id if incoming_clinic else None),
+    )
+
+    state, created = ConversationState.objects.get_or_create(
         whatsapp_number=phone,
         defaults={'user_type': 'unknown', 'context': {}},
     )
+    if created:
+        log.event('state_created',
+                  message=f'First-ever message from …{phone[-4:]}')
 
     # The inbound number is authoritative — trust it over any stale state.
     if incoming_clinic is not None and state.clinic_id != incoming_clinic.id:
+        log.event('state_clinic_reassigned',
+                  message='Inbound clinic differs from cached state.clinic — updating',
+                  old_clinic_id=state.clinic_id,
+                  new_clinic_id=incoming_clinic.id,
+                  new_clinic_code=incoming_clinic.clinic_code)
         state.clinic = incoming_clinic
         state.save(update_fields=['clinic'])
+
+    # Propagate flow/step into observability context so every downstream log
+    # event automatically gets these fields attached.
+    set_correlation(user_type=state.user_type or 'unknown',
+                    flow=state.current_flow or '',
+                    step=state.step or '')
 
     text_lower = text.strip().lower()
 
     # Reset commands
     if text_lower in ('reset', 'restart', 'start over'):
+        log.event('state_reset', message='User issued reset command')
         state.reset()
         state.user_type = 'unknown'
         state.language = ''
@@ -54,16 +78,19 @@ def handle_message(phone: str, text: str, clinic=None):
     # Hi/Hello mid-flow → restart to main menu (keep clinic + language)
     if text_lower in ('hi', 'hello', 'hey', 'start') and state.current_flow not in ('', 'main_menu', 'language_select'):
         if state.language:
+            log.event('flow_restart_to_main_menu',
+                      message='Hi/hello mid-flow → reset to main menu',
+                      previous_flow=state.current_flow, previous_step=state.step)
             state.current_flow = 'main_menu'
             state.step = ''
             state.context = {}
             state.save()
+            set_correlation(flow='main_menu', step='')
             from .nodes.patient_nodes import _main_menu_list
             return _main_menu_list(state.language)
 
     # --- STEP 1: Identify user type ---
     if state.user_type == 'unknown':
-        # Doctor lookup first — works regardless of which clinic number they messaged
         doctor = Doctor.objects.filter(
             whatsapp_number=phone, is_registered=True
         ).select_related('clinic').first()
@@ -72,18 +99,38 @@ def handle_message(phone: str, text: str, clinic=None):
             state.user_type = 'doctor'
             state.clinic = doctor.clinic
             state.save()
+            set_correlation(user_type='doctor')
+            log.event('identity_resolved',
+                      message=f'Identified as doctor {doctor.name}',
+                      resolved_type='doctor',
+                      matched_by='exact_phone',
+                      doctor_id=doctor.pk,
+                      doctor_clinic_id=doctor.clinic_id,
+                      doctor_clinic_code=doctor.clinic.clinic_code if doctor.clinic else None)
         elif incoming_clinic is not None:
-            # Clinic already known from the number they messaged → treat as patient
             state.user_type = 'patient'
             state.save()
+            set_correlation(user_type='patient')
+            log.event('identity_resolved',
+                      message=f'Identified as patient on {incoming_clinic.clinic_code}',
+                      resolved_type='patient',
+                      matched_by='inbound_clinic')
         else:
-            # Fallback to legacy identification (clinic-code flow)
             user_type, resolved_clinic = identify_user(phone, text)
             state.user_type = user_type
             if resolved_clinic:
                 state.clinic = resolved_clinic
             state.save()
+            set_correlation(user_type=user_type)
+            log.event('identity_resolved',
+                      message='Legacy clinic-code resolution',
+                      resolved_type=user_type,
+                      matched_by='legacy_clinic_code',
+                      resolved_clinic_code=(resolved_clinic.clinic_code
+                                            if resolved_clinic else None))
             if user_type == 'unknown':
+                log.warn('identity_unknown_prompt_clinic_code',
+                         message='No doctor + no clinic resolvable — asking for clinic code')
                 return BotResponse.as_text(
                     "Welcome! 👋\n\n"
                     "To book an appointment, scan the QR code at the clinic "
@@ -95,15 +142,24 @@ def handle_message(phone: str, text: str, clinic=None):
     if state.user_type == 'patient' and not state.clinic:
         resolved_clinic = try_parse_clinic_code(text)
         if resolved_clinic:
+            log.event('patient_clinic_resolved_late',
+                      message='Patient sent clinic code mid-conversation',
+                      resolved_clinic_code=resolved_clinic.clinic_code)
             state.clinic = resolved_clinic
             state.save()
+            set_correlation(clinic_id=resolved_clinic.id)
         else:
+            log.event('patient_awaiting_clinic_code',
+                      message='Patient still without clinic — asking for code')
             return BotResponse.as_text(
                 "Please send the clinic code to continue.\n"
                 "Example: *TC01*"
             )
 
     # --- STEP 3: Route to correct graph ---
+    log.event('route_dispatched',
+              message=f'Dispatching to {state.user_type} flow',
+              target=state.user_type)
     if state.user_type == 'doctor':
         response = run_doctor_graph(state, text)
     else:

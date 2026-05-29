@@ -9,42 +9,23 @@ from apps.clinic.models import Clinic, Doctor, AvailableSlot, Appointment
 from bot_locale.messages import get_msg
 from apps.conversations.prompts.templates import AVAILABILITY_PARSE_PROMPT
 from apps.conversations.response import BotResponse
+from apps.observability import log
+from apps.observability.context import set_correlation
 
 logger = logging.getLogger(__name__)
 
 
-# ═════════════════════════════════════════════════════════════════════════════
-# Structured logging helper — every doctor-flow event is greppable + filterable.
-#
-# Format:   [doctor-flow] event=<name> wa=<phone> flow=<flow> step=<step> ...
-# Examples (Render log shell):
-#   grep '\[doctor-flow\]' app.log
-#   grep '\[doctor-flow\].*wa=917030344210' app.log         # one user's session
-#   grep '\[doctor-flow\] event=match_failed' app.log       # all input rejects
-#   grep '\[doctor-flow\] event=slots_saved' app.log        # all successful saves
-#   grep '\[doctor-flow\] event=step_transition' app.log    # state machine moves
-#
-# Each event LINE is a single logger.info() — no JSON, no multi-line — so the
-# default Render text viewer is enough; no extra infra required.
-# ═════════════════════════════════════════════════════════════════════════════
-def _ev(event: str, state, **kwargs):
-    """Emit one structured doctor-flow log line."""
-    parts = [f'[doctor-flow] event={event}']
-    if state is not None:
-        parts.append(f'wa={state.whatsapp_number}')
-        parts.append(f'flow={state.current_flow or "-"}')
-        parts.append(f'step={state.step or "-"}')
-        if state.clinic_id:
-            parts.append(f'clinic={state.clinic_id}')
-    for k, v in kwargs.items():
-        s = '' if v is None else str(v)
-        s = s.replace('\n', '\\n').replace('\r', '')
-        if len(s) > 80:
-            s = s[:77] + '...'
-        if any(c in s for c in ' \t='):
-            s = f'"{s}"'
-        parts.append(f'{k}={s}')
-    logger.info(' '.join(parts))
+# Keep observability correlation in sync with state. Call at the top of each
+# node entry so every downstream log event has the current flow + step
+# attached automatically — no need to pass state through to log.event(...).
+def _sync_ctx(state):
+    set_correlation(
+        whatsapp_number=state.whatsapp_number,
+        clinic_id=state.clinic_id,
+        user_type=state.user_type or 'doctor',
+        flow=state.current_flow or '',
+        step=state.step or '',
+    )
 
 
 def _time_key(t: time) -> str:
@@ -280,7 +261,8 @@ def _save_selected_availability(state):
             whatsapp_number=state.whatsapp_number
         )
     except Doctor.DoesNotExist:
-        _ev('save_doctor_not_found', state)
+        log.error('save_doctor_not_found',
+                  message='Tried to save slots but Doctor row missing for sender')
         return BotResponse.as_text(
             "❌ Couldn't find your doctor record. Please contact the clinic admin."
         )
@@ -310,19 +292,22 @@ def _save_selected_availability(state):
                     defaults={'is_booked': False},
                 )
             except Exception as e:
-                _ev('slot_save_exception', state,
-                    doctor=doctor.pk, date=d.isoformat(), time=t.strftime('%H:%M'),
-                    err=type(e).__name__, msg=str(e)[:80])
+                log.error('slot_save_exception', exc=e,
+                          message='Single get_or_create raised; skipping this slot',
+                          doctor=doctor.pk, date=d.isoformat(),
+                          time=t.strftime('%H:%M'))
                 continue
             if was_created:
                 created += 1
             else:
                 existed += 1
 
-    _ev('slots_saved', state,
-        doctor=doctor.pk, clinic_code=(clinic.clinic_code if clinic else None),
-        dates=len(selected_dates), times=len(selected_times),
-        created=created, existed=existed, out_of_hours=out_of_hours)
+    log.event('slots_saved',
+              message=f'{created} new slots created for Dr. {doctor.name}',
+              doctor=doctor.pk,
+              clinic_code=(clinic.clinic_code if clinic else None),
+              dates=len(selected_dates), times=len(selected_times),
+              created=created, existed=existed, out_of_hours=out_of_hours)
 
     # Reset state
     state.current_flow = 'doctor_menu'
@@ -342,6 +327,7 @@ def _save_selected_availability(state):
 
 
 def handle_doctor_menu(state, text):
+    _sync_ctx(state)
     choice = text.strip().lower()
     menu_map = {
         '1': '1', 'set availability': '1', 'availability': '1', 'set': '1',
@@ -355,15 +341,28 @@ def handle_doctor_menu(state, text):
         state.step = 'choose_date_mode'
         state.context = {}
         state.save()
+        set_correlation(flow='set_availability', step='choose_date_mode')
+        log.event('doctor_menu_choice',
+                  message='Doctor entered Set Availability flow',
+                  choice='set_availability')
         return _date_mode_buttons(), state
 
     elif choice == '2':
+        log.event('doctor_menu_choice',
+                  message='Doctor opened Today\'s Bookings',
+                  choice='today_bookings')
         return view_today_bookings(state)
 
     elif choice == '3':
+        log.event('doctor_menu_choice',
+                  message='Doctor opened Upcoming Bookings',
+                  choice='upcoming_bookings')
         return view_upcoming_bookings(state)
 
     else:
+        log.event('doctor_menu_shown',
+                  message='Doctor menu rendered',
+                  input=text.strip()[:60])
         return _doctor_menu_list(), state
 
 
@@ -380,10 +379,15 @@ def handle_set_availability(state, text):
             whatsapp_number=state.whatsapp_number
         ).clinic
     except Doctor.DoesNotExist:
-        _ev('doctor_lookup_failed', state, wa=state.whatsapp_number)
+        log.warn('doctor_lookup_failed',
+                 message='No Doctor row for sender — flow will likely fail',
+                 wa=state.whatsapp_number)
 
-    _ev('handle_set_availability', state, text=text_raw,
-        clinic_code=(clinic.clinic_code if clinic else None))
+    _sync_ctx(state)
+    log.event('handle_set_availability',
+              message=f'Inbound to set_availability flow at step={state.step or "-"}',
+              text=text_raw,
+              clinic_code=(clinic.clinic_code if clinic else None))
 
     # ── STEP 0: Date-mode preset (first screen after Set Availability) ──
     if state.step == 'choose_date_mode':
@@ -488,16 +492,23 @@ def handle_set_availability(state, text):
             context['selected_times'] = all_slots
             state.context = context
             state.save()
-            _ev('time_mode_all', state, session=session, slot_count=len(all_slots))
+            log.event('time_mode_all',
+                      message=f'Selected all {len(all_slots)} {session} slots',
+                      session=session, slot_count=len(all_slots))
             return _save_selected_availability(state), state
 
         if text_lower in ('times_custom', '🎯 pick times', 'pick times', 'custom', '2'):
             state.step = 'select_slots'
             state.save()
-            _ev('step_transition', state, to='select_slots', via='custom_button')
+            set_correlation(step='select_slots')
+            log.event('step_transition',
+                      message='Doctor chose custom time picker',
+                      to='select_slots', via='custom_button')
             return _time_slots_list(clinic, ref_date, session, []), state
 
-        _ev('time_mode_no_match', state, text=text_raw)
+        log.warn('time_mode_no_match',
+                 message='Input did not match any time-mode button option',
+                 text=text_raw)
         return _time_mode_buttons(session, len(context.get('selected_dates', []))), state
 
     elif state.step == 'select_slots':
@@ -507,7 +518,8 @@ def handle_set_availability(state, text):
 
         if text_lower in ('done', '✅ done', 'cancel', '⏭️ cancel', 'finish', '✅ finish'):
             if not selected_times:
-                _ev('done_no_slots', state)
+                log.event('done_no_slots',
+                          message='Doctor tapped Done without picking any slot')
                 state.current_flow = 'doctor_menu'
                 state.step = ''
                 state.context = {}
@@ -522,8 +534,9 @@ def handle_set_availability(state, text):
         # with "not in clinic hours".
         if text_lower in ('times_custom', '🎯 pick times', 'pick times',
                           'times_all', '✅ all slots', 'all slots'):
-            _ev('stale_time_mode_input', state, text=text_raw,
-                hint='button from previous step delivered after transition')
+            log.warn('stale_time_mode_input',
+                     message='Previous-step button title delivered after step transition',
+                     text=text_raw)
             return _time_slots_list(clinic, ref_date, session, selected_times), state
 
         # Strip any checkbox marker, then match to this clinic's known slots
@@ -541,12 +554,13 @@ def handle_set_availability(state, text):
                 break
 
         if not matched:
-            _ev('time_match_failed', state,
-                input=text_raw, cleaned=text_upper, session=session,
-                ref_date=(ref_date.isoformat() if ref_date else None),
-                candidate_count=len(candidates),
-                candidates_sample=[k for k, _ in candidates[:5]],
-                clinic_code=(clinic.clinic_code if clinic else None))
+            log.warn('time_match_failed',
+                     message='Doctor input did not match any clinic-hour slot',
+                     input=text_raw, cleaned=text_upper, session=session,
+                     ref_date=(ref_date.isoformat() if ref_date else None),
+                     candidate_count=len(candidates),
+                     candidates_sample=[k for k, _ in candidates[:5]],
+                     clinic_code=(clinic.clinic_code if clinic else None))
             return BotResponse.as_text(
                 "❌ That time isn't in this clinic's hours. Please tap from the list."
             ), state
@@ -594,15 +608,61 @@ def handle_set_availability(state, text):
     return _doctor_menu_list(), state
 
 
-def view_today_bookings(state):
+def _resolve_doctor_or_reset(state):
+    """Look up the Doctor by WhatsApp number. If missing, log + reset state so
+    the engine re-identifies the user on the next message instead of looping
+    on a stale ConversationState.user_type='doctor'.
+
+    Returns (doctor, error_response_or_None). On success: (Doctor, None).
+    On miss: (None, BotResponse).
+    """
     doctor = Doctor.objects.filter(whatsapp_number=state.whatsapp_number).first()
-    if not doctor:
-        return BotResponse.as_text("Error: Doctor not found."), state
+    if doctor:
+        return doctor, None
+
+    # No Doctor row matches — common causes:
+    # (a) Doctor was deleted in admin while ConversationState still cached
+    #     user_type='doctor' from a previous session.
+    # (b) Doctor.whatsapp_number format mismatch (with/without country code,
+    #     leading +).
+    # (c) Doctor exists but is_registered=False (engine.py requires True).
+    # We log a precise diagnostic AND reset the user-type so the engine
+    # re-identifies them on the next message instead of looping forever.
+    other_match = Doctor.objects.filter(
+        whatsapp_number__endswith=state.whatsapp_number[-10:]
+    ).exclude(whatsapp_number=state.whatsapp_number).first()
+    log.error('doctor_lookup_miss',
+              message='Doctor row missing for cached doctor-state sender; resetting state',
+              wa_state=state.whatsapp_number,
+              digit10=state.whatsapp_number[-10:],
+              near_match=(other_match.whatsapp_number if other_match else None),
+              near_registered=(other_match.is_registered if other_match else None))
+
+    state.user_type = 'unknown'
+    state.current_flow = ''
+    state.step = ''
+    state.context = {}
+    state.save()
+    return None, BotResponse.as_text(
+        "We can't find your doctor profile right now. The clinic admin needs "
+        "to register your WhatsApp number — please ask them to check the "
+        "DocPing admin → Doctors → your name."
+    )
+
+
+def view_today_bookings(state):
+    doctor, err = _resolve_doctor_or_reset(state)
+    if err:
+        return err, state
 
     today = date.today()
     appointments = Appointment.objects.filter(
         doctor=doctor, status='booked', slot__date=today
     ).select_related('patient', 'slot').order_by('slot__time')
+
+    log.event('view_today_bookings',
+              message=f'Doctor viewed today\'s {appointments.count()} bookings',
+              doctor=doctor.pk, count=appointments.count())
 
     state.current_flow = 'doctor_menu'
     state.step = ''
@@ -620,13 +680,17 @@ def view_today_bookings(state):
 
 
 def view_upcoming_bookings(state):
-    doctor = Doctor.objects.filter(whatsapp_number=state.whatsapp_number).first()
-    if not doctor:
-        return BotResponse.as_text("Error: Doctor not found."), state
+    doctor, err = _resolve_doctor_or_reset(state)
+    if err:
+        return err, state
 
     appointments = Appointment.objects.filter(
         doctor=doctor, status='booked', slot__date__gte=date.today()
     ).select_related('patient', 'slot').order_by('slot__date', 'slot__time')
+
+    log.event('view_upcoming_bookings',
+              message=f'Doctor viewed upcoming {appointments.count()} bookings',
+              doctor=doctor.pk, count=appointments.count())
 
     state.current_flow = 'doctor_menu'
     state.step = ''

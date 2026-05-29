@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'apps.whatsapp',
     'apps.notifications',
     'apps.marketing',
+    'apps.observability',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -54,6 +55,9 @@ AUTH_USER_MODEL = 'accounts.User'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    # Trace-id context — sets a fresh trace_id per request and clears
+    # observability contextvars at request-exit so workers don't bleed state.
+    'apps.observability.middleware.TraceContextMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

@@ -7,8 +7,22 @@ from apps.whatsapp.utils import get_whatsapp_service
 from bot_locale.messages import get_msg
 from apps.conversations.nlp import parse_menu_choice, parse_natural_date
 from apps.conversations.response import BotResponse
+from apps.observability import log
+from apps.observability.context import set_correlation
 
 logger = logging.getLogger(__name__)
+
+
+def _sync_ctx(state):
+    """Mirror current state into observability context so every downstream
+    log event automatically gets flow/step/user_type attached."""
+    set_correlation(
+        whatsapp_number=state.whatsapp_number,
+        clinic_id=state.clinic_id,
+        user_type=state.user_type or 'patient',
+        flow=state.current_flow or '',
+        step=state.step or '',
+    )
 
 LANGUAGE_MAP = {
     '1': 'en', '2': 'hi', '3': 'mr',
@@ -264,9 +278,13 @@ def _find_appointment(text, appt_ids):
 # ─── Flow Handlers ───────────────────────────────────────────────
 
 def handle_language_select(state, text):
+    _sync_ctx(state)
     choice = text.strip().lower()
     lang = LANGUAGE_MAP.get(choice)
     if not lang:
+        log.warn('language_select_no_match',
+                 message='Input did not match any language option',
+                 text=text.strip()[:30])
         clinic_name = state.clinic.name if state.clinic else None
         return _language_buttons(clinic_name), state
     state.language = lang
@@ -275,26 +293,33 @@ def handle_language_select(state, text):
     state.context = {}
     state.save()
 
-    # Persist to the Patient row so future sessions restore it automatically.
     Patient.objects.filter(whatsapp_number=state.whatsapp_number).update(
         language_preference=lang
     )
 
+    log.event('language_selected',
+              message=f'Patient picked {lang}',
+              language=lang)
     return _main_menu_list(lang), state
 
 
 def handle_registration(state, text):
+    _sync_ctx(state)
     lang = state.language or 'en'
     context = state.context or {}
 
     if state.step == 'ask_name':
         name = text.strip()
         if not name or len(name) < 2:
+            log.warn('registration_invalid_name', message='Name too short')
             return get_msg(lang, 'ask_name'), state
         context['name'] = name
         state.context = context
         state.step = 'ask_age'
         state.save()
+        log.event('registration_name_captured',
+                  message='Patient gave name; asking for age',
+                  name_len=len(name))
         return get_msg(lang, 'ask_age', name=name), state
 
     elif state.step == 'ask_age':
@@ -303,12 +328,19 @@ def handle_registration(state, text):
             if age < 1 or age > 120:
                 raise ValueError
         except ValueError:
+            log.warn('registration_invalid_age',
+                     message='Age not a valid integer 1-120',
+                     input=text.strip()[:20])
             return get_msg(lang, 'invalid_input') + "\n" + get_msg(lang, 'ask_age', name=context.get('name', '')), state
 
         patient, _ = Patient.objects.update_or_create(
             whatsapp_number=state.whatsapp_number,
-            defaults={'name': context.get('name', ''), 'age': age, 'language_preference': lang, 'is_registered': True}
+            defaults={'name': context.get('name', ''), 'age': age,
+                      'language_preference': lang, 'is_registered': True}
         )
+        log.event('patient_registered',
+                  message=f'New patient registered: {patient.name}',
+                  patient_id=patient.pk, age=age, language=lang)
 
         pending_flow = context.get('pending_flow', 'main_menu')
         state.context = {}
@@ -330,10 +362,15 @@ def handle_registration(state, text):
             state.save()
             return _with_menu(lang, welcome), state
 
+    log.error('registration_unknown_step',
+              message=f'Registration step is unexpected: {state.step!r}')
     return get_msg(lang, 'error'), state
 
 
+
+
 def handle_main_menu(state, text):
+    _sync_ctx(state)
     lang = state.language or 'en'
     lang_name = {'en': 'English', 'hi': 'Hindi', 'mr': 'Marathi'}.get(lang, 'English')
     choice = parse_menu_choice(text, lang_name)
@@ -345,31 +382,45 @@ def handle_main_menu(state, text):
             state.step = 'ask_name'
             state.context = {'pending_flow': 'booking'}
             state.save()
+            log.event('main_menu_choice',
+                      message='New patient must register before booking',
+                      choice='book_needs_registration')
             return get_msg(lang, 'need_registration') + "\n\n" + get_msg(lang, 'ask_name'), state
+        log.event('main_menu_choice', choice='book', message='Patient chose Book appointment')
         return start_booking(state)
     elif choice == '2':
+        log.event('main_menu_choice', choice='reschedule', message='Patient chose Reschedule')
         return start_reschedule(state)
     elif choice == '3':
+        log.event('main_menu_choice', choice='cancel', message='Patient chose Cancel')
         return start_cancel(state)
     elif choice == '4':
+        log.event('main_menu_choice', choice='view', message='Patient chose View appointments')
         return view_appointments(state)
     elif choice == '5':
         state.current_flow = 'enquiry'
         state.step = 'ask_question'
         state.save()
+        log.event('main_menu_choice', choice='enquiry',
+                  message='Patient chose Ask a question')
         return get_msg(lang, 'enquiry_prompt'), state
     elif choice == '6':
         state.current_flow = 'language_select'
         state.step = ''
         state.context = {}
         state.save()
+        log.event('main_menu_choice', choice='change_language')
         clinic_name = state.clinic.name if state.clinic else None
         return _language_buttons(clinic_name), state
     else:
+        log.warn('main_menu_no_match',
+                 message='Input did not match any main-menu option',
+                 text=text.strip()[:30])
         return _main_menu_list(lang), state
 
 
 def start_booking(state):
+    _sync_ctx(state)
     lang = state.language or 'en'
     clinic_filter = {'clinic': state.clinic} if state.clinic else {}
 
@@ -379,34 +430,49 @@ def start_booking(state):
     if not doctors:
         doctors = list(Doctor.objects.filter(is_registered=True, **clinic_filter))
     if not doctors:
+        log.warn('booking_no_doctors',
+                 message='No registered doctors at this clinic — abandoning booking',
+                 clinic_id=state.clinic_id)
         return _with_menu(lang, get_msg(lang, 'no_doctors')), state
 
     state.current_flow = 'booking'
 
-    # Single-doctor clinic → skip the doctor-selection step entirely.
     if len(doctors) == 1:
         doctor = doctors[0]
         state.step = 'select_date'
         state.context = {'doctor_id': doctor.id, 'doctor_name': doctor.name}
         state.save()
+        log.event('booking_started',
+                  message=f'Auto-selected sole doctor: {doctor.name}',
+                  doctor=doctor.pk, doctor_name=doctor.name, single_doctor=True)
         date_response = _date_list(lang, doctor.id, doctor.name)
         if date_response:
             return date_response, state
+        log.warn('booking_no_dates',
+                 message='Doctor has no open dates',
+                 doctor=doctor.pk)
         return _with_menu(lang, get_msg(lang, 'no_slots', doctor=doctor.name, date='any')), state
 
     state.step = 'select_doctor'
     state.context = {'doctor_ids': [d.id for d in doctors]}
     state.save()
+    log.event('booking_started',
+              message=f'Patient must pick from {len(doctors)} doctors',
+              doctor_count=len(doctors), single_doctor=False)
     return _doctor_list(lang, doctors), state
 
 
 def handle_booking(state, text):
+    _sync_ctx(state)
     lang = state.language or 'en'
     context = state.context or {}
 
     if state.step == 'select_doctor':
         doctor = _find_doctor(text, context.get('doctor_ids', []))
         if not doctor:
+            log.warn('booking_doctor_no_match',
+                     message='Input did not match any doctor option',
+                     text=text.strip()[:30])
             return get_msg(lang, 'invalid_input'), state
 
         context['doctor_id'] = doctor.id
@@ -414,26 +480,35 @@ def handle_booking(state, text):
         state.context = context
         state.step = 'select_date'
         state.save()
+        log.event('booking_doctor_selected',
+                  message=f'Patient picked Dr. {doctor.name}',
+                  doctor=doctor.pk, doctor_name=doctor.name)
 
-        # Show available dates as interactive list
         date_response = _date_list(lang, doctor.id, doctor.name)
         if date_response:
             return date_response, state
-        # No dates available at all
         return _with_menu(lang, get_msg(lang, 'no_slots', doctor=doctor.name, date='any')), state
 
     elif state.step == 'select_date':
         parsed_date = _find_date(text, context.get('doctor_id'))
         if not parsed_date:
+            log.warn('booking_date_no_match',
+                     message='Input did not parse to a valid date option',
+                     text=text.strip()[:30])
             return get_msg(lang, 'invalid_input') + "\n" + get_msg(lang, 'select_date'), state
 
-        # One booked appointment per patient per day — guide them to Cancel first.
         patient = Patient.objects.filter(whatsapp_number=state.whatsapp_number).first()
         if patient:
             existing = Appointment.objects.filter(
                 patient=patient, status='booked', slot__date=parsed_date
             ).select_related('doctor', 'slot').first()
             if existing:
+                log.event('booking_blocked_same_day',
+                          message='Patient already has an appointment that day',
+                          patient=patient.pk,
+                          existing_appointment=existing.pk,
+                          existing_doctor=existing.doctor.name,
+                          date=parsed_date.isoformat())
                 state.current_flow = 'main_menu'
                 state.step = ''
                 state.context = {}
@@ -449,6 +524,10 @@ def handle_booking(state, text):
             doctor_id=context.get('doctor_id'), date=parsed_date, is_booked=False
         ).order_by('time')
         if not slots.exists():
+            log.warn('booking_no_slots_for_date',
+                     message='No open slots for selected date',
+                     doctor=context.get('doctor_id'),
+                     date=parsed_date.isoformat())
             return get_msg(lang, 'no_slots', doctor=context.get('doctor_name', ''), date=parsed_date.strftime('%d-%b-%Y')), state
 
         context['date'] = parsed_date.isoformat()
@@ -456,25 +535,45 @@ def handle_booking(state, text):
         state.context = context
         state.step = 'select_slot'
         state.save()
+        log.event('booking_date_selected',
+                  message=f'Patient picked {parsed_date.isoformat()} — {slots.count()} slots open',
+                  date=parsed_date.isoformat(), slot_count=slots.count())
         return _slot_list(lang, slots, context.get('doctor_name', ''), parsed_date.strftime('%d-%b-%Y')), state
 
     elif state.step == 'select_slot':
         slot = _find_slot(text, context.get('slot_ids', []))
         if not slot:
+            log.warn('booking_slot_no_match',
+                     message='Input did not match any slot option',
+                     text=text.strip()[:30])
             return get_msg(lang, 'invalid_input'), state
 
-        patient = Patient.objects.get(whatsapp_number=state.whatsapp_number)
-        doctor = Doctor.objects.get(id=context.get('doctor_id'))
-        slot.is_booked = True
-        slot.save()
-        Appointment.objects.create(patient=patient, doctor=doctor, clinic=doctor.clinic, slot=slot, status='booked')
+        try:
+            patient = Patient.objects.get(whatsapp_number=state.whatsapp_number)
+            doctor = Doctor.objects.get(id=context.get('doctor_id'))
+            slot.is_booked = True
+            slot.save()
+            appt = Appointment.objects.create(
+                patient=patient, doctor=doctor, clinic=doctor.clinic,
+                slot=slot, status='booked',
+            )
+        except Exception as e:
+            log.error('appointment_create_failed', exc=e,
+                      message='Failed to create Appointment row at the final step')
+            return get_msg(lang, 'error'), state
+
+        log.event('appointment_created',
+                  message=f'Booked: {patient.name} → Dr. {doctor.name} on {slot.date} {slot.time}',
+                  appointment=appt.pk,
+                  patient=patient.pk, doctor=doctor.pk,
+                  slot=slot.pk, slot_date=slot.date.isoformat(),
+                  slot_time=slot.time.strftime('%H:%M'))
 
         state.current_flow = 'main_menu'
         state.step = ''
         state.context = {}
         state.save()
 
-        # Notify doctor instantly
         _notify_doctor('booked', patient.name, doctor,
                        slot.date.strftime('%d-%b-%Y'), slot.time.strftime('%I:%M %p'))
 
@@ -482,6 +581,8 @@ def handle_booking(state, text):
                            date=slot.date.strftime('%d-%b-%Y'), time=slot.time.strftime('%I:%M %p'))
         return _with_menu(lang, confirmed), state
 
+    log.error('booking_unknown_step',
+              message=f'Booking step is unexpected: {state.step!r}')
     return get_msg(lang, 'error'), state
 
 
@@ -508,18 +609,22 @@ def start_cancel(state):
 
 
 def handle_cancel(state, text):
+    _sync_ctx(state)
     lang = state.language or 'en'
     context = state.context or {}
 
     appointment = _find_appointment(text, context.get('appointment_ids', []))
     if not appointment:
-        # Check if user wants to go back
         if text.strip() == '0':
+            log.event('cancel_aborted', message='Patient backed out of cancel flow')
             state.current_flow = 'main_menu'
             state.step = ''
             state.context = {}
             state.save()
             return _main_menu_list(lang), state
+        log.warn('cancel_no_match',
+                 message='Input did not match any cancellable appointment',
+                 text=text.strip()[:30])
         return get_msg(lang, 'invalid_input'), state
 
     appointment.status = 'cancelled'
@@ -527,12 +632,18 @@ def handle_cancel(state, text):
     appointment.slot.is_booked = False
     appointment.slot.save()
 
+    log.event('appointment_cancelled',
+              message=f'Cancelled: {appointment.doctor.name} on {appointment.slot.date}',
+              appointment=appointment.pk,
+              doctor=appointment.doctor.pk,
+              slot_date=appointment.slot.date.isoformat(),
+              slot_time=appointment.slot.time.strftime('%H:%M'))
+
     state.current_flow = 'main_menu'
     state.step = ''
     state.context = {}
     state.save()
 
-    # Notify doctor instantly
     patient = Patient.objects.filter(whatsapp_number=state.whatsapp_number).first()
     _notify_doctor('cancelled', patient.name if patient else 'Patient', appointment.doctor,
                    appointment.slot.date.strftime('%d-%b-%Y'),
@@ -567,6 +678,7 @@ def start_reschedule(state):
 
 
 def handle_reschedule(state, text):
+    _sync_ctx(state)
     lang = state.language or 'en'
     context = state.context or {}
 
@@ -574,11 +686,16 @@ def handle_reschedule(state, text):
         appointment = _find_appointment(text, context.get('appointment_ids', []))
         if not appointment:
             if text.strip() == '0':
+                log.event('reschedule_aborted',
+                          message='Patient backed out of reschedule flow')
                 state.current_flow = 'main_menu'
                 state.step = ''
                 state.context = {}
                 state.save()
                 return _main_menu_list(lang), state
+            log.warn('reschedule_no_match',
+                     text=text.strip()[:30],
+                     message='Input did not match any reschedulable appointment')
             return get_msg(lang, 'invalid_input'), state
 
         context['reschedule_appointment_id'] = appointment.id
@@ -628,14 +745,24 @@ def handle_reschedule(state, text):
 
         patient = Patient.objects.get(whatsapp_number=state.whatsapp_number)
         doctor = Doctor.objects.get(id=context.get('doctor_id'))
-        Appointment.objects.create(patient=patient, doctor=doctor, clinic=doctor.clinic, slot=slot, status='booked')
+        new_appt = Appointment.objects.create(
+            patient=patient, doctor=doctor, clinic=doctor.clinic,
+            slot=slot, status='booked',
+        )
+
+        log.event('appointment_rescheduled',
+                  message=f'{patient.name} rescheduled with Dr. {doctor.name}',
+                  old_appointment=context.get('reschedule_appointment_id'),
+                  new_appointment=new_appt.pk,
+                  patient=patient.pk, doctor=doctor.pk,
+                  new_date=slot.date.isoformat(),
+                  new_time=slot.time.strftime('%H:%M'))
 
         state.current_flow = 'main_menu'
         state.step = ''
         state.context = {}
         state.save()
 
-        # Notify doctor instantly
         _notify_doctor('rescheduled', patient.name, doctor,
                        slot.date.strftime('%d-%b-%Y'), slot.time.strftime('%I:%M %p'))
 
@@ -643,18 +770,26 @@ def handle_reschedule(state, text):
                            date=slot.date.strftime('%d-%b-%Y'), time=slot.time.strftime('%I:%M %p'))
         return _with_menu(lang, confirmed), state
 
+    log.error('reschedule_unknown_step',
+              message=f'Reschedule step is unexpected: {state.step!r}')
     return get_msg(lang, 'error'), state
 
 
 def view_appointments(state):
+    _sync_ctx(state)
     lang = state.language or 'en'
     patient = Patient.objects.filter(whatsapp_number=state.whatsapp_number).first()
     if not patient:
+        log.event('view_appointments_no_patient',
+                  message='No patient row for sender — empty list')
         return _with_menu(lang, get_msg(lang, 'no_appointments')), state
 
     appointments = Appointment.objects.filter(
         patient=patient, status='booked', slot__date__gte=date.today()
     ).select_related('doctor', 'slot').order_by('slot__date', 'slot__time')
+    log.event('view_appointments',
+              message=f'{appointments.count()} upcoming appointments shown',
+              patient=patient.pk, count=appointments.count())
     if not appointments.exists():
         return _with_menu(lang, get_msg(lang, 'no_appointments')), state
 
