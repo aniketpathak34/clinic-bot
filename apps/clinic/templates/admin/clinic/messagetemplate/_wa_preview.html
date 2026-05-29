@@ -1,0 +1,49 @@
+{# WhatsApp live preview — basic (Phase 2). Polished in Phase 3.
+   Outgoing-green bubble in dark theme. Variable chips swap to sample data on toggle. #}
+<div class="wa-wrap">
+  <div class="wa-toolbar">
+    <div class="wa-toolbar-group" role="group" aria-label="Theme">
+      <button type="button" class="wa-tab" data-wa-theme="dark"   aria-pressed="true">Dark</button>
+      <button type="button" class="wa-tab" data-wa-theme="light"  aria-pressed="false">Light</button>
+    </div>
+    <label class="wa-toggle">
+      <input type="checkbox" data-wa-samples>
+      <span>Sample data</span>
+    </label>
+  </div>
+
+  <div class="wa-phone" data-theme="dark" aria-hidden="true">
+    <div class="wa-speaker"></div>
+    <div class="wa-screen">
+      <div class="wa-statusbar">
+        <span>9:41</span>
+        <span class="wa-statusbar-right">
+          <svg width="14" height="9" viewBox="0 0 14 9" fill="none"><path d="M1 5L4 8L13 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="14" height="9" viewBox="0 0 14 9" fill="none"><rect x="0.5" y="0.5" width="11" height="7" rx="1.5" stroke="currentColor" stroke-width=".7"/><rect x="2" y="2" width="8" height="4" rx=".5" fill="currentColor"/><rect x="12" y="2.5" width="1.2" height="3" rx=".4" fill="currentColor"/></svg>
+        </span>
+      </div>
+      <div class="wa-chathead">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="wa-chathead-avatar" data-bind="clinicInitial">S</div>
+        <div class="wa-chathead-name">
+          <div data-bind="clinicName">Your clinic</div>
+          <div class="wa-chathead-sub">business · online</div>
+        </div>
+      </div>
+      <div class="wa-canvas">
+        <div class="wa-daystamp">TODAY</div>
+        <div class="wa-bubble" data-bind="bubble">
+          <p class="wa-body" data-bind="body">Your template body will appear here.</p>
+          <div class="wa-meta">
+            <time>4:30 PM</time>
+            <svg class="wa-ticks" width="16" height="10" viewBox="0 0 16 10" fill="none">
+              <path d="M1 5l2.5 3 5-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M5 5l2.5 3 7-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="sr-only" data-bind="srText">Empty template preview.</p>
+  </div>
+</div>

@@ -1,0 +1,1658 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{# ════════════════════════════════════════════════════════════
+   Dual-mode template:
+   • add mode (object_id is None)  → 5-step wizard
+   • edit mode                     → stock Django form (block.super)
+   ════════════════════════════════════════════════════════════ #}
+
+{% block extrastyle %}{{ block.super }}
+{% if add %}
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     Tokens (inherit from clinic change_form palette)
+     ═══════════════════════════════════════════════════════════ */
+  :root {
+    --bg:#09090b; --surface:#131316; --surface-2:#18181b; --surface-3:#1f1f23;
+    --border:#232327; --border-2:#2e2e33; --border-3:#3f3f46;
+    --text:#fafafa; --text-2:#a1a1aa; --text-3:#71717a; --text-4:#52525b;
+    --accent:#818cf8; --accent-hover:#6366f1;
+    --accent-soft:rgba(129,140,248,.12); --accent-ring:rgba(129,140,248,.22);
+    --success:#34d399; --warning:#fbbf24; --danger:#f87171;
+    --r:8px; --r-sm:6px; --r-lg:12px;
+    --ease-std:cubic-bezier(.4,0,.2,1);
+    --ease-out-quart:cubic-bezier(.2,.8,.2,1);
+    --ease-spring:cubic-bezier(.2,.7,.2,1.1);
+    --dur-fast:120ms; --dur-med:200ms; --dur-slow:320ms;
+    --wa-canvas-dark:#0b141a; --wa-canvas-light:#efeae2;
+    --wa-bubble-out-dark:#005c4b; --wa-bubble-out-light:#d9fdd3;
+    --wa-tick:#53bdeb;
+    --var-bg:rgba(129,140,248,.18); --var-fg:#c7d2fe;
+  }
+
+  /* Kill Django chrome */
+  body { background:var(--bg) !important; }
+  #header, #branding, .breadcrumbs, #content > h1,
+  #content-related, .submit-row, .messagelist, .errornote { display:none !important; }
+  #content { padding:0 !important; max-width:none !important; background:transparent !important; }
+  #content-main { padding:0 !important; }
+  .module, fieldset.module { background:transparent !important; border:0 !important; margin:0 !important; padding:0 !important; }
+  .module h2, fieldset h2, .form-row > div > label, .help, .field-box .help { display:none !important; }
+  .form-row { background:transparent !important; border:0 !important; padding:0 !important; }
+  label { font:inherit !important; color:inherit !important; }
+
+  /* Tabular numbers everywhere */
+  .mw { font-feature-settings:'cv02','cv03','cv04','cv11','ss01','tnum'; color:var(--text); }
+
+  /* SR-only helper */
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+  /* ═══════════════════════════════════════════════════════════
+     LAYOUT — 3-row grid (top bar / body / save bar)
+     ═══════════════════════════════════════════════════════════ */
+  .mw {
+    min-height:100vh;
+    display:grid; grid-template-rows:56px 1fr 64px;
+    background:var(--bg);
+  }
+  .mw-topbar {
+    display:flex; align-items:center; gap:14px;
+    padding:0 24px; border-bottom:1px solid var(--border);
+    background:var(--bg); position:sticky; top:0; z-index:10;
+  }
+  .mw-back {
+    display:inline-flex; align-items:center; gap:6px;
+    background:transparent; border:0; color:var(--text-2);
+    font-size:13px; cursor:pointer; padding:6px 10px; border-radius:var(--r-sm);
+    transition:all var(--dur-fast);
+  }
+  .mw-back:hover { background:var(--surface-2); color:var(--text); }
+  .mw-topbar-title { font-size:14px; font-weight:500; color:var(--text); flex:1; min-width:0; }
+  .mw-topbar-title small { color:var(--text-3); font-weight:400; margin-left:8px; }
+  .mw-topbar-hints {
+    display:flex; gap:14px; color:var(--text-3); font-size:11.5px;
+  }
+  .mw-topbar-hints span { display:inline-flex; align-items:center; gap:5px; }
+  .mw-kbd {
+    display:inline-flex; align-items:center; padding:1px 5px;
+    border:1px solid var(--border-2); border-bottom-width:2px;
+    border-radius:4px; background:var(--surface-3); color:var(--text-2);
+    font:500 10.5px/1 ui-monospace,Menlo,monospace; letter-spacing:.02em;
+  }
+
+  /* Body — rail + step-container */
+  .mw-body { display:grid; grid-template-columns:260px 1fr; min-height:0; overflow:hidden; }
+
+  /* ═══════════════════════════════════════════════════════════
+     LEFT RAIL
+     ═══════════════════════════════════════════════════════════ */
+  .mw-rail {
+    border-right:1px solid var(--border);
+    padding:24px 20px; background:var(--bg);
+    overflow-y:auto;
+  }
+  .mw-rail-head { padding-bottom:18px; margin-bottom:8px; border-bottom:1px solid var(--border); }
+  .mw-rail-title {
+    color:var(--text); font-size:14px; font-weight:500; letter-spacing:-.01em;
+    margin:0 0 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .mw-rail-save {
+    display:inline-flex; align-items:center; gap:5px;
+    color:var(--text-3); font-size:11.5px;
+  }
+  .mw-rail-save-dot { width:6px; height:6px; border-radius:50%; background:var(--text-4); transition:background var(--dur-fast); }
+  .mw-rail-save[data-state="saving"] .mw-rail-save-dot { background:var(--warning); }
+  .mw-rail-save[data-state="saved"]  .mw-rail-save-dot { background:var(--success); }
+  .mw-rail-save[data-state="error"]  .mw-rail-save-dot { background:var(--danger); }
+
+  .mw-rail-steps {
+    position:relative; list-style:none; padding:14px 0 0; margin:0;
+  }
+  .mw-rail-steps::before {
+    content:''; position:absolute; left:9.5px; top:24px; bottom:24px;
+    width:2px; background:var(--border-2);
+  }
+  .mw-rail-steps::after {
+    content:''; position:absolute; left:9.5px; top:24px; width:2px;
+    height:var(--mw-progress,0%);
+    background:var(--accent);
+    transition:height var(--dur-slow) var(--ease-std);
+  }
+  .mw-rail-step {
+    position:relative; display:flex; gap:12px; align-items:flex-start;
+    padding:8px 0; cursor:pointer;
+    border-radius:var(--r-sm);
+    transition:background var(--dur-fast);
+  }
+  .mw-rail-step:hover { background:var(--surface-2); }
+  .mw-rail-step[data-state="upcoming"] { cursor:not-allowed; }
+  .mw-rail-step[data-state="upcoming"]:hover { background:transparent; }
+
+  .mw-rail-dot {
+    flex-shrink:0; width:20px; height:20px;
+    border-radius:50%; background:var(--surface);
+    border:2px solid var(--border-3);
+    display:inline-flex; align-items:center; justify-content:center;
+    margin-top:1px;
+    transition:all var(--dur-med) var(--ease-std);
+    position:relative; z-index:1;
+  }
+  .mw-rail-step[data-state="complete"] .mw-rail-dot {
+    background:var(--accent); border-color:var(--accent); color:var(--bg);
+  }
+  .mw-rail-step[data-state="current"] .mw-rail-dot {
+    border-color:var(--accent); background:var(--accent-soft);
+    box-shadow:0 0 0 4px var(--accent-ring);
+  }
+  .mw-rail-step[data-state="invalid"] .mw-rail-dot {
+    border-color:var(--warning); background:var(--bg);
+    box-shadow:0 0 0 4px rgba(251,191,36,.13);
+  }
+  .mw-rail-dot svg { width:10px; height:10px; }
+
+  .mw-rail-step-text { flex:1; min-width:0; padding-top:1px; }
+  .mw-rail-name {
+    color:var(--text-2); font-size:13px; font-weight:500;
+    line-height:1.3; letter-spacing:-.005em;
+  }
+  .mw-rail-step[data-state="current"] .mw-rail-name,
+  .mw-rail-step[data-state="complete"] .mw-rail-name { color:var(--text); }
+  .mw-rail-sub {
+    color:var(--text-3); font-size:11.5px; line-height:1.3;
+    margin-top:2px;
+  }
+  .mw-rail-sub--warn { color:var(--warning); }
+
+  /* ═══════════════════════════════════════════════════════════
+     STEP CONTAINER
+     ═══════════════════════════════════════════════════════════ */
+  .mw-step-container {
+    overflow-y:auto;
+    padding:40px 48px 24px;
+    background:var(--bg);
+  }
+  .mw-step { max-width:760px; margin:0 auto; }
+  .mw-step[hidden] { display:none; }
+
+  .mw-step-head {
+    margin-bottom:28px;
+  }
+  .mw-step-eyebrow {
+    color:var(--accent); font-size:11.5px; font-weight:600;
+    letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px;
+  }
+  .mw-step-title {
+    color:var(--text); font-size:22px; font-weight:600;
+    letter-spacing:-.02em; line-height:1.2; margin:0;
+  }
+  .mw-step-desc {
+    color:var(--text-3); font-size:13.5px; line-height:1.55;
+    margin-top:8px; max-width:540px;
+  }
+
+  /* Fields */
+  .mw-field { margin-bottom:22px; }
+  .mw-field-label {
+    display:block; color:var(--text); font-size:13px; font-weight:500;
+    margin-bottom:6px; letter-spacing:-.005em;
+  }
+  .mw-field-label small { color:var(--text-3); font-weight:400; margin-left:6px; }
+  .mw-field-hint {
+    color:var(--text-3); font-size:12px; line-height:1.5; margin-top:6px;
+  }
+  .mw-field-hint code {
+    background:var(--surface-2); color:var(--text-2);
+    padding:1px 5px; border-radius:3px;
+    font:500 11px/1.5 ui-monospace,Menlo,monospace;
+  }
+  .mw-field-error {
+    color:var(--danger); font-size:12px; margin-top:6px;
+    display:none;
+  }
+  .mw-field[data-error="true"] .mw-field-error { display:block; }
+  .mw-field[data-error="true"] .mw-input,
+  .mw-field[data-error="true"] .mw-textarea { border-color:rgba(248,113,113,.5); }
+
+  .mw-input, .mw-textarea, .mw-select {
+    width:100%; padding:9px 12px; border-radius:var(--r-sm);
+    background:var(--surface); border:1px solid var(--border-2);
+    color:var(--text); font:400 13.5px/1.5 Inter,system-ui;
+    transition:border-color var(--dur-fast), box-shadow var(--dur-fast);
+    font-feature-settings:'cv02','cv03','cv11','ss01';
+  }
+  .mw-input:focus, .mw-textarea:focus, .mw-select:focus {
+    outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring);
+  }
+  .mw-input--mono {
+    font-family:ui-monospace,'JetBrains Mono',Menlo,monospace;
+    font-size:13px; letter-spacing:.01em;
+  }
+  .mw-textarea { min-height:140px; resize:vertical; line-height:1.6; }
+  .mw-select {
+    appearance:none; padding-right:34px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' stroke='%23a1a1aa' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center;
+    cursor:pointer;
+  }
+
+  /* Segmented control — for category picker */
+  .mw-seg {
+    display:inline-flex; padding:3px; gap:0;
+    background:var(--surface); border:1px solid var(--border-2); border-radius:var(--r-sm);
+  }
+  .mw-seg button {
+    padding:7px 14px; border:0; background:transparent;
+    color:var(--text-3); font-size:13px; font-weight:500;
+    cursor:pointer; border-radius:4px;
+    transition:all var(--dur-fast);
+  }
+  .mw-seg button:hover { color:var(--text); }
+  .mw-seg button[aria-pressed="true"] { background:var(--surface-3); color:var(--text); }
+
+  /* Category cards (richer than segmented — shows policy hint) */
+  .mw-cat-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  .mw-cat {
+    text-align:left; padding:14px 14px 12px; border-radius:var(--r);
+    background:var(--surface); border:1px solid var(--border-2);
+    color:var(--text-2); cursor:pointer;
+    transition:all var(--dur-fast) var(--ease-std);
+  }
+  .mw-cat:hover { background:var(--surface-2); border-color:var(--border-3); color:var(--text); }
+  .mw-cat[aria-pressed="true"] {
+    background:var(--accent-soft); border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-ring);
+  }
+  .mw-cat-name { font-size:13.5px; font-weight:500; color:var(--text); margin-bottom:4px; }
+  .mw-cat-hint { font-size:11.5px; color:var(--text-3); line-height:1.45; }
+
+  /* ═══════════════════════════════════════════════════════════
+     STEP 2 — body editor + live preview split (62/38)
+     ═══════════════════════════════════════════════════════════ */
+  .mw-split { display:grid; grid-template-columns:1fr 320px; gap:24px; align-items:start; }
+  @media (max-width: 1080px) {
+    .mw-split { grid-template-columns:1fr; }
+    .mw-preview-stick { position:relative !important; top:auto !important; }
+  }
+
+  .mw-editor-wrap { min-width:0; }
+  .mw-editor {
+    width:100%; min-height:240px; padding:14px 16px;
+    background:var(--surface); border:1px solid var(--border-2);
+    border-radius:var(--r); color:var(--text);
+    font:400 14px/1.6 Inter,system-ui; resize:vertical;
+    transition:border-color var(--dur-fast), box-shadow var(--dur-fast);
+  }
+  .mw-editor:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring); }
+  .mw-editor-toolbar {
+    display:flex; gap:10px; flex-wrap:wrap;
+    margin-top:10px; padding:8px 10px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm);
+    color:var(--text-3); font-size:11.5px;
+  }
+  .mw-editor-toolbar b { color:var(--text-2); font-weight:500; }
+  .mw-editor-meta {
+    display:flex; justify-content:space-between; margin-top:8px;
+    color:var(--text-3); font-size:11.5px; font-variant-numeric:tabular-nums;
+  }
+  .mw-char-count[data-warn="true"] { color:var(--warning); }
+  .mw-char-count[data-over="true"]  { color:var(--danger); }
+
+  .mw-insert-var {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:3px 8px; border-radius:4px;
+    background:var(--accent-soft); color:#a5b4fc; border:0;
+    font:500 11.5px/1 ui-monospace,Menlo,monospace; cursor:pointer;
+    transition:background var(--dur-fast);
+  }
+  .mw-insert-var:hover { background:rgba(129,140,248,.22); color:var(--accent); }
+
+  .mw-preview-stick { position:sticky; top:88px; }
+
+  /* ═══════════════════════════════════════════════════════════
+     WHATSAPP PREVIEW
+     ═══════════════════════════════════════════════════════════ */
+  .wa-wrap { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .wa-toolbar {
+    display:flex; align-items:center; justify-content:space-between;
+    width:280px; padding:8px 4px;
+  }
+  .wa-toolbar-group {
+    display:inline-flex; padding:2px;
+    background:var(--surface); border:1px solid var(--border-2); border-radius:5px;
+  }
+  .wa-tab {
+    padding:4px 10px; border:0; background:transparent;
+    color:var(--text-3); font-size:11.5px; font-weight:500; cursor:pointer;
+    border-radius:3px;
+  }
+  .wa-tab[aria-pressed="true"] { background:var(--surface-3); color:var(--text); }
+  .wa-toggle {
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--text-3); font-size:11.5px; cursor:pointer;
+  }
+  .wa-toggle input { appearance:none; width:22px; height:13px; border-radius:999px;
+    background:var(--surface-3); border:1px solid var(--border-2); cursor:pointer; position:relative;
+    transition:background var(--dur-fast); }
+  .wa-toggle input::after { content:''; position:absolute; top:1px; left:1px; width:9px; height:9px;
+    border-radius:50%; background:var(--text-3); transition:all var(--dur-fast); }
+  .wa-toggle input:checked { background:var(--accent); border-color:var(--accent); }
+  .wa-toggle input:checked::after { left:10px; background:#fff; }
+
+  .wa-phone {
+    width:280px; background:#000;
+    border:1px solid var(--border-2); border-radius:32px;
+    padding:10px;
+    box-shadow:0 18px 50px -20px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+  .wa-speaker {
+    width:60px; height:4px; margin:2px auto 6px;
+    background:#0f0f10; border-radius:2px;
+  }
+  .wa-screen {
+    border-radius:24px; overflow:hidden; height:480px;
+    display:flex; flex-direction:column;
+  }
+  .wa-phone[data-theme="dark"]  .wa-screen { background:var(--wa-canvas-dark);  color:#e9edef; }
+  .wa-phone[data-theme="light"] .wa-screen { background:var(--wa-canvas-light); color:#111b21; }
+
+  .wa-statusbar {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 14px 4px; font:500 11px/1 system-ui;
+  }
+  .wa-statusbar-right { display:inline-flex; gap:4px; align-items:center; }
+  .wa-phone[data-theme="dark"]  .wa-statusbar { color:#e9edef; }
+  .wa-phone[data-theme="light"] .wa-statusbar { color:#111b21; }
+
+  .wa-chathead {
+    display:flex; align-items:center; gap:9px;
+    padding:8px 12px 8px 10px;
+    border-bottom:1px solid rgba(255,255,255,.04);
+  }
+  .wa-phone[data-theme="dark"]  .wa-chathead { background:#1f2c33; color:#e9edef; }
+  .wa-phone[data-theme="light"] .wa-chathead { background:#075e54; color:#fff; border-bottom-color:rgba(0,0,0,.05); }
+  .wa-chathead-avatar {
+    width:30px; height:30px; border-radius:50%;
+    background:#6b7280; color:#fff;
+    display:inline-flex; align-items:center; justify-content:center;
+    font:600 13px/1 system-ui; flex-shrink:0;
+  }
+  .wa-chathead-name { flex:1; min-width:0; line-height:1.2; }
+  .wa-chathead-name > div:first-child { font:500 13.5px/1.3 system-ui; }
+  .wa-chathead-sub { font:400 11px/1.3 system-ui; opacity:.7; margin-top:1px; }
+
+  .wa-canvas {
+    flex:1; overflow-y:auto;
+    padding:14px 10px;
+    background-image:
+      radial-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+      radial-gradient(rgba(255,255,255,.015) 1px, transparent 1px);
+    background-size:18px 18px;
+    background-position:0 0, 9px 9px;
+  }
+  .wa-phone[data-theme="light"] .wa-canvas {
+    background-image:
+      radial-gradient(rgba(0,0,0,.02) 1px, transparent 1px),
+      radial-gradient(rgba(0,0,0,.02) 1px, transparent 1px);
+  }
+
+  .wa-daystamp {
+    text-align:center; margin:4px auto 12px; padding:3px 12px;
+    font:500 10.5px/1 system-ui; letter-spacing:.04em;
+    background:rgba(11,20,26,.7); color:#8696a0;
+    border-radius:6px; display:inline-block;
+    position:relative; left:50%; transform:translateX(-50%);
+  }
+  .wa-phone[data-theme="light"] .wa-daystamp { background:rgba(255,255,255,.95); color:#54656f; }
+
+  .wa-bubble {
+    align-self:flex-end; max-width:75%; margin-left:auto;
+    padding:6px 7px 8px 9px;
+    border-radius:7.5px 0 7.5px 7.5px;
+    font:400 14.2px/19px "Segoe UI","Helvetica Neue",system-ui;
+    position:relative; box-shadow:0 1px .5px rgba(0,0,0,.13);
+    word-wrap:break-word; color:#e9edef;
+    animation:waDrop .28s var(--ease-spring);
+  }
+  .wa-bubble::after {
+    content:""; position:absolute; top:0; right:-7px;
+    width:0; height:0; border-style:solid; border-width:0 0 7px 8px;
+    border-color:transparent transparent transparent var(--wa-bubble-out-dark);
+  }
+  .wa-phone[data-theme="dark"]  .wa-bubble { background:var(--wa-bubble-out-dark); }
+  .wa-phone[data-theme="light"] .wa-bubble {
+    background:var(--wa-bubble-out-light); color:#111b21;
+  }
+  .wa-phone[data-theme="light"] .wa-bubble::after {
+    border-color:transparent transparent transparent var(--wa-bubble-out-light);
+  }
+  .wa-body { margin:0 0 0; white-space:pre-wrap; }
+  .wa-body b, .wa-body strong { font-weight:700; }
+  .wa-body i, .wa-body em { font-style:italic; }
+  .wa-body del, .wa-body s { text-decoration:line-through; }
+  .wa-body a { color:#53bdeb; text-decoration:underline; }
+  .wa-meta {
+    display:flex; justify-content:flex-end; align-items:center; gap:4px;
+    margin-top:2px;
+    font:400 10.5px/1 system-ui;
+    color:rgba(255,255,255,.7);
+  }
+  .wa-phone[data-theme="light"] .wa-meta { color:rgba(0,0,0,.45); }
+  .wa-ticks { color:var(--wa-tick); flex-shrink:0; }
+
+  .wa-var {
+    display:inline-block; padding:0 6px; border-radius:4px;
+    background:var(--var-bg); color:var(--var-fg);
+    border:1px solid rgba(129,140,248,.28);
+    font:500 13px/19px Inter,system-ui;
+    margin:0 1px;
+  }
+  .wa-phone[data-theme="light"] .wa-var {
+    background:rgba(99,102,241,.12); color:#4338ca;
+    border-color:rgba(99,102,241,.25);
+  }
+
+  @keyframes waDrop { from { opacity:0; transform:translateY(6px) scale(.98); } }
+
+  /* ═══════════════════════════════════════════════════════════
+     STEP 3 — Variables list
+     ═══════════════════════════════════════════════════════════ */
+  .mw-vars-list { display:flex; flex-direction:column; gap:10px; }
+  .mw-var-row {
+    display:grid; grid-template-columns:48px 1fr 1fr; gap:10px; align-items:center;
+    padding:12px 14px; background:var(--surface);
+    border:1px solid var(--border); border-radius:var(--r);
+  }
+  .mw-var-row[data-missing="true"] { border-color:rgba(251,191,36,.4); background:rgba(251,191,36,.04); }
+  .mw-var-pos {
+    display:inline-flex; align-items:center; justify-content:center;
+    height:30px; padding:0 8px; border-radius:var(--r-sm);
+    background:var(--accent-soft); color:#a5b4fc;
+    font:500 12.5px/1 ui-monospace,Menlo,monospace;
+  }
+  .mw-var-empty {
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    padding:40px 24px; border:1px dashed var(--border-2); border-radius:var(--r-lg);
+    background:var(--surface); color:var(--text-3); text-align:center;
+  }
+  .mw-var-empty-title { color:var(--text); font-size:14px; font-weight:500; }
+  .mw-var-empty p { font-size:12.5px; line-height:1.5; max-width:340px; margin:0; }
+  .mw-var-empty code {
+    background:var(--surface-3); color:var(--text-2);
+    padding:1px 5px; border-radius:3px;
+    font:500 11.5px/1 ui-monospace,Menlo,monospace;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     STEP 4 — Access (Generic vs Clinic-specific)
+     ═══════════════════════════════════════════════════════════ */
+  .mw-access-choice { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:22px; }
+  .mw-access-card {
+    text-align:left; padding:18px 18px 16px; border-radius:var(--r);
+    background:var(--surface); border:1px solid var(--border-2);
+    color:var(--text-2); cursor:pointer;
+    transition:all var(--dur-fast) var(--ease-std);
+  }
+  .mw-access-card:hover { background:var(--surface-2); border-color:var(--border-3); color:var(--text); }
+  .mw-access-card[aria-pressed="true"] {
+    background:var(--accent-soft); border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-ring);
+  }
+  .mw-access-icon {
+    width:32px; height:32px; border-radius:var(--r-sm);
+    background:var(--surface-3); display:inline-flex; align-items:center; justify-content:center;
+    color:var(--text-2); margin-bottom:10px;
+  }
+  .mw-access-card[aria-pressed="true"] .mw-access-icon { background:rgba(129,140,248,.2); color:var(--accent); }
+  .mw-access-name { font-size:14px; font-weight:500; color:var(--text); margin-bottom:4px; letter-spacing:-.005em; }
+  .mw-access-hint { font-size:12px; color:var(--text-3); line-height:1.5; }
+
+  .mw-clinic-picker {
+    border:1px solid var(--border-2); border-radius:var(--r);
+    background:var(--surface); overflow:hidden;
+  }
+  .mw-clinic-search-wrap { position:relative; padding:10px 14px; border-bottom:1px solid var(--border); }
+  .mw-clinic-search-wrap svg { position:absolute; left:24px; top:50%; transform:translateY(-50%); color:var(--text-3); }
+  .mw-clinic-search {
+    width:100%; padding:6px 8px 6px 28px;
+    background:transparent; border:0; color:var(--text); font-size:13px;
+  }
+  .mw-clinic-search:focus { outline:none; }
+  .mw-clinic-list { max-height:240px; overflow-y:auto; padding:6px; }
+  .mw-clinic-row {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px; border-radius:var(--r-sm); cursor:pointer;
+    transition:background var(--dur-fast);
+  }
+  .mw-clinic-row:hover { background:var(--surface-2); }
+  .mw-clinic-row[data-checked="true"] { background:var(--accent-soft); }
+  .mw-clinic-row input { display:none; }
+  .mw-clinic-check {
+    width:15px; height:15px; border-radius:4px;
+    border:1.5px solid var(--border-3); background:transparent;
+    flex-shrink:0; transition:all var(--dur-fast);
+  }
+  .mw-clinic-row[data-checked="true"] .mw-clinic-check {
+    background:var(--accent); border-color:var(--accent);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 5l2 2 4-4.5' stroke='%23%30%39%30%39%30b' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:center;
+  }
+  .mw-clinic-name { color:var(--text); font-size:13px; font-weight:500; }
+  .mw-clinic-code { color:var(--text-3); font-size:11.5px; margin-left:auto;
+    font-family:ui-monospace,Menlo,monospace; }
+  .mw-clinic-footer {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 14px; border-top:1px solid var(--border);
+    color:var(--text-3); font-size:12px;
+  }
+  .mw-clinic-footer b { color:var(--text); font-weight:500; font-variant-numeric:tabular-nums; }
+
+  /* ═══════════════════════════════════════════════════════════
+     STEP 5 — Review
+     ═══════════════════════════════════════════════════════════ */
+  .mw-review { display:grid; grid-template-columns:1fr 320px; gap:24px; align-items:start; }
+  @media (max-width: 1080px) { .mw-review { grid-template-columns:1fr; } }
+
+  .mw-checklist { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+  .mw-check-row {
+    display:flex; gap:12px; align-items:flex-start;
+    padding:12px 14px; background:var(--surface);
+    border:1px solid var(--border); border-radius:var(--r);
+  }
+  .mw-check-row[data-sev="ok"]    { border-color:rgba(52,211,153,.25); }
+  .mw-check-row[data-sev="warn"]  { border-color:rgba(251,191,36,.35); background:rgba(251,191,36,.04); }
+  .mw-check-row[data-sev="error"] { border-color:rgba(248,113,113,.4);  background:rgba(248,113,113,.05); }
+  .mw-check-icon {
+    width:18px; height:18px; border-radius:50%; flex-shrink:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:var(--surface-3); color:var(--text-3); margin-top:1px;
+  }
+  .mw-check-row[data-sev="ok"]    .mw-check-icon { background:rgba(52,211,153,.18); color:var(--success); }
+  .mw-check-row[data-sev="warn"]  .mw-check-icon { background:rgba(251,191,36,.18); color:var(--warning); }
+  .mw-check-row[data-sev="error"] .mw-check-icon { background:rgba(248,113,113,.18); color:var(--danger); }
+  .mw-check-text { flex:1; min-width:0; }
+  .mw-check-title { color:var(--text); font-size:13px; font-weight:500; margin-bottom:2px; }
+  .mw-check-desc  { color:var(--text-3); font-size:12px; line-height:1.5; }
+  .mw-check-fix {
+    background:transparent; border:0; color:var(--accent); font-size:12px;
+    cursor:pointer; padding:0; margin-top:4px;
+  }
+  .mw-check-fix:hover { color:var(--accent-hover); }
+
+  .mw-review-section {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r); padding:16px 18px; margin-bottom:14px;
+  }
+  .mw-review-label {
+    color:var(--text-3); font-size:11px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; margin-bottom:6px;
+  }
+  .mw-review-value {
+    color:var(--text); font-size:14px; font-weight:500;
+    font-family:ui-monospace,Menlo,monospace;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SAVE BAR (footer)
+     ═══════════════════════════════════════════════════════════ */
+  .mw-savebar {
+    display:flex; align-items:center; gap:14px;
+    padding:0 24px; border-top:1px solid var(--border);
+    background:rgba(9,9,11,.94); backdrop-filter:blur(10px);
+  }
+  .mw-savebar-pos {
+    color:var(--text-3); font-size:12px; flex-shrink:0;
+  }
+  .mw-savebar-pos b { color:var(--text); font-weight:500; font-variant-numeric:tabular-nums; }
+  .mw-savebar-spacer { flex:1; }
+  .mw-savebar-actions { display:flex; gap:10px; }
+
+  .mw-btn {
+    display:inline-flex; align-items:center; gap:7px;
+    height:34px; padding:0 14px; border-radius:var(--r-sm);
+    background:var(--surface-2); border:1px solid var(--border-2);
+    color:var(--text-2); font-size:13px; font-weight:500;
+    cursor:pointer; transition:all var(--dur-fast) var(--ease-std);
+  }
+  .mw-btn:hover { background:var(--surface-3); border-color:var(--border-3); color:var(--text); }
+  .mw-btn:focus-visible { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring); }
+  .mw-btn:disabled { opacity:.4; cursor:not-allowed; }
+  .mw-btn--primary {
+    background:#fafafa; color:#09090b; border-color:#fafafa; font-weight:500;
+  }
+  .mw-btn--primary:hover { background:#fff; border-color:#fff; color:#000; }
+  .mw-btn--primary:disabled { background:var(--surface-3); color:var(--text-3); border-color:var(--border-2); }
+
+  /* Field flash — for "Why is this disabled?" jump-to-error */
+  @keyframes mw-flash {
+    0%, 100% { box-shadow:0 0 0 0 transparent; }
+    20%      { box-shadow:0 0 0 4px var(--accent-ring); }
+  }
+  .mw-flash .mw-input, .mw-flash .mw-textarea, .mw-flash .mw-select,
+  .mw-flash.mw-cat, .mw-flash.mw-access-card, .mw-flash .mw-var-row {
+    animation:mw-flash 1.2s var(--ease-out-quart);
+    border-color:var(--accent) !important;
+  }
+
+  /* Responsive — mobile collapses rail */
+  @media (max-width: 880px) {
+    .mw-body { grid-template-columns:1fr; }
+    .mw-rail {
+      border-right:0; border-bottom:1px solid var(--border);
+      padding:16px 24px; max-height:none;
+    }
+    .mw-rail-steps { display:flex; gap:14px; overflow-x:auto; padding:0; }
+    .mw-rail-steps::before, .mw-rail-steps::after { display:none; }
+    .mw-rail-step { flex-shrink:0; padding:6px 10px; }
+    .mw-rail-step-text { display:none; }
+    .mw-rail-step[data-state="current"] .mw-rail-step-text { display:block; }
+    .mw-step-container { padding:24px 20px; }
+    .mw-cat-grid { grid-template-columns:1fr; }
+    .mw-access-choice { grid-template-columns:1fr; }
+  }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if add %}
+
+{# ════════════════════════════════════════════════════════════
+   5-STEP WIZARD
+   Posts to the same admin add endpoint using Django's field
+   names. CSRF + form structure preserved.
+   ════════════════════════════════════════════════════════════ #}
+<form method="post" id="mw-form" class="mw" novalidate>
+  {% csrf_token %}
+
+  {# ─── TOP BAR ─── #}
+  <header class="mw-topbar">
+    <button type="button" class="mw-back" onclick="window.location.href='../'">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M9 3L4 7l5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back
+    </button>
+    <div class="mw-topbar-title">
+      New message template
+      <small>· drafts auto-save locally</small>
+    </div>
+    <div class="mw-topbar-hints">
+      <span><span class="mw-kbd">Esc</span> Cancel</span>
+      <span><span class="mw-kbd">⌘</span><span class="mw-kbd">Enter</span> Submit</span>
+    </div>
+  </header>
+
+  {# ─── BODY ─── #}
+  <div class="mw-body">
+    <aside class="mw-rail" aria-label="Wizard progress">
+      <div class="mw-rail-head">
+        <h2 class="mw-rail-title" id="mw-rail-title">Untitled template</h2>
+        <div class="mw-rail-save" data-state="idle" aria-live="polite">
+          <span class="mw-rail-save-dot"></span>
+          <span class="mw-rail-save-text">Not yet saved</span>
+        </div>
+      </div>
+      <ol class="mw-rail-steps" id="mw-rail">
+        <li class="mw-rail-step" data-state="current" data-step="1">
+          <span class="mw-rail-dot"></span>
+          <div class="mw-rail-step-text">
+            <div class="mw-rail-name">Basics</div>
+            <div class="mw-rail-sub">Name, category, language</div>
+          </div>
+        </li>
+        <li class="mw-rail-step" data-state="upcoming" data-step="2">
+          <span class="mw-rail-dot"></span>
+          <div class="mw-rail-step-text">
+            <div class="mw-rail-name">Body</div>
+            <div class="mw-rail-sub">Write the message</div>
+          </div>
+        </li>
+        <li class="mw-rail-step" data-state="upcoming" data-step="3">
+          <span class="mw-rail-dot"></span>
+          <div class="mw-rail-step-text">
+            <div class="mw-rail-name">Variables</div>
+            <div class="mw-rail-sub">Configure {% verbatim %}{{n}}{% endverbatim %} examples</div>
+          </div>
+        </li>
+        <li class="mw-rail-step" data-state="upcoming" data-step="4">
+          <span class="mw-rail-dot"></span>
+          <div class="mw-rail-step-text">
+            <div class="mw-rail-name">Access</div>
+            <div class="mw-rail-sub">Which clinics can use it</div>
+          </div>
+        </li>
+        <li class="mw-rail-step" data-state="upcoming" data-step="5">
+          <span class="mw-rail-dot"></span>
+          <div class="mw-rail-step-text">
+            <div class="mw-rail-name">Review</div>
+            <div class="mw-rail-sub">Confirm and submit</div>
+          </div>
+        </li>
+      </ol>
+    </aside>
+
+    {# ─── STEPS ─── #}
+    <main class="mw-step-container">
+
+      {# ─── STEP 1 — Basics ─── #}
+      <section class="mw-step" data-step="1">
+        <header class="mw-step-head">
+          <div class="mw-step-eyebrow">Step 1 of 5</div>
+          <h1 class="mw-step-title">Let's start with the basics</h1>
+          <p class="mw-step-desc">
+            Templates are pre-approved messages your bot sends to patients. Pick a name, category, and language —
+            this is what Meta will see when reviewing your template.
+          </p>
+        </header>
+
+        <div class="mw-field" data-field="name">
+          <label class="mw-field-label" for="id_name">
+            Template name <small>required · lowercase_with_underscores</small>
+          </label>
+          <input type="text" id="id_name" name="name" class="mw-input mw-input--mono"
+                 placeholder="appointment_reminder" autofocus
+                 pattern="[a-z0-9_]+" maxlength="80" autocomplete="off">
+          <p class="mw-field-hint">
+            Must match exactly what you submit to Meta. Use only <code>a-z</code>, <code>0-9</code>, and <code>_</code>.
+            Examples: <code>reminder_day_before</code>, <code>booking_confirmation</code>.
+          </p>
+          <p class="mw-field-error" data-error-for="name">Required. Use lowercase letters, digits, and underscores.</p>
+        </div>
+
+        <div class="mw-field" data-field="category">
+          <label class="mw-field-label">Category <small>required · affects Meta approval rules</small></label>
+          <div class="mw-cat-grid" role="radiogroup" aria-label="Category">
+            <button type="button" class="mw-cat" role="radio" aria-pressed="true" data-cat="UTILITY">
+              <div class="mw-cat-name">Utility</div>
+              <div class="mw-cat-hint">Reminders, confirmations, OTPs. Easiest to get approved.</div>
+            </button>
+            <button type="button" class="mw-cat" role="radio" aria-pressed="false" data-cat="MARKETING">
+              <div class="mw-cat-name">Marketing</div>
+              <div class="mw-cat-hint">Promotions, offers. Stricter Meta review — expect delays.</div>
+            </button>
+            <button type="button" class="mw-cat" role="radio" aria-pressed="false" data-cat="AUTHENTICATION">
+              <div class="mw-cat-name">Authentication</div>
+              <div class="mw-cat-hint">OTPs and verification codes. Body must end with the code.</div>
+            </button>
+          </div>
+          <input type="hidden" name="category" id="id_category" value="UTILITY">
+        </div>
+
+        <div class="mw-field" data-field="language">
+          <label class="mw-field-label" for="id_language">
+            Language <small>required · separate Meta approval per language</small>
+          </label>
+          <select class="mw-select" id="id_language" name="language">
+            {% for code, label in mt_wizard.languages %}
+              <option value="{{ code }}"{% if code == 'en' %} selected{% endif %}>{{ label }} ({{ code }})</option>
+            {% endfor %}
+          </select>
+          <p class="mw-field-hint">
+            You'll need to submit a separate approval for each language. Start with English, add translations later.
+          </p>
+        </div>
+      </section>
+
+      {# ─── STEP 2 — Body + live preview ─── #}
+      <section class="mw-step" data-step="2" hidden>
+        <header class="mw-step-head">
+          <div class="mw-step-eyebrow">Step 2 of 5</div>
+          <h1 class="mw-step-title">Write the message body</h1>
+          <p class="mw-step-desc">
+            Use <code>{% verbatim %}{{1}}{% endverbatim %}</code>, <code>{% verbatim %}{{2}}{% endverbatim %}</code>, etc. for things that change per patient (name, date, etc.).
+            Markdown: <code>*bold*</code>, <code>_italic_</code>, <code>~strikethrough~</code>. URLs are auto-linked.
+          </p>
+        </header>
+
+        <div class="mw-split">
+          <div class="mw-editor-wrap">
+            <textarea class="mw-editor" id="id_body" name="body" autofocus
+                      placeholder="Hi {% verbatim %}{{1}}{% endverbatim %}, your appointment with Dr. {% verbatim %}{{2}}{% endverbatim %} is confirmed for {% verbatim %}{{3}}{% endverbatim %} at the clinic.&#10;&#10;Reply *CONFIRM* to confirm or call us to reschedule."
+                      maxlength="1024"></textarea>
+
+            <div class="mw-editor-meta">
+              <div>
+                <span id="mw-var-detect-count">0</span> variables detected
+              </div>
+              <span class="mw-char-count" id="mw-char-count">0 / 1024</span>
+            </div>
+
+            <div class="mw-editor-toolbar">
+              <b>Insert variable:</b>
+              <button type="button" class="mw-insert-var" data-insert-var="1">{% verbatim %}{{1}}{% endverbatim %}</button>
+              <button type="button" class="mw-insert-var" data-insert-var="2">{% verbatim %}{{2}}{% endverbatim %}</button>
+              <button type="button" class="mw-insert-var" data-insert-var="3">{% verbatim %}{{3}}{% endverbatim %}</button>
+              <button type="button" class="mw-insert-var" data-insert-var="4">{% verbatim %}{{4}}{% endverbatim %}</button>
+              <button type="button" class="mw-insert-var" data-insert-var="next">+ next</button>
+            </div>
+
+            <p class="mw-field-error" data-error-for="body" style="margin-top:10px;">
+              The message body cannot be empty.
+            </p>
+          </div>
+
+          <div class="mw-preview-stick">
+            {% include "admin/clinic/messagetemplate/_wa_preview.html" %}
+          </div>
+        </div>
+      </section>
+
+      {# ─── STEP 3 — Variables ─── #}
+      <section class="mw-step" data-step="3" hidden>
+        <header class="mw-step-head">
+          <div class="mw-step-eyebrow">Step 3 of 5</div>
+          <h1 class="mw-step-title">Describe each variable</h1>
+          <p class="mw-step-desc">
+            For every <code>{% verbatim %}{{n}}{% endverbatim %}</code> in your body, Meta needs a label (what it represents) and an example
+            (what real value goes there). Examples help Meta approve faster.
+          </p>
+        </header>
+
+        <div class="mw-vars-list" id="mw-vars-list">
+          {# JS populates this from body parsing #}
+        </div>
+
+        <div class="mw-var-empty" id="mw-vars-empty">
+          <div class="mw-var-empty-title">No variables in your message</div>
+          <p>
+            That's fine — static templates are valid too. If you want to personalize, go back to step 2 and add
+            <code>{% verbatim %}{{1}}{% endverbatim %}</code> somewhere in the body.
+          </p>
+        </div>
+
+        <input type="hidden" name="variables" id="id_variables" value="[]">
+      </section>
+
+      {# ─── STEP 4 — Access ─── #}
+      <section class="mw-step" data-step="4" hidden>
+        <header class="mw-step-head">
+          <div class="mw-step-eyebrow">Step 4 of 5</div>
+          <h1 class="mw-step-title">Who can use this template?</h1>
+          <p class="mw-step-desc">
+            Generic templates are available to every clinic on the platform. Clinic-specific templates can only be
+            sent by the clinics you link below.
+          </p>
+        </header>
+
+        <div class="mw-access-choice" role="radiogroup" aria-label="Access scope">
+          <button type="button" class="mw-access-card" role="radio" aria-pressed="false" data-access="generic">
+            <div class="mw-access-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M2 8h12M8 2c2 1.6 3 3.6 3 6s-1 4.4-3 6c-2-1.6-3-3.6-3-6s1-4.4 3-6z" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="mw-access-name">Generic — all clinics</div>
+            <div class="mw-access-hint">Every clinic on DocPing can send this template. Good for shared text like OTPs and standard reminders.</div>
+          </button>
+          <button type="button" class="mw-access-card" role="radio" aria-pressed="true" data-access="clinic">
+            <div class="mw-access-icon">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 14V6l6-4 6 4v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 14V9h4v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="mw-access-name">Clinic-specific</div>
+            <div class="mw-access-hint">Only clinics you link below can send this template. Use for clinic-branded wording.</div>
+          </button>
+        </div>
+
+        <input type="hidden" name="is_generic" id="id_is_generic" value="">
+
+        <div class="mw-field" data-field="clinics" id="mw-clinic-section">
+          <label class="mw-field-label">Link clinics <small>tick the clinics allowed to use this template</small></label>
+          <div class="mw-clinic-picker">
+            <div class="mw-clinic-search-wrap">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9 9l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <input type="search" class="mw-clinic-search" placeholder="Search clinics by name or code…" autocomplete="off" id="mw-clinic-search">
+            </div>
+            <div class="mw-clinic-list" id="mw-clinic-list">
+              {% for c in mt_wizard.clinics %}
+                <label class="mw-clinic-row" data-checked="false" data-name="{{ c.name|lower }}" data-code="{{ c.code|lower }}">
+                  <input type="checkbox" name="clinics" value="{{ c.id }}">
+                  <span class="mw-clinic-check" aria-hidden="true"></span>
+                  <span class="mw-clinic-name">{{ c.name }}</span>
+                  <span class="mw-clinic-code">{{ c.code }}</span>
+                </label>
+              {% empty %}
+                <div class="mw-var-empty" style="margin:8px;">
+                  <div class="mw-var-empty-title">No clinics on the platform yet</div>
+                  <p>Add a clinic first, then come back to link it.</p>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="mw-clinic-footer">
+              <span><b id="mw-clinic-count">0</b> of <b>{{ mt_wizard.clinics|length }}</b> selected</span>
+              <button type="button" class="mw-btn" id="mw-clinic-clear" style="height:26px; padding:0 10px; font-size:11.5px;">Clear all</button>
+            </div>
+          </div>
+          <p class="mw-field-error" data-error-for="clinics">
+            Pick at least one clinic, or switch to Generic above.
+          </p>
+        </div>
+      </section>
+
+      {# ─── STEP 5 — Review ─── #}
+      <section class="mw-step" data-step="5" hidden>
+        <header class="mw-step-head">
+          <div class="mw-step-eyebrow">Step 5 of 5</div>
+          <h1 class="mw-step-title">Review and submit</h1>
+          <p class="mw-step-desc">
+            Look over the checks below — fix any errors before submitting. After submit, this template is saved as
+            <b>Draft</b>. To send to Meta for approval, change its status from the detail page.
+          </p>
+        </header>
+
+        <div class="mw-review">
+          <div>
+            <div class="mw-checklist" id="mw-checklist"></div>
+
+            <div class="mw-review-section">
+              <div class="mw-review-label">Name</div>
+              <div class="mw-review-value" id="mw-rev-name">—</div>
+            </div>
+            <div class="mw-review-section">
+              <div class="mw-review-label">Category · Language</div>
+              <div class="mw-review-value" id="mw-rev-meta">—</div>
+            </div>
+            <div class="mw-review-section">
+              <div class="mw-review-label">Access</div>
+              <div class="mw-review-value" id="mw-rev-access">—</div>
+            </div>
+          </div>
+
+          <div class="mw-preview-stick">
+            {# Reuses the same preview component — second mount #}
+            <div id="mw-preview-review">
+              {% include "admin/clinic/messagetemplate/_wa_preview.html" %}
+            </div>
+          </div>
+        </div>
+
+        {# Hidden status field — always draft on first save #}
+        <input type="hidden" name="status" value="draft">
+        <input type="hidden" name="meta_template_id" value="">
+        <input type="hidden" name="notes" value="">
+      </section>
+    </main>
+  </div>
+
+  {# ─── SAVE BAR ─── #}
+  <footer class="mw-savebar">
+    <div class="mw-savebar-pos">Step <b id="mw-step-now">1</b> of <b>5</b> · <span id="mw-step-now-name">Basics</span></div>
+    <div class="mw-savebar-spacer"></div>
+    <div class="mw-savebar-actions">
+      <button type="button" class="mw-btn" id="mw-prev" disabled>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8 2L4 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back
+      </button>
+      <button type="button" class="mw-btn mw-btn--primary" id="mw-next">
+        <span id="mw-next-label">Next: Body</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      {# Hidden Django save button — clicked by JS on step 5 #}
+      <button type="submit" name="_save" id="mw-submit-real" style="display:none;">Save</button>
+    </div>
+  </footer>
+</form>
+
+{% verbatim %}
+<script>
+(function () {
+  'use strict';
+
+  // ════════════════════════════════════════════════════════════
+  // State
+  // ════════════════════════════════════════════════════════════
+  const STEPS = [
+    { id: 1, name: 'Basics',    nextLabel: 'Next: Body' },
+    { id: 2, name: 'Body',      nextLabel: 'Next: Variables' },
+    { id: 3, name: 'Variables', nextLabel: 'Next: Access' },
+    { id: 4, name: 'Access',    nextLabel: 'Next: Review' },
+    { id: 5, name: 'Review',    nextLabel: 'Submit template' },
+  ];
+  const DRAFT_KEY = 'mt-wizard-draft-v1';
+
+  const state = {
+    step: 1,
+    visited: new Set([1]),
+    valid: { 1: false, 2: false, 3: true, 4: false, 5: false },
+    data: {
+      name: '', category: 'UTILITY', language: 'en',
+      body: '', variables: [], is_generic: '', clinics: [],
+    },
+  };
+
+  // ════════════════════════════════════════════════════════════
+  // Helpers
+  // ════════════════════════════════════════════════════════════
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
+
+  function debounce(fn, ms) {
+    let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+  }
+
+  // Detect {{n}} variables in body — returns ordered unique positions
+  function detectVarPositions(body) {
+    const re = /\{\{(\d+)\}\}/g;
+    const seen = new Set(); const out = [];
+    let m;
+    while ((m = re.exec(body)) !== null) {
+      const n = parseInt(m[1], 10);
+      if (!seen.has(n)) { seen.add(n); out.push(n); }
+    }
+    return out.sort((a, b) => a - b);
+  }
+
+  // Render WhatsApp body: escape, markdown-lite, variable chips
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function renderWaBody(body, vars, useSamples) {
+    if (!body) return '<span style="opacity:.5;">Your message will appear here…</span>';
+    let s = escapeHtml(body);
+    // markdown — order matters (strikethrough first, then bold/italic which start with single char)
+    s = s.replace(/~([^~\n]+)~/g, '<del>$1</del>');
+    s = s.replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
+    s = s.replace(/_([^_\n]+)_/g, '<i>$1</i>');
+    // URLs
+    s = s.replace(/(https?:\/\/[^\s<]+)/g, '<a href="#" onclick="return false">$1</a>');
+    // Variables — substitute or chipify
+    s = s.replace(/\{\{(\d+)\}\}/g, (_, n) => {
+      const v = vars[parseInt(n, 10) - 1];
+      if (useSamples && v?.example) return escapeHtml(v.example);
+      const label = v?.label || `variable ${n}`;
+      return `<span class="wa-var">${escapeHtml(label)}</span>`;
+    });
+    return s;
+  }
+
+  // Plain-text reading for screen reader
+  function renderWaText(body, vars) {
+    if (!body) return 'Empty template preview.';
+    return 'Preview: ' + body.replace(/\{\{(\d+)\}\}/g, (_, n) => {
+      const v = vars[parseInt(n, 10) - 1];
+      return v?.example || `variable ${n}`;
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // Preview mount
+  // ════════════════════════════════════════════════════════════
+  function mountPreview(rootSelector) {
+    const root = $(rootSelector);
+    if (!root) return null;
+    const phone = $('.wa-phone', root);
+    const bubble = $('[data-bind="bubble"]', root);
+    const body = $('[data-bind="body"]', root);
+    const sr = $('[data-bind="srText"]', root);
+    const clinicName = $('[data-bind="clinicName"]', root);
+    const clinicInitial = $('[data-bind="clinicInitial"]', root);
+
+    const local = { theme: 'dark', samples: false };
+
+    function render() {
+      phone.dataset.theme = local.theme;
+      const clinicLabel = state.data.is_generic === 'true' ? 'Your clinic' :
+        (state.data.clinics[0]?.name || 'Your clinic');
+      clinicName.textContent = clinicLabel;
+      clinicInitial.textContent = (clinicLabel[0] || 'C').toUpperCase();
+      body.innerHTML = renderWaBody(state.data.body, state.data.variables, local.samples);
+      sr.textContent = renderWaText(state.data.body, state.data.variables);
+      // Replay drop animation
+      bubble.style.animation = 'none';
+      void bubble.offsetWidth;
+      bubble.style.animation = '';
+    }
+
+    // Theme tabs
+    $$('[data-wa-theme]', root).forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('[data-wa-theme]', root).forEach(b => b.setAttribute('aria-pressed', 'false'));
+        btn.setAttribute('aria-pressed', 'true');
+        local.theme = btn.dataset.waTheme;
+        render();
+      });
+    });
+    // Sample toggle
+    const samples = $('[data-wa-samples]', root);
+    samples?.addEventListener('change', () => {
+      local.samples = samples.checked;
+      render();
+    });
+
+    render();
+    return { render };
+  }
+
+  // Mount both previews (step 2 + step 5)
+  const previews = [
+    mountPreview('.mw-step[data-step="2"] .wa-wrap'),
+    mountPreview('#mw-preview-review .wa-wrap'),
+  ].filter(Boolean);
+
+  function syncPreviews() { previews.forEach(p => p.render()); }
+
+  // ════════════════════════════════════════════════════════════
+  // Step 1 — Basics
+  // ════════════════════════════════════════════════════════════
+  const nameInput = $('#id_name');
+  nameInput.addEventListener('input', () => {
+    state.data.name = nameInput.value;
+    $('#mw-rail-title').textContent = nameInput.value || 'Untitled template';
+    validateStep(1);
+    persist();
+  });
+
+  $$('.mw-cat').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.mw-cat').forEach(b => b.setAttribute('aria-pressed', 'false'));
+      btn.setAttribute('aria-pressed', 'true');
+      state.data.category = btn.dataset.cat;
+      $('#id_category').value = btn.dataset.cat;
+      validateStep(1);
+      persist();
+    });
+  });
+
+  const langSelect = $('#id_language');
+  langSelect.addEventListener('change', () => {
+    state.data.language = langSelect.value;
+    persist();
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // Step 2 — Body editor
+  // ════════════════════════════════════════════════════════════
+  const bodyInput = $('#id_body');
+  const charCount = $('#mw-char-count');
+  const varCount  = $('#mw-var-detect-count');
+
+  function updateBodyDeps() {
+    const body = bodyInput.value;
+    state.data.body = body;
+    // Char count
+    const len = body.length;
+    charCount.textContent = `${len} / 1024`;
+    charCount.dataset.warn = len > 900 ? 'true' : 'false';
+    charCount.dataset.over = len > 1024 ? 'true' : 'false';
+    // Variable detection
+    const positions = detectVarPositions(body);
+    varCount.textContent = positions.length;
+    // Merge with existing variable metadata (preserve labels/examples on re-detect)
+    const existing = new Map(state.data.variables.map(v => [v.position, v]));
+    state.data.variables = positions.map(p => existing.get(p) || { position: p, label: '', example: '' });
+    $('#id_variables').value = JSON.stringify(state.data.variables);
+    syncPreviews();
+    validateStep(2);
+    validateStep(3);
+    persist();
+  }
+  bodyInput.addEventListener('input', updateBodyDeps);
+
+  // Insert variable button — appends at cursor
+  $$('[data-insert-var]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      let token;
+      if (btn.dataset.insertVar === 'next') {
+        const positions = detectVarPositions(bodyInput.value);
+        const next = positions.length ? Math.max(...positions) + 1 : 1;
+        token = `{{${next}}}`;
+      } else {
+        token = `{{${btn.dataset.insertVar}}}`;
+      }
+      const start = bodyInput.selectionStart;
+      const end = bodyInput.selectionEnd;
+      bodyInput.value = bodyInput.value.slice(0, start) + token + bodyInput.value.slice(end);
+      bodyInput.focus();
+      bodyInput.selectionStart = bodyInput.selectionEnd = start + token.length;
+      updateBodyDeps();
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // Step 3 — Variables list
+  // ════════════════════════════════════════════════════════════
+  const varsList = $('#mw-vars-list');
+  const varsEmpty = $('#mw-vars-empty');
+
+  function renderVarsList() {
+    varsList.innerHTML = '';
+    if (state.data.variables.length === 0) {
+      varsEmpty.style.display = '';
+      return;
+    }
+    varsEmpty.style.display = 'none';
+
+    state.data.variables.forEach((v, idx) => {
+      const row = document.createElement('div');
+      row.className = 'mw-var-row';
+      row.dataset.missing = (!v.label || !v.example) ? 'true' : 'false';
+      row.innerHTML = `
+        <div class="mw-var-pos">{{${v.position}}}</div>
+        <input type="text" class="mw-input" placeholder="Label — e.g. patient name" value="${escapeHtml(v.label || '')}" data-var-field="label">
+        <input type="text" class="mw-input" placeholder="Example — e.g. Priya Shah" value="${escapeHtml(v.example || '')}" data-var-field="example">
+      `;
+      row.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => {
+          state.data.variables[idx][input.dataset.varField] = input.value;
+          $('#id_variables').value = JSON.stringify(state.data.variables);
+          row.dataset.missing = (!state.data.variables[idx].label || !state.data.variables[idx].example) ? 'true' : 'false';
+          syncPreviews();
+          validateStep(3);
+          persist();
+        });
+      });
+      varsList.appendChild(row);
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // Step 4 — Access
+  // ════════════════════════════════════════════════════════════
+  const clinicSection = $('#mw-clinic-section');
+  const clinicListRoot = $('#mw-clinic-list');
+  const clinicCount = $('#mw-clinic-count');
+
+  $$('.mw-access-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.mw-access-card').forEach(b => b.setAttribute('aria-pressed', 'false'));
+      btn.setAttribute('aria-pressed', 'true');
+      const scope = btn.dataset.access;
+      state.data.is_generic = (scope === 'generic') ? 'true' : '';
+      $('#id_is_generic').value = state.data.is_generic;
+      // Show / hide clinic list
+      clinicSection.style.display = (scope === 'generic') ? 'none' : '';
+      validateStep(4);
+      syncPreviews();
+      persist();
+    });
+  });
+
+  function updateClinicCount() {
+    const n = $$('input[name="clinics"]:checked', clinicListRoot).length;
+    clinicCount.textContent = n;
+    state.data.clinics = $$('input[name="clinics"]:checked', clinicListRoot).map(i => ({
+      id: i.value,
+      name: i.closest('.mw-clinic-row').querySelector('.mw-clinic-name').textContent,
+    }));
+    validateStep(4);
+    syncPreviews();
+    persist();
+  }
+  clinicListRoot?.addEventListener('change', e => {
+    if (e.target.matches('input[name="clinics"]')) {
+      e.target.closest('.mw-clinic-row').dataset.checked = e.target.checked ? 'true' : 'false';
+      updateClinicCount();
+    }
+  });
+  $('#mw-clinic-clear')?.addEventListener('click', () => {
+    $$('input[name="clinics"]:checked', clinicListRoot).forEach(i => {
+      i.checked = false;
+      i.closest('.mw-clinic-row').dataset.checked = 'false';
+    });
+    updateClinicCount();
+  });
+  $('#mw-clinic-search')?.addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    $$('.mw-clinic-row', clinicListRoot).forEach(row => {
+      const hit = !q || row.dataset.name.includes(q) || row.dataset.code.includes(q);
+      row.style.display = hit ? '' : 'none';
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // Step 5 — Review checklist
+  // ════════════════════════════════════════════════════════════
+  function renderChecklist() {
+    const checks = [];
+    // Name
+    if (!state.data.name) {
+      checks.push({ sev: 'error', title: 'Template name is required',
+                    desc: 'Pick a lowercase_with_underscores name in step 1.', goto: 1, field: 'name' });
+    } else if (!/^[a-z0-9_]+$/.test(state.data.name)) {
+      checks.push({ sev: 'error', title: 'Name has invalid characters',
+                    desc: 'Use only a-z, 0-9, and underscores. No spaces or uppercase.', goto: 1, field: 'name' });
+    } else {
+      checks.push({ sev: 'ok', title: 'Name looks valid',
+                    desc: state.data.name });
+    }
+    // Body
+    if (!state.data.body || !state.data.body.trim()) {
+      checks.push({ sev: 'error', title: 'Body is empty',
+                    desc: 'Write your message in step 2.', goto: 2, field: 'body' });
+    } else if (state.data.body.length > 1024) {
+      checks.push({ sev: 'error', title: 'Body too long',
+                    desc: `${state.data.body.length} of 1024 characters. Trim before submitting.`, goto: 2, field: 'body' });
+    } else {
+      checks.push({ sev: 'ok', title: 'Body within Meta limits',
+                    desc: `${state.data.body.length} characters` });
+      // Position checks
+      const trimmed = state.data.body.trim();
+      if (/^\{\{\d+\}\}/.test(trimmed)) {
+        checks.push({ sev: 'warn', title: 'Body starts with a variable',
+                      desc: 'Meta often rejects templates that start with a variable. Add some leading text.', goto: 2, field: 'body' });
+      }
+      if (/\{\{\d+\}\}$/.test(trimmed) && state.data.category !== 'AUTHENTICATION') {
+        checks.push({ sev: 'warn', title: 'Body ends with a variable',
+                      desc: 'Meta often rejects templates that end with a variable (unless Authentication category).', goto: 2, field: 'body' });
+      }
+    }
+    // Variables
+    const missing = state.data.variables.filter(v => !v.label || !v.example);
+    if (missing.length) {
+      checks.push({ sev: 'warn', title: `${missing.length} variable${missing.length > 1 ? 's' : ''} missing label or example`,
+                    desc: 'Examples help Meta approve faster.', goto: 3, field: 'variables' });
+    } else if (state.data.variables.length) {
+      checks.push({ sev: 'ok', title: 'All variables have labels and examples',
+                    desc: `${state.data.variables.length} variable${state.data.variables.length > 1 ? 's' : ''}` });
+    }
+    // Access
+    if (state.data.is_generic === 'true') {
+      checks.push({ sev: 'ok', title: 'Generic template — all clinics',
+                    desc: 'Available to every clinic on the platform.' });
+    } else if (state.data.clinics.length === 0) {
+      checks.push({ sev: 'error', title: 'No clinics linked',
+                    desc: 'Pick at least one clinic in step 4, or switch to Generic.', goto: 4, field: 'clinics' });
+    } else {
+      checks.push({ sev: 'ok', title: `${state.data.clinics.length} clinic${state.data.clinics.length > 1 ? 's' : ''} linked`,
+                    desc: state.data.clinics.map(c => c.name).join(', ') });
+    }
+    // Category-specific
+    if (state.data.category === 'MARKETING') {
+      checks.push({ sev: 'warn', title: 'Marketing category — slower approval',
+                    desc: 'Meta reviews Marketing templates more strictly. Expect delays.' });
+    }
+
+    const checklist = $('#mw-checklist');
+    checklist.innerHTML = checks.map(c => `
+      <div class="mw-check-row" data-sev="${c.sev}">
+        <span class="mw-check-icon">
+          ${c.sev === 'ok'    ? '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' :
+            c.sev === 'warn'  ? '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1l4 7H1l4-7zM5 4v2M5 7.2v.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' :
+                                '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 3v2.5M5 6.6v.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'}
+        </span>
+        <div class="mw-check-text">
+          <div class="mw-check-title">${escapeHtml(c.title)}</div>
+          <div class="mw-check-desc">${escapeHtml(c.desc)}</div>
+          ${c.goto ? `<button type="button" class="mw-check-fix" data-goto="${c.goto}" data-field="${c.field || ''}">Fix in step ${c.goto} →</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+
+    // Wire fix buttons
+    $$('.mw-check-fix', checklist).forEach(btn => {
+      btn.addEventListener('click', () => {
+        const goto = parseInt(btn.dataset.goto, 10);
+        const field = btn.dataset.field;
+        goToStep(goto, true);
+        if (field) {
+          setTimeout(() => {
+            const target = $(`[data-field="${field}"]`);
+            target?.classList.add('mw-flash');
+            setTimeout(() => target?.classList.remove('mw-flash'), 1300);
+            target?.querySelector('input, textarea, select, button')?.focus();
+          }, 200);
+        }
+      });
+    });
+
+    // Update review summary fields
+    $('#mw-rev-name').textContent = state.data.name || '—';
+    const catLabel = $$('.mw-cat').find(b => b.getAttribute('aria-pressed') === 'true')?.querySelector('.mw-cat-name').textContent || '—';
+    $('#mw-rev-meta').textContent = `${catLabel} · ${langSelect.options[langSelect.selectedIndex]?.text || ''}`;
+    $('#mw-rev-access').textContent = state.data.is_generic === 'true'
+      ? 'All clinics (generic)'
+      : `${state.data.clinics.length} clinic${state.data.clinics.length === 1 ? '' : 's'} linked`;
+
+    // Submit button enabled only if no errors
+    const hasErrors = checks.some(c => c.sev === 'error');
+    $('#mw-next').disabled = hasErrors;
+    $('#mw-next-label').textContent = hasErrors ? 'Fix errors above to submit' : 'Submit template';
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // Validation
+  // ════════════════════════════════════════════════════════════
+  function validateStep(n) {
+    let ok = false;
+    if (n === 1) {
+      ok = !!state.data.name && /^[a-z0-9_]+$/.test(state.data.name) && !!state.data.category && !!state.data.language;
+      $('[data-field="name"]').dataset.error = state.data.name && !/^[a-z0-9_]+$/.test(state.data.name) ? 'true' : 'false';
+    } else if (n === 2) {
+      ok = !!state.data.body && state.data.body.trim().length > 0 && state.data.body.length <= 1024;
+      $('[data-field="body"]').dataset.error = (state.data.body && state.data.body.length > 1024) ? 'true' : 'false';
+    } else if (n === 3) {
+      ok = state.data.variables.every(v => v.label && v.example);
+    } else if (n === 4) {
+      ok = state.data.is_generic === 'true' || state.data.clinics.length > 0;
+      $('[data-field="clinics"]').dataset.error = (state.data.is_generic !== 'true' && state.data.clinics.length === 0) ? 'true' : 'false';
+    } else if (n === 5) {
+      ok = state.valid[1] && state.valid[2] && state.valid[3] && state.valid[4];
+    }
+    state.valid[n] = ok;
+    updateRail();
+    return ok;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // Rail / step navigation
+  // ════════════════════════════════════════════════════════════
+  function updateRail() {
+    $$('.mw-rail-step').forEach(li => {
+      const n = parseInt(li.dataset.step, 10);
+      let st;
+      if (n === state.step) st = 'current';
+      else if (state.visited.has(n) && state.valid[n] === false && n < state.step) st = 'invalid';
+      else if (state.valid[n] === true && n < state.step) st = 'complete';
+      else if (state.visited.has(n)) st = state.valid[n] ? 'complete' : 'invalid';
+      else st = 'upcoming';
+      li.dataset.state = st;
+      // Render dot content
+      const dot = $('.mw-rail-dot', li);
+      if (st === 'complete') {
+        dot.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      } else if (st === 'invalid') {
+        dot.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1.5v3.5M5 7.2v.4" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="round"/></svg>';
+      } else {
+        dot.innerHTML = '';
+      }
+    });
+
+    // Progress thread fill — to current step
+    const total = STEPS.length;
+    const pct = ((state.step - 1) / (total - 1)) * 100;
+    $('#mw-rail').style.setProperty('--mw-progress', `${pct}%`);
+  }
+
+  function goToStep(n, force) {
+    if (n < 1 || n > STEPS.length) return;
+    // Can only jump forward to visited or next-valid steps
+    if (n > state.step && !force) {
+      if (!validateStep(state.step)) {
+        // Show error highlight on failing field
+        showErrorOnStep(state.step);
+        return;
+      }
+    }
+    state.visited.add(n);
+    state.step = n;
+    $$('.mw-step').forEach(sec => {
+      sec.hidden = parseInt(sec.dataset.step, 10) !== n;
+    });
+    $('#mw-step-now').textContent = n;
+    $('#mw-step-now-name').textContent = STEPS[n - 1].name;
+    $('#mw-prev').disabled = (n === 1);
+    if (n === STEPS.length) {
+      // last step — Submit
+      $('#mw-next-label').textContent = STEPS[n - 1].nextLabel;
+      renderChecklist();
+    } else {
+      $('#mw-next-label').textContent = STEPS[n - 1].nextLabel;
+    }
+    // Step-specific renders
+    if (n === 3) renderVarsList();
+    if (n === 5) renderChecklist();
+    updateRail();
+    // Focus first field
+    setTimeout(() => {
+      const focusable = $(`.mw-step[data-step="${n}"]`).querySelector('[autofocus], input, textarea, button');
+      focusable?.focus();
+    }, 50);
+  }
+
+  function showErrorOnStep(n) {
+    const fieldMap = {
+      1: state.data.name ? null : 'name',
+      2: 'body',
+      4: 'clinics',
+    };
+    const field = fieldMap[n];
+    if (field) {
+      const target = $(`[data-field="${field}"]`);
+      target?.classList.add('mw-flash');
+      setTimeout(() => target?.classList.remove('mw-flash'), 1300);
+    }
+  }
+
+  $('#mw-next').addEventListener('click', () => {
+    if (state.step === STEPS.length) {
+      // Submit
+      const allOk = [1, 2, 3, 4].every(n => validateStep(n));
+      if (!allOk) return;
+      // Clear draft
+      try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+      // Trigger the hidden Django save button
+      $('#mw-submit-real').click();
+      return;
+    }
+    goToStep(state.step + 1);
+  });
+  $('#mw-prev').addEventListener('click', () => goToStep(state.step - 1));
+
+  // Rail click — only allow jumping to visited steps
+  $$('.mw-rail-step').forEach(li => {
+    li.addEventListener('click', () => {
+      const n = parseInt(li.dataset.step, 10);
+      if (state.visited.has(n)) goToStep(n, true);
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // Keyboard
+  // ════════════════════════════════════════════════════════════
+  document.addEventListener('keydown', e => {
+    // Esc → cancel (back to list, clearing draft on confirm)
+    if (e.key === 'Escape' && !e.target.matches('input, textarea, select')) {
+      if (state.data.name || state.data.body) {
+        if (confirm('Discard this draft and return to the list?')) {
+          try { localStorage.removeItem(DRAFT_KEY); } catch (er) {}
+          window.location.href = '../';
+        }
+      } else {
+        window.location.href = '../';
+      }
+    }
+    // Cmd/Ctrl+Enter → submit if on step 5
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && state.step === STEPS.length) {
+      e.preventDefault();
+      $('#mw-next').click();
+    }
+    // Right arrow → next, Left → prev (only when not editing text)
+    if (!e.target.matches('input, textarea, select')) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); $('#mw-next').click(); }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); $('#mw-prev').click(); }
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // localStorage autosave
+  // ════════════════════════════════════════════════════════════
+  const persist = debounce(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        v: 1, savedAt: new Date().toISOString(), data: state.data,
+      }));
+      const ind = $('.mw-rail-save');
+      ind.dataset.state = 'saved';
+      $('.mw-rail-save-text', ind).textContent = 'Draft saved';
+    } catch (e) {
+      const ind = $('.mw-rail-save');
+      ind.dataset.state = 'error';
+      $('.mw-rail-save-text', ind).textContent = "Couldn't save";
+    }
+  }, 600);
+
+  function restoreDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.data) return;
+      const d = obj.data;
+      // Restore fields
+      state.data = { ...state.data, ...d };
+      if (d.name) { nameInput.value = d.name; $('#mw-rail-title').textContent = d.name; }
+      if (d.body) bodyInput.value = d.body;
+      if (d.category) {
+        $$('.mw-cat').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === d.category)));
+        $('#id_category').value = d.category;
+      }
+      if (d.language) langSelect.value = d.language;
+      if (d.is_generic !== undefined) {
+        $('#id_is_generic').value = d.is_generic;
+        $$('.mw-access-card').forEach(b => {
+          const match = (d.is_generic === 'true' && b.dataset.access === 'generic') ||
+                        (d.is_generic !== 'true' && b.dataset.access === 'clinic');
+          b.setAttribute('aria-pressed', String(match));
+        });
+        clinicSection.style.display = d.is_generic === 'true' ? 'none' : '';
+      }
+      if (d.clinics?.length) {
+        const ids = new Set(d.clinics.map(c => String(c.id)));
+        $$('input[name="clinics"]', clinicListRoot).forEach(input => {
+          if (ids.has(input.value)) {
+            input.checked = true;
+            input.closest('.mw-clinic-row').dataset.checked = 'true';
+          }
+        });
+        updateClinicCount();
+      }
+      updateBodyDeps();
+      $('.mw-rail-save').dataset.state = 'saved';
+      $('.mw-rail-save-text').textContent = 'Draft restored';
+    } catch (e) { console.warn('Draft restore failed', e); }
+  }
+
+  // Warn on unload if dirty
+  window.addEventListener('beforeunload', e => {
+    if (state.data.name || state.data.body) {
+      // We have a draft saved — no warning needed
+      // (Stock browser warning is fine here)
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // Init
+  // ════════════════════════════════════════════════════════════
+  restoreDraft();
+  // Initial validate + rail
+  [1, 2, 3, 4].forEach(validateStep);
+  goToStep(state.step);
+  // Trigger initial body / preview render
+  updateBodyDeps();
+})();
+</script>
+{% endverbatim %}
+
+{% else %}
+  {# ─── Edit mode: fall through to stock Django form ─── #}
+  {{ block.super }}
+{% endif %}
+{% endblock %}

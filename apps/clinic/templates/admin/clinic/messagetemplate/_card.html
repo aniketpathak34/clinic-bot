@@ -1,0 +1,63 @@
+{% load mt %}
+{# Single template card — used in grid + list view via parent [data-view] #}
+<article class="mt-card"
+         data-id="{{ tpl.pk }}"
+         data-href="{{ tpl.pk }}/change/"
+         data-name="{{ tpl.name }}"
+         data-body="{{ tpl.body }}"
+         data-status="{{ tpl.status }}"
+         data-category="{{ tpl.category }}"
+         data-scope="{% if tpl.is_generic %}generic{% else %}clinic{% endif %}"
+         data-lang="{{ tpl.language }}"
+         data-updated="{{ tpl.updated_at|mt_timestamp }}"
+         data-needs-attention="{% if tpl|mt_needs_attention %}1{% else %}0{% endif %}"
+         data-hidden="0"
+         tabindex="0"
+         role="article"
+         aria-labelledby="mt-card-{{ tpl.pk }}-name">
+
+  <header class="mt-card-head">
+    <label class="mt-check" aria-label="Select {{ tpl.name }}" onclick="event.stopPropagation();">
+      <input type="checkbox">
+      <span class="mt-check-box" aria-hidden="true"></span>
+    </label>
+    <span class="mt-lang">{{ tpl.language|upper }}</span>
+    <button type="button" class="mt-kebab" aria-haspopup="menu" aria-label="Actions for {{ tpl.name }}" onclick="event.stopPropagation();">⋮</button>
+  </header>
+
+  <h3 id="mt-card-{{ tpl.pk }}-name" class="mt-card-name" title="{{ tpl.name }}">{{ tpl.name }}</h3>
+
+  <div class="mt-card-badges">
+    {# Status pill #}
+    {% if tpl.status == 'approved' %}
+      <span class="mt-pill mt-pill--success"><span class="mt-pill-dot"></span>Approved</span>
+    {% elif tpl.status == 'pending' %}
+      <span class="mt-pill mt-pill--warning"><span class="mt-pill-dot"></span>Pending</span>
+    {% elif tpl.status == 'rejected' %}
+      <span class="mt-pill mt-pill--danger"><span class="mt-pill-dot"></span>Rejected</span>
+    {% elif tpl.status == 'paused' %}
+      <span class="mt-pill mt-pill--accent"><span class="mt-pill-dot"></span>Paused</span>
+    {% elif tpl.status == 'draft' %}
+      <span class="mt-pill"><span class="mt-pill-dot"></span>Draft</span>
+    {% else %}
+      <span class="mt-pill"><span class="mt-pill-dot"></span>{{ tpl.get_status_display }}</span>
+    {% endif %}
+
+    {# Category pill — indigo for marketing (high rejection risk), quiet for others #}
+    {% if tpl.category == 'MARKETING' %}
+      <span class="mt-pill mt-pill--accent">{{ tpl.get_category_display }}</span>
+    {% else %}
+      <span class="mt-pill">{{ tpl.get_category_display }}</span>
+    {% endif %}
+  </div>
+
+  <p class="mt-card-body">{{ tpl.body|mt_body:180 }}</p>
+
+  <footer class="mt-card-foot">
+    {% with n=tpl.body|mt_var_count %}
+      {% if n %}<span class="mt-card-chip">{{ n }} var{% if n != 1 %}s{% endif %}</span>{% endif %}
+    {% endwith %}
+    <span class="mt-card-chip">{{ tpl|mt_scope_label }}</span>
+    <time datetime="{{ tpl.updated_at|date:'c' }}" title="{{ tpl.updated_at|date:'F j, Y · H:i' }}">{{ tpl.updated_at|timesince }} ago</time>
+  </footer>
+</article>

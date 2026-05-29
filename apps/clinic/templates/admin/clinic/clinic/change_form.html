@@ -1,0 +1,1035 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  /* ════════════════════════════════════════════════════════════
+     Clinic detail · world-class restraint
+     ────────────────────────────────────────────────────────────
+     Design system inspired by Linear / Vercel / Cal.com:
+     • Zinc grayscale (slightly warm neutrals — feels like a product)
+     • ONE accent: refined indigo, used only on focus + primary
+     • No gradients, no glows, no decorative noise
+     • Hierarchy through type & spacing, never through color
+     ════════════════════════════════════════════════════════════ */
+
+  :root {
+    /* Zinc palette */
+    --bg:            #09090b;
+    --surface:       #131316;
+    --surface-2:     #18181b;
+    --surface-3:     #1f1f23;
+    --border:        #232327;
+    --border-2:      #2e2e33;
+    --border-3:      #3f3f46;
+    --text:          #fafafa;
+    --text-2:        #a1a1aa;
+    --text-3:        #71717a;
+    --text-4:        #52525b;
+
+    /* Accent — soft indigo */
+    --accent:        #818cf8;
+    --accent-hover:  #6366f1;
+    --accent-soft:   rgba(129,140,248,.12);
+    --accent-ring:   rgba(129,140,248,.22);
+
+    /* Semantic */
+    --success:       #34d399;
+    --warning:       #fbbf24;
+    --danger:        #f87171;
+
+    --r:             8px;
+    --r-sm:          6px;
+  }
+
+  /* ─── Kill Django stock chrome ─── */
+  #content > h1, #content-related, .breadcrumbs { display: none !important; }
+  #content { background: transparent !important; padding: 32px 32px 140px !important; }
+  .change-form #content { max-width: 880px; margin: 0 auto; }
+  .module h2, .inline-group h2 { display: none !important; }
+  .module, fieldset.module {
+    background: transparent !important; border: 0 !important;
+    margin: 0 !important; padding: 0 !important;
+  }
+  fieldset .description { display: none !important; }
+  .form-row {
+    background: transparent !important; border: 0 !important;
+    padding: 0 !important; overflow: visible !important;
+  }
+  .form-row > div { padding: 0 !important; }
+  .submit-row { display: none !important; }
+  .errornote { display: none; }
+  .help { display: none !important; }
+  label { font: inherit !important; color: inherit !important; }
+
+  .cc { font-feature-settings: 'cv02','cv03','cv04','cv11','ss01','tnum'; }
+
+  /* ════════════════════════════════════════════════════════════
+     HERO
+     ════════════════════════════════════════════════════════════ */
+  .cc-hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    margin-bottom: 20px;
+  }
+  .cc-hero-top {
+    display: flex; align-items: center; gap: 14px;
+    padding: 20px 24px;
+  }
+  .cc-avatar {
+    width: 40px; height: 40px;
+    border-radius: var(--r-sm);
+    background: var(--surface-3);
+    border: 1px solid var(--border-2);
+    color: var(--text); font-weight: 500; font-size: 14px;
+    letter-spacing: -.02em;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  }
+  .cc-titleblock { flex: 1; min-width: 0; }
+  .cc-h1 {
+    color: var(--text); font-size: 18px; font-weight: 600;
+    letter-spacing: -.015em; line-height: 1.25; margin: 0;
+  }
+  .cc-codes {
+    margin-top: 2px;
+    color: var(--text-3); font-size: 12px;
+    font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  }
+  .cc-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500;
+    color: var(--text-2);
+    flex-shrink: 0;
+  }
+  .cc-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-4); }
+  .cc-status.on  { color: #4ade80; }
+  .cc-status.on  .cc-status-dot { background: var(--success); }
+  .cc-status.off { color: #facc15; }
+  .cc-status.off .cc-status-dot { background: var(--warning); }
+
+  /* Meta — secondary info row */
+  .cc-meta {
+    padding: 0 24px 18px;
+    color: var(--text-3); font-size: 13px;
+    display: flex; flex-wrap: wrap; gap: 16px;
+  }
+  .cc-meta > span { display: inline-flex; align-items: center; gap: 6px; }
+  .cc-meta-icon { width: 13px; height: 13px; color: var(--text-4); stroke-width: 1.75; flex-shrink: 0; }
+  .cc-meta b { color: var(--text-2); font-weight: 400; }
+
+  /* Stats — clean inline row, separator only */
+  .cc-stats {
+    padding: 18px 24px;
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 24px;
+  }
+  .cc-stat { min-width: 0; }
+  .cc-stat-lbl {
+    color: var(--text-3); font-size: 11.5px;
+    margin-bottom: 6px;
+  }
+  .cc-stat-num {
+    color: var(--text); font-size: 22px; font-weight: 600;
+    letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .cc-stat-sub {
+    color: var(--text-3); font-size: 11.5px; margin-top: 4px;
+  }
+  .cc-stat-sub b { color: var(--text-2); font-weight: 500; }
+
+  /* Actions */
+  .cc-actions {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .cc-action {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    color: var(--text-2);
+    font-size: 12.5px; font-weight: 500;
+    text-decoration: none !important;
+    transition: all .12s ease;
+  }
+  .cc-action:hover {
+    background: var(--surface-3); color: var(--text);
+    text-decoration: none;
+  }
+  .cc-action.primary {
+    background: var(--text); color: var(--bg);
+    border-color: var(--text); font-weight: 500;
+    padding: 6px 12px;
+  }
+  .cc-action.primary:hover {
+    background: #e4e4e7; color: var(--bg);
+    border-color: #e4e4e7;
+  }
+  .cc-action-icon { width: 13px; height: 13px; stroke-width: 1.75; }
+
+  /* ════════════════════════════════════════════════════════════
+     FORM SECTIONS
+     ════════════════════════════════════════════════════════════ */
+  .cc-form { display: flex; flex-direction: column; gap: 16px; }
+
+  .cc-sec {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 24px;
+    scroll-margin-top: 80px;
+  }
+  .cc-sec-head { margin-bottom: 20px; }
+  .cc-sec-title {
+    color: var(--text); font-size: 14px; font-weight: 600;
+    margin: 0; letter-spacing: -.01em;
+  }
+  .cc-sec-desc {
+    color: var(--text-3); font-size: 12.5px; line-height: 1.55;
+    margin-top: 4px;
+  }
+  .cc-sec-desc code {
+    background: var(--bg); padding: 1.5px 5px;
+    border-radius: 4px; border: 1px solid var(--border);
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    font-size: 11.5px; color: var(--text-2);
+  }
+  .cc-sec-desc b { color: var(--text-2); font-weight: 500; }
+
+  /* Collapsible "Advanced" */
+  .cc-sec.collapsible .cc-sec-head {
+    cursor: pointer; user-select: none;
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 0;
+  }
+  .cc-sec.collapsible .cc-sec-head::after {
+    content: ""; width: 8px; height: 8px;
+    border-right: 1.5px solid var(--text-3);
+    border-bottom: 1.5px solid var(--text-3);
+    transform: rotate(45deg);
+    transition: transform .15s ease;
+  }
+  .cc-sec.collapsible.collapsed .cc-sec-head::after { transform: rotate(-45deg); }
+  .cc-sec.collapsible:not(.collapsed) .cc-sec-head { margin-bottom: 20px; }
+  .cc-sec.collapsible.collapsed .cc-sec-body { display: none; }
+
+  .cc-sec-body { display: flex; flex-direction: column; gap: 18px; }
+
+  /* Field */
+  .cc-field { display: flex; flex-direction: column; gap: 6px; }
+  .cc-field[data-auto-derived] { display: none !important; }
+  .cc-label {
+    color: var(--text); font-size: 13px; font-weight: 500;
+    line-height: 1.4;
+  }
+  .cc-label .cc-required { color: var(--danger); margin-left: 2px; }
+  .cc-help {
+    color: var(--text-3); font-size: 12px; line-height: 1.55;
+  }
+  .cc-help code {
+    background: var(--bg); padding: 1px 5px;
+    border-radius: 4px; border: 1px solid var(--border);
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .cc-error { color: var(--danger); font-size: 12px; }
+  .cc-error ul { margin: 0; padding-left: 16px; }
+
+  /* Inputs — refined */
+  .cc-sec input[type="text"],
+  .cc-sec input[type="url"],
+  .cc-sec input[type="email"],
+  .cc-sec input[type="number"],
+  .cc-sec input[type="password"],
+  .cc-sec textarea,
+  .cc-sec select {
+    width: 100% !important; box-sizing: border-box;
+    background: var(--bg) !important;
+    border: 1px solid var(--border-2) !important;
+    border-radius: var(--r-sm) !important;
+    padding: 8px 12px !important;
+    color: var(--text) !important;
+    font: inherit !important;
+    font-size: 13.5px !important; line-height: 1.5 !important;
+    margin: 0 !important; max-width: none !important;
+    height: auto !important; min-height: 0 !important;
+    box-shadow: none !important;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .cc-sec input:hover, .cc-sec textarea:hover { border-color: var(--border-3) !important; }
+  .cc-sec textarea {
+    min-height: 78px !important; resize: vertical;
+    font-family: ui-monospace, 'JetBrains Mono', monospace !important;
+    font-size: 12.5px !important;
+  }
+  .cc-sec input:focus, .cc-sec textarea:focus, .cc-sec select:focus {
+    outline: none !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-ring) !important;
+  }
+  .cc-sec input::placeholder, .cc-sec textarea::placeholder { color: var(--text-4) !important; }
+
+  .cc-sec select {
+    appearance: none !important; -webkit-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2371717a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 10px !important;
+    padding-right: 34px !important; cursor: pointer;
+  }
+
+  .cc-field.short input { max-width: 200px !important; }
+
+  .cc-sec input[type="checkbox"] {
+    width: 16px !important; height: 16px !important;
+    accent-color: var(--accent); cursor: pointer; margin: 0;
+  }
+  .cc-checkbox-row { display: flex; align-items: center; gap: 10px; }
+  .cc-checkbox-row .cc-label { margin: 0; }
+
+  /* ════════════════════════════════════════════════════════════
+     SCHEDULE EDITOR
+     ════════════════════════════════════════════════════════════ */
+
+  /* Auto-derived preview */
+  .cc-auto {
+    display: flex; gap: 32px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    margin-bottom: 16px;
+    align-items: baseline;
+  }
+  .cc-auto-item { display: flex; flex-direction: column; gap: 2px; }
+  .cc-auto-lbl {
+    color: var(--text-3); font-size: 11px;
+  }
+  .cc-auto-val {
+    color: var(--text); font-size: 13px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .cc-auto-tag {
+    margin-left: auto;
+    font-size: 10.5px; color: var(--text-4);
+    padding: 3px 7px; border-radius: 4px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    align-self: center;
+  }
+
+  .cc-sched {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+  }
+  .cc-sched-tools {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .cc-sched-tools-lbl { color: var(--text-3); font-size: 12px; margin-right: 6px; }
+  .cc-sched-preset {
+    background: transparent; border: 1px solid var(--border-2);
+    color: var(--text-2);
+    padding: 4px 9px; border-radius: 5px;
+    font: inherit; font-size: 11.5px; font-weight: 500;
+    cursor: pointer; transition: all .12s ease;
+  }
+  .cc-sched-preset:hover { border-color: var(--border-3); color: var(--text); }
+
+  /* Day row */
+  .cc-day {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    min-height: 50px;
+  }
+  .cc-day:last-child { border-bottom: 0; }
+  .cc-day.closed .cc-day-name { color: var(--text-3); }
+
+  .cc-day-name {
+    color: var(--text); font-size: 13px; font-weight: 500;
+    width: 86px; flex-shrink: 0;
+  }
+
+  /* Toggle */
+  .cc-switch {
+    display: inline-flex; align-items: center;
+    cursor: pointer; user-select: none;
+    flex-shrink: 0;
+  }
+  .cc-switch input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+  .cc-switch-track {
+    width: 26px; height: 15px;
+    background: var(--surface-3);
+    border-radius: 999px;
+    position: relative;
+    transition: background .15s ease;
+    display: inline-block;
+  }
+  .cc-switch-thumb {
+    position: absolute; top: 2px; left: 2px;
+    width: 11px; height: 11px;
+    background: var(--text-3);
+    border-radius: 50%;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .cc-switch input:checked + .cc-switch-track { background: var(--accent); }
+  .cc-switch input:checked + .cc-switch-track .cc-switch-thumb {
+    transform: translateX(11px); background: #fff;
+  }
+  .cc-switch input:focus + .cc-switch-track { box-shadow: 0 0 0 3px var(--accent-ring); }
+
+  .cc-shifts {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    flex: 1; min-width: 0; align-items: center;
+  }
+  .cc-shift {
+    display: inline-flex; align-items: stretch;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+    transition: border-color .12s ease;
+  }
+  .cc-shift:hover { border-color: var(--border-3); }
+  .cc-shift:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-ring); }
+
+  .cc-timebtn {
+    background: transparent;
+    border: 0;
+    padding: 5px 10px;
+    color: var(--text);
+    font: inherit;
+    font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer; line-height: 1.4;
+    transition: background .12s ease;
+  }
+  .cc-timebtn:hover { background: var(--surface-3); }
+  .cc-timebtn.open { background: var(--accent-soft); color: var(--text); }
+  .cc-shift-arrow {
+    color: var(--text-3); font-size: 11px;
+    padding: 0; align-self: center; user-select: none;
+  }
+  .cc-shift-rm {
+    background: transparent; border: 0;
+    color: var(--text-3);
+    width: 24px; padding: 0;
+    cursor: pointer; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-left: 1px solid var(--border-2);
+    transition: all .12s ease;
+  }
+  .cc-shift-rm:hover { background: rgba(248,113,113,.12); color: #fca5a5; }
+  .cc-shift-rm svg { width: 10px; height: 10px; }
+
+  .cc-shift-add {
+    background: transparent; border: 1px dashed var(--border-3);
+    color: var(--text-3);
+    width: 28px; height: 28px;
+    border-radius: var(--r-sm); padding: 0;
+    cursor: pointer;
+    transition: all .12s ease;
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cc-shift-add:hover {
+    border-color: var(--accent); color: var(--accent);
+    border-style: solid;
+  }
+  .cc-shift-add svg { width: 11px; height: 11px; }
+
+  .cc-closed-text {
+    color: var(--text-3); font-size: 12.5px;
+    flex: 1;
+  }
+
+  /* Per-day menu */
+  .cc-day-menu { position: relative; flex-shrink: 0; }
+  .cc-day-menu-btn {
+    background: transparent; border: 0;
+    color: var(--text-3);
+    width: 26px; height: 26px;
+    border-radius: var(--r-sm); padding: 0;
+    cursor: pointer; font: inherit;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all .12s ease;
+  }
+  .cc-day-menu-btn:hover { background: var(--surface-2); color: var(--text); }
+  .cc-day-menu-btn svg { width: 14px; height: 14px; }
+  .cc-day-menu-drop {
+    position: absolute; top: calc(100% + 4px); right: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-sm);
+    box-shadow: 0 10px 24px -6px rgba(0,0,0,.4);
+    padding: 4px; min-width: 200px;
+    z-index: 50; display: none;
+  }
+  .cc-day-menu.open .cc-day-menu-drop { display: block; }
+  .cc-day-menu-item {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: 0;
+    padding: 7px 10px; border-radius: 4px;
+    color: var(--text-2); font: inherit; font-size: 12.5px;
+    cursor: pointer;
+  }
+  .cc-day-menu-item:hover { background: var(--surface-3); color: var(--text); }
+  .cc-day-menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* Time picker dropdown */
+  .cc-timedrop {
+    position: absolute;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-sm);
+    box-shadow: 0 10px 24px -6px rgba(0,0,0,.4);
+    width: 124px; max-height: 224px;
+    overflow-y: auto; padding: 4px;
+    z-index: 60;
+  }
+  .cc-timedrop-item {
+    padding: 6px 10px; border-radius: 4px;
+    color: var(--text-2); font: inherit;
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    font-size: 12.5px; font-variant-numeric: tabular-nums;
+    cursor: pointer; line-height: 1.4;
+    display: flex; justify-content: space-between;
+  }
+  .cc-timedrop-item:hover { background: var(--surface-3); color: var(--text); }
+  .cc-timedrop-item.selected { color: var(--accent); }
+  .cc-timedrop-item .ampm {
+    font-size: 10.5px; color: var(--text-4); font-family: inherit;
+  }
+  .cc-timedrop::-webkit-scrollbar { width: 6px; }
+  .cc-timedrop::-webkit-scrollbar-thumb { background: var(--border-3); border-radius: 3px; }
+
+  /* Slot duration chips */
+  .cc-chips {
+    display: inline-flex; gap: 4px;
+    background: var(--surface-2); border: 1px solid var(--border-2);
+    border-radius: var(--r-sm); padding: 3px;
+  }
+  .cc-chip {
+    background: transparent; border: 0;
+    padding: 5px 12px; border-radius: 4px;
+    color: var(--text-2); font: inherit;
+    font-size: 12.5px; font-weight: 500;
+    cursor: pointer; transition: all .12s ease;
+    font-variant-numeric: tabular-nums;
+  }
+  .cc-chip:hover { color: var(--text); }
+  .cc-chip.active { background: var(--surface-3); color: var(--text); }
+
+  /* ════════════════════════════════════════════════════════════
+     SAVE BAR
+     ════════════════════════════════════════════════════════════ */
+  .cc-savebar {
+    position: sticky; bottom: 24px;
+    margin-top: 28px;
+    background: rgba(19,19,22,.85);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r);
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 8px 28px -8px rgba(0,0,0,.5);
+    z-index: 30;
+  }
+  .cc-savebar-msg {
+    color: var(--text-2); font-size: 12.5px; flex: 1;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cc-savebar-msg b { color: var(--text); font-weight: 500; }
+  .cc-kbd {
+    display: inline-flex; align-items: center;
+    padding: 1px 5px; border-radius: 3px;
+    background: var(--surface-3); border: 1px solid var(--border-2);
+    color: var(--text-3); font-size: 10.5px; font-weight: 500;
+    font-family: ui-monospace, monospace;
+  }
+
+  .cc-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 13px; border-radius: var(--r-sm);
+    font: inherit; font-size: 12.5px; font-weight: 500;
+    text-decoration: none !important;
+    border: 1px solid var(--border-2);
+    background: var(--surface-2); color: var(--text);
+    cursor: pointer;
+    transition: all .12s ease;
+  }
+  .cc-btn:hover { border-color: var(--border-3); background: var(--surface-3); }
+  .cc-btn-primary {
+    background: var(--text); color: var(--bg);
+    border-color: var(--text); font-weight: 500;
+  }
+  .cc-btn-primary:hover {
+    background: #e4e4e7; border-color: #e4e4e7;
+  }
+  .cc-btn-danger {
+    background: transparent; color: #fca5a5;
+    border-color: transparent;
+  }
+  .cc-btn-danger:hover { background: rgba(248,113,113,.08); color: #fca5a5; }
+</style>
+{% endblock %}
+
+{% block content_subtitle %}{{ block.super }}
+{% if original %}
+{% with has_wa=original.display_phone_number|default:original.whatsapp_number %}
+<div class="cc cc-hero">
+
+  <div class="cc-hero-top">
+    <div class="cc-avatar">{{ original.name|slice:":2"|upper }}</div>
+    <div class="cc-titleblock">
+      <h1 class="cc-h1">{{ original.name }}</h1>
+      <div class="cc-codes">{{ original.clinic_code }} · ID #{{ original.pk }}</div>
+    </div>
+    {% if has_wa %}
+      <span class="cc-status on"><span class="cc-status-dot"></span>Active</span>
+    {% else %}
+      <span class="cc-status off"><span class="cc-status-dot"></span>Setup needed</span>
+    {% endif %}
+  </div>
+
+  <div class="cc-meta">
+    {% if has_wa %}
+    <span>
+      <svg class="cc-meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.37 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0122 16.92z"/></svg>
+      <b>+{{ has_wa }}</b>
+    </span>
+    {% endif %}
+    {% if original.address %}
+    <span>
+      <svg class="cc-meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <b>{{ original.address|truncatechars:50 }}</b>
+    </span>
+    {% endif %}
+    <span>
+      <svg class="cc-meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Added <b>{{ original.created_at|date:"d M Y" }}</b>
+    </span>
+  </div>
+
+  <div class="cc-stats">
+    <div class="cc-stat">
+      <div class="cc-stat-lbl">Doctors</div>
+      <div class="cc-stat-num">{{ cc.doctors_total }}</div>
+      <div class="cc-stat-sub"><b>{{ cc.doctors_registered }}</b> registered</div>
+    </div>
+    <div class="cc-stat">
+      <div class="cc-stat-lbl">Appointments</div>
+      <div class="cc-stat-num">{{ cc.appts_total }}</div>
+      <div class="cc-stat-sub"><b>{{ cc.appts_today }}</b> today</div>
+    </div>
+    <div class="cc-stat">
+      <div class="cc-stat-lbl">Slots · 7d</div>
+      <div class="cc-stat-num">{{ cc.slots_unbooked_7d }}</div>
+      <div class="cc-stat-sub"><b>{{ cc.slots_booked_7d }}</b> booked</div>
+    </div>
+    <div class="cc-stat">
+      <div class="cc-stat-lbl">Patients</div>
+      <div class="cc-stat-num">{{ cc.patients_total }}</div>
+      <div class="cc-stat-sub">unique</div>
+    </div>
+    <div class="cc-stat">
+      <div class="cc-stat-lbl">No-shows · 30d</div>
+      <div class="cc-stat-num">{{ cc.no_shows_30d }}</div>
+      <div class="cc-stat-sub">missed</div>
+    </div>
+  </div>
+
+  <div class="cc-actions">
+    {% if has_wa %}
+      <a class="cc-action primary" href="https://wa.me/{{ has_wa }}" target="_blank">
+        <svg class="cc-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+        Open WhatsApp
+      </a>
+    {% endif %}
+    {% if original.location_map_url %}
+      <a class="cc-action" href="{{ original.location_map_url }}" target="_blank">View map</a>
+    {% endif %}
+    <a class="cc-action" href="{% url 'admin:clinic_doctor_changelist' %}?clinic__id__exact={{ original.pk }}">Doctors</a>
+    <a class="cc-action" href="{% url 'admin:clinic_appointment_changelist' %}?clinic__id__exact={{ original.pk }}">Appointments</a>
+    <a class="cc-action" href="{% url 'admin:clinic_availableslot_changelist' %}?doctor__clinic__id__exact={{ original.pk }}">Slots</a>
+  </div>
+</div>
+{% endwith %}
+{% endif %}
+{% endblock %}
+
+{% block field_sets %}
+  <div class="cc cc-form">
+    {% for fieldset in adminform %}
+      {% if 'collapse' in fieldset.classes %}
+        <section id="sec-{{ forloop.counter }}" class="cc-sec collapsible collapsed">
+      {% else %}
+        <section id="sec-{{ forloop.counter }}" class="cc-sec">
+      {% endif %}
+        <div class="cc-sec-head">
+          <div>
+            <h3 class="cc-sec-title">{{ fieldset.name }}</h3>
+            {% if fieldset.description %}
+              <div class="cc-sec-desc">{{ fieldset.description|safe }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="cc-sec-body">
+          {% for line in fieldset %}
+            {% for field in line %}
+              {% if field.field.field.widget.input_type == 'checkbox' %}
+                <div class="cc-field">
+                  <div class="cc-checkbox-row">
+                    {{ field.field }}
+                    <label class="cc-label" for="{{ field.field.id_for_label }}">{{ field.field.label }}</label>
+                  </div>
+                  {% if field.field.help_text %}<div class="cc-help">{{ field.field.help_text|safe }}</div>{% endif %}
+                  {% if field.field.errors %}<div class="cc-error">{{ field.field.errors }}</div>{% endif %}
+                </div>
+              {% else %}
+                <div class="cc-field{% if 'minutes' in field.field.name or 'code' in field.field.name %} short{% endif %}">
+                  <label class="cc-label" for="{{ field.field.id_for_label }}">
+                    {{ field.field.label }}{% if field.field.field.required %}<span class="cc-required">*</span>{% endif %}
+                  </label>
+                  {{ field.field }}
+                  {% if field.field.help_text %}<div class="cc-help">{{ field.field.help_text|safe }}</div>{% endif %}
+                  {% if field.field.errors %}<div class="cc-error">{{ field.field.errors }}</div>{% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+
+  <div class="cc cc-savebar">
+    <div class="cc-savebar-msg">
+      {% if original %}Editing <b>{{ original.name }}</b>{% else %}New clinic{% endif %}
+      <span style="color:var(--text-3);">·</span>
+      <span style="color:var(--text-3);">Press <span class="cc-kbd">⌘</span><span class="cc-kbd">S</span> to save</span>
+    </div>
+    {% if original and has_delete_permission %}
+      <a class="cc-btn cc-btn-danger" href="delete/">Delete</a>
+    {% endif %}
+    <button type="submit" name="_continue" class="cc-btn">Save &amp; continue</button>
+    <button type="submit" name="_save" class="cc-btn cc-btn-primary">Save changes</button>
+  </div>
+{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* Collapsible advanced section */
+  document.querySelectorAll('.cc-sec.collapsible .cc-sec-head').forEach(function (head) {
+    head.addEventListener('click', function () {
+      head.parentElement.classList.toggle('collapsed');
+    });
+  });
+
+  /* ⌘S / Ctrl+S */
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      var save = document.querySelector('button[name="_save"]');
+      if (save) save.click();
+    }
+  });
+
+  /* ─── Schedule editor — operating_hours custom widget ────────── */
+  var textarea = document.getElementById('id_operating_hours');
+  if (!textarea) return;
+
+  var DAYS = [
+    ['mon','Monday','Mon'], ['tue','Tuesday','Tue'], ['wed','Wednesday','Wed'],
+    ['thu','Thursday','Thu'], ['fri','Friday','Fri'], ['sat','Saturday','Sat'],
+    ['sun','Sunday','Sun'],
+  ];
+  var DEFAULT_OPEN_RANGE = ['09:00','13:00'];
+  var DEFAULT_HOURS = {
+    mon:[['09:00','13:00'],['16:00','21:00']],
+    tue:[['09:00','13:00'],['16:00','21:00']],
+    wed:[['09:00','13:00'],['16:00','21:00']],
+    thu:[['09:00','13:00'],['16:00','21:00']],
+    fri:[['09:00','13:00'],['16:00','21:00']],
+    sat:[['09:00','13:00']],
+    sun:[],
+  };
+
+  var data;
+  try {
+    var p = JSON.parse(textarea.value || '{}');
+    data = (p && typeof p === 'object' && !Array.isArray(p)) ? p : {};
+  } catch (e) { data = {}; }
+  if (!Object.keys(data).length) data = JSON.parse(JSON.stringify(DEFAULT_HOURS));
+  DAYS.forEach(function (d) { if (!Array.isArray(data[d[0]])) data[d[0]] = []; });
+
+  textarea.style.display = 'none';
+  var wdField = document.getElementById('id_working_days');
+  var whField = document.getElementById('id_working_hours');
+  if (wdField) wdField.closest('.cc-field').setAttribute('data-auto-derived','1');
+  if (whField) whField.closest('.cc-field').setAttribute('data-auto-derived','1');
+
+  /* Auto-derived display row */
+  var auto = document.createElement('div');
+  auto.className = 'cc-auto';
+  auto.innerHTML =
+    '<div class="cc-auto-item"><span class="cc-auto-lbl">Working days</span>'
+    + '<span class="cc-auto-val" data-auto="days">—</span></div>'
+    + '<div class="cc-auto-item"><span class="cc-auto-lbl">Working hours</span>'
+    + '<span class="cc-auto-val" data-auto="hours">—</span></div>'
+    + '<div class="cc-auto-tag">auto</div>';
+  var autoDays = auto.querySelector('[data-auto="days"]');
+  var autoHours = auto.querySelector('[data-auto="hours"]');
+
+  /* Editor */
+  var editor = document.createElement('div');
+  editor.className = 'cc-sched';
+
+  var tools = document.createElement('div');
+  tools.className = 'cc-sched-tools';
+  tools.innerHTML = '<span class="cc-sched-tools-lbl">Quick fill</span>';
+  function preset(label, fn) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'cc-sched-preset'; b.textContent = label;
+    b.addEventListener('click', function () { fn(); render(); sync(); });
+    tools.appendChild(b);
+  }
+  preset('Mon → weekdays', function () {
+    var src = data.mon.length ? data.mon : [DEFAULT_OPEN_RANGE.slice()];
+    ['tue','wed','thu','fri'].forEach(function (k) { data[k] = JSON.parse(JSON.stringify(src)); });
+  });
+  preset('Mon → all 7 days', function () {
+    var src = data.mon.length ? data.mon : [DEFAULT_OPEN_RANGE.slice()];
+    ['tue','wed','thu','fri','sat','sun'].forEach(function (k) { data[k] = JSON.parse(JSON.stringify(src)); });
+  });
+  preset('Close Sunday', function () { data.sun = []; });
+  preset('Close weekend', function () { data.sat = []; data.sun = []; });
+  preset('Reset defaults', function () { data = JSON.parse(JSON.stringify(DEFAULT_HOURS)); });
+  editor.appendChild(tools);
+
+  /* Time picker dropdown */
+  var TIME_OPTIONS = (function () {
+    var out = [];
+    for (var h = 0; h < 24; h++) for (var m = 0; m < 60; m += 30) {
+      var hh = (h<10?'0':'')+h, mm = (m<10?'0':'')+m;
+      var hr12 = h%12||12, ampm = h<12?'AM':'PM';
+      out.push({ v: hh+':'+mm, lbl: hr12+':'+mm, ampm: ampm });
+    }
+    return out;
+  })();
+  var openDrop = null;
+  function closeDrop() {
+    if (openDrop) { openDrop.btn.classList.remove('open'); openDrop.el.remove(); openDrop = null; }
+  }
+  document.addEventListener('click', function (e) {
+    if (openDrop && !openDrop.el.contains(e.target) && e.target !== openDrop.btn) closeDrop();
+    document.querySelectorAll('.cc-day-menu.open').forEach(function (m) {
+      if (!m.contains(e.target)) m.classList.remove('open');
+    });
+  });
+  function openTimePicker(btn, currentValue, onPick) {
+    closeDrop();
+    btn.classList.add('open');
+    var drop = document.createElement('div');
+    drop.className = 'cc-timedrop';
+    TIME_OPTIONS.forEach(function (t) {
+      var item = document.createElement('div');
+      item.className = 'cc-timedrop-item' + (t.v === currentValue ? ' selected' : '');
+      item.innerHTML = '<span>' + t.v + '</span><span class="ampm">' + t.ampm + '</span>';
+      item.addEventListener('click', function () { onPick(t.v); closeDrop(); });
+      drop.appendChild(item);
+    });
+    document.body.appendChild(drop);
+    var r = btn.getBoundingClientRect();
+    drop.style.left = (r.left + window.scrollX) + 'px';
+    drop.style.top  = (r.bottom + window.scrollY + 4) + 'px';
+    var sel = drop.querySelector('.selected');
+    if (sel) drop.scrollTop = Math.max(0, sel.offsetTop - 80);
+    openDrop = { btn: btn, el: drop };
+  }
+
+  function makeShift(dayKey, idx) {
+    var range = data[dayKey][idx];
+    var row = document.createElement('div'); row.className = 'cc-shift';
+
+    function timeBtn(currentVal, onPick) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'cc-timebtn';
+      b.textContent = currentVal;
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openTimePicker(b, b.textContent, function (v) { b.textContent = v; onPick(v); });
+      });
+      return b;
+    }
+
+    var b1 = timeBtn(range[0], function (v) { data[dayKey][idx][0] = v; sync(); });
+    var arr = document.createElement('span'); arr.className = 'cc-shift-arrow'; arr.textContent = '—';
+    var b2 = timeBtn(range[1], function (v) { data[dayKey][idx][1] = v; sync(); });
+    var rm = document.createElement('button');
+    rm.type = 'button'; rm.className = 'cc-shift-rm'; rm.title = 'Remove shift';
+    rm.innerHTML = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l8 8M10 2L2 10"/></svg>';
+    rm.addEventListener('click', function () { data[dayKey].splice(idx,1); render(); sync(); });
+
+    row.appendChild(b1); row.appendChild(arr); row.appendChild(b2); row.appendChild(rm);
+    return row;
+  }
+
+  function makeDayMenu(dayKey) {
+    var wrap = document.createElement('div'); wrap.className = 'cc-day-menu';
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'cc-day-menu-btn'; btn.title = 'Day options';
+    btn.innerHTML = '<svg viewBox="0 0 16 4" fill="currentColor"><circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="14" cy="2" r="1.5"/></svg>';
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var was = wrap.classList.contains('open');
+      document.querySelectorAll('.cc-day-menu.open').forEach(function (m){ m.classList.remove('open'); });
+      if (!was) wrap.classList.add('open');
+    });
+    var drop = document.createElement('div'); drop.className = 'cc-day-menu-drop';
+    function item(label, fn, disabled) {
+      var b = document.createElement('button');
+      b.type='button'; b.className='cc-day-menu-item'; b.textContent = label;
+      if (disabled) { b.style.opacity=.4; b.style.cursor='not-allowed'; }
+      else b.addEventListener('click', function (){ fn(); wrap.classList.remove('open'); render(); sync(); });
+      drop.appendChild(b);
+    }
+    var isClosed = data[dayKey].length === 0;
+    item('Copy to all weekdays', function () {
+      var src = data[dayKey];
+      ['mon','tue','wed','thu','fri'].forEach(function (k){ if (k!==dayKey) data[k] = JSON.parse(JSON.stringify(src)); });
+    }, isClosed);
+    item('Copy to weekend', function () {
+      var src = data[dayKey];
+      ['sat','sun'].forEach(function (k){ if (k!==dayKey) data[k] = JSON.parse(JSON.stringify(src)); });
+    }, isClosed);
+    item('Copy to all 7 days', function () {
+      var src = data[dayKey];
+      DAYS.forEach(function (d){ if (d[0]!==dayKey) data[d[0]] = JSON.parse(JSON.stringify(src)); });
+    }, isClosed);
+    var sep = document.createElement('div'); sep.className='cc-day-menu-divider'; drop.appendChild(sep);
+    item(isClosed ? 'Open with default hours' : 'Mark closed', function () {
+      data[dayKey] = isClosed ? [DEFAULT_OPEN_RANGE.slice()] : [];
+    });
+    wrap.appendChild(btn); wrap.appendChild(drop);
+    return wrap;
+  }
+
+  function render() {
+    while (editor.children.length > 1) editor.removeChild(editor.lastChild);
+    DAYS.forEach(function (d) {
+      var key = d[0], name = d[1];
+      var shifts = data[key]; var isOpen = shifts.length > 0;
+      var row = document.createElement('div'); row.className = 'cc-day' + (isOpen?'':' closed');
+
+      var nameEl = document.createElement('div');
+      nameEl.className = 'cc-day-name'; nameEl.textContent = name;
+      row.appendChild(nameEl);
+
+      var sw = document.createElement('label'); sw.className = 'cc-switch';
+      var inp = document.createElement('input'); inp.type='checkbox'; inp.checked = isOpen;
+      var track = document.createElement('span'); track.className = 'cc-switch-track';
+      var thumb = document.createElement('span'); thumb.className = 'cc-switch-thumb';
+      track.appendChild(thumb); sw.appendChild(inp); sw.appendChild(track);
+      inp.addEventListener('change', function (e) {
+        data[key] = e.target.checked ? [DEFAULT_OPEN_RANGE.slice()] : [];
+        render(); sync();
+      });
+      row.appendChild(sw);
+
+      var shiftsEl = document.createElement('div'); shiftsEl.className = 'cc-shifts';
+      if (isOpen) {
+        shifts.forEach(function (_, i) { shiftsEl.appendChild(makeShift(key, i)); });
+        var addBtn = document.createElement('button');
+        addBtn.type='button'; addBtn.className='cc-shift-add'; addBtn.title='Add shift';
+        addBtn.innerHTML = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1.5v9M1.5 6h9"/></svg>';
+        addBtn.addEventListener('click', function () {
+          data[key].push([DEFAULT_OPEN_RANGE[0], DEFAULT_OPEN_RANGE[1]]);
+          render(); sync();
+        });
+        shiftsEl.appendChild(addBtn);
+      } else {
+        var cl = document.createElement('div'); cl.className='cc-closed-text'; cl.textContent='Closed';
+        shiftsEl.appendChild(cl);
+      }
+      row.appendChild(shiftsEl);
+      row.appendChild(makeDayMenu(key));
+      editor.appendChild(row);
+    });
+  }
+
+  /* Auto-derive display text */
+  function fmt12(t) {
+    var p = t.split(':'); var h = parseInt(p[0],10), m = p[1];
+    var hr12 = h%12||12, ampm = h<12?'am':'pm';
+    return (m==='00' ? hr12 : hr12+':'+m) + ampm;
+  }
+  function deriveDays() {
+    var openKeys = DAYS.filter(function (d){ return data[d[0]].length; }).map(function (d){ return d[2]; });
+    if (!openKeys.length) return 'Closed';
+    if (openKeys.length === 7) return 'Every day';
+    var idxs = DAYS.map(function (d,i){ return data[d[0]].length ? i : -1; }).filter(function (i){ return i>=0; });
+    var contig = idxs.every(function (v,i){ return i===0 || v === idxs[i-1]+1; });
+    if (contig && idxs.length >= 2) return DAYS[idxs[0]][2] + '–' + DAYS[idxs[idxs.length-1]][2];
+    return openKeys.join(', ');
+  }
+  function deriveHours() {
+    var sample = null;
+    for (var i=0; i<DAYS.length; i++) {
+      if (data[DAYS[i][0]].length) { sample = data[DAYS[i][0]]; break; }
+    }
+    if (!sample) return '—';
+    return sample.map(function (r){ return fmt12(r[0]) + '–' + fmt12(r[1]); }).join(', ');
+  }
+  function updateAuto() {
+    var days = deriveDays(), hours = deriveHours();
+    autoDays.textContent = days;
+    autoHours.textContent = hours;
+    if (wdField) wdField.value = days;
+    if (whField) whField.value = days + (hours !== '—' ? ' ' + hours : '');
+  }
+  function sync() {
+    textarea.value = JSON.stringify(data);
+    updateAuto();
+  }
+
+  textarea.parentNode.insertBefore(auto, textarea);
+  textarea.parentNode.insertBefore(editor, textarea);
+  render(); sync();
+
+  /* Slot duration chips */
+  var slotInput = document.getElementById('id_slot_minutes');
+  if (slotInput) {
+    var slotWrap = document.createElement('div'); slotWrap.className = 'cc-chips';
+    [15, 30, 45, 60].forEach(function (n) {
+      var c = document.createElement('button');
+      c.type='button'; c.className='cc-chip' + (parseInt(slotInput.value,10)===n?' active':'');
+      c.textContent = n + ' min';
+      c.addEventListener('click', function () {
+        slotInput.value = n;
+        slotWrap.querySelectorAll('.cc-chip').forEach(function (x){ x.classList.remove('active'); });
+        c.classList.add('active');
+      });
+      slotWrap.appendChild(c);
+    });
+    slotInput.style.display = 'none';
+    slotInput.parentNode.insertBefore(slotWrap, slotInput);
+  }
+});
+</script>
+{% endblock %}

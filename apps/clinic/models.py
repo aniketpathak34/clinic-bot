@@ -29,6 +29,16 @@ class Clinic(models.Model):
     display_phone_number = models.CharField(max_length=20, blank=True, db_index=True)
     access_token = models.TextField(blank=True)
     owner_number = models.CharField(max_length=15, blank=True)
+
+    # Google Maps short link for the clinic — used in appointment reminders
+    # so patients can tap "Get directions".
+    location_map_url = models.URLField(
+        max_length=500, blank=True,
+        verbose_name="Google Maps link",
+        help_text="Clinic's Google Maps short link (e.g. https://maps.app.goo.gl/AbCdEf123). "
+                  "Get it from Google Maps app → Share → Copy link.",
+    )
+
     working_hours = models.CharField(max_length=100, blank=True,
                                      help_text="Display-only text like 'Mon-Sat 9am-1pm, 4pm-9pm'")
     working_days = models.CharField(max_length=50, blank=True,
@@ -211,3 +221,113 @@ class Appointment(models.Model):
             if not Appointment.objects.filter(slot=slot, status='booked').exists():
                 slot.is_booked = False
                 slot.save()
+
+
+# ════════════════════════════════════════════════════════════
+# MessageTemplate — WhatsApp templates the bot can send
+# ════════════════════════════════════════════════════════════
+
+class MessageTemplate(models.Model):
+    """One pre-approved WhatsApp message template the bot can send.
+
+    Either:
+    • Generic (is_generic=True) — available to every clinic. The clinics
+      M2M is ignored. Good for shared text the bot uses everywhere.
+    • Clinic-specific (is_generic=False) — only the clinics linked via
+      the `clinics` M2M can use it. Good for clinics with custom wording.
+    """
+
+    CATEGORY_CHOICES = [
+        ('UTILITY', 'Utility'),
+        ('MARKETING', 'Marketing'),
+        ('AUTHENTICATION', 'Authentication'),
+    ]
+    LANGUAGE_CHOICES = [
+        ('en', 'English'),
+        ('en_US', 'English (US)'),
+        ('hi', 'Hindi'),
+        ('mr', 'Marathi'),
+        ('bn', 'Bengali'),
+        ('kha', 'Khasi'),
+    ]
+    STATUS_CHOICES = [
+        ('draft', 'Draft — not yet submitted'),
+        ('pending', 'Pending — submitted, awaiting Meta'),
+        ('approved', 'Approved — ready to use ✓'),
+        ('rejected', 'Rejected — fix and resubmit'),
+        ('paused', 'Paused — quality issue'),
+        ('disabled', 'Disabled'),
+    ]
+
+    name = models.CharField(
+        max_length=80, db_index=True,
+        help_text="Exact Meta template name (lowercase_with_underscores). "
+                  "E.g. reminder_day_before",
+    )
+    category = models.CharField(
+        max_length=20, choices=CATEGORY_CHOICES, default='UTILITY',
+    )
+    language = models.CharField(
+        max_length=10, choices=LANGUAGE_CHOICES, default='en',
+        help_text="Each language is a separate Meta approval.",
+    )
+
+    body = models.TextField(
+        help_text="Template body as approved by Meta. Use {{1}}, {{2}}, etc. for variables.",
+    )
+    variables = models.JSONField(
+        default=list, blank=True,
+        help_text='Optional. Describe each variable. Example: '
+                  '[{"position":1,"label":"patient_name","example":"Priya"}]',
+    )
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True,
+    )
+    meta_template_id = models.CharField(
+        max_length=100, blank=True,
+        verbose_name="Meta template ID",
+        help_text="Meta's internal ID (shown after approval). Optional.",
+    )
+
+    is_generic = models.BooleanField(
+        default=False,
+        verbose_name="Available to all clinics",
+        help_text="✓ Check to make this template usable by every clinic. "
+                  "Uncheck to restrict to specific clinics linked below.",
+    )
+    clinics = models.ManyToManyField(
+        Clinic, blank=True, related_name='message_templates',
+        verbose_name="Specific clinics",
+        help_text="Clinics allowed to use this template. "
+                  "Ignored if 'Available to all clinics' is checked.",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        help_text="Internal notes — why rejected, what was changed, etc.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('name', 'language')]
+        ordering = ['-is_generic', 'name', 'language']
+        verbose_name = "Message template"
+        verbose_name_plural = "Message templates"
+
+    def __str__(self):
+        scope = "Generic" if self.is_generic else "Clinic-specific"
+        return f"{self.name} [{self.language}] — {scope}"
+
+    @property
+    def is_usable(self) -> bool:
+        return self.status == 'approved'
+
+    def usable_by(self, clinic) -> bool:
+        if not self.is_usable:
+            return False
+        if self.is_generic:
+            return True
+        return self.clinics.filter(pk=clinic.pk).exists()
