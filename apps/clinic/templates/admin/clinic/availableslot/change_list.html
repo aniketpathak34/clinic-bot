@@ -1,0 +1,510 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  /* ════════════════════════════════════════════════════════════
+     Available slots · list · world-class restraint
+     ════════════════════════════════════════════════════════════ */
+  :root {
+    --bg:#09090b; --surface:#131316; --surface-2:#18181b; --surface-3:#1f1f23;
+    --border:#232327; --border-2:#2e2e33; --border-3:#3f3f46;
+    --text:#fafafa; --text-2:#a1a1aa; --text-3:#71717a; --text-4:#52525b;
+    --accent:#818cf8; --accent-hover:#6366f1;
+    --accent-soft:rgba(129,140,248,.12); --accent-ring:rgba(129,140,248,.22);
+    --success:#34d399; --warning:#fbbf24; --danger:#f87171;
+    --r:8px; --r-sm:6px; --r-lg:12px;
+    --ease-std:cubic-bezier(.4,0,.2,1);
+    --ease-out-quart:cubic-bezier(.2,.8,.2,1);
+    --dur-fast:120ms; --dur-med:200ms; --dur-slow:320ms;
+  }
+
+  /* Kill Django stock chrome */
+  #content > h1, #content-related, .breadcrumbs { display:none !important; }
+  #content { background:transparent !important; padding:32px 32px 80px !important; max-width:1280px; margin:0 auto; }
+  .module, fieldset.module { background:transparent !important; border:0 !important; margin:0 !important; padding:0 !important; }
+  .module h2 { display:none !important; }
+  #changelist .results { background:transparent !important; border:0 !important; padding:0 !important; }
+  #changelist table thead, #changelist table tbody, #changelist #result_list { display:none !important; }
+  #changelist .actions, #changelist-filter, .paginator, #toolbar { display:none !important; }
+  #changelist-form { background:transparent !important; }
+  .object-tools, ul.object-tools { display:none !important; }
+
+  .as { font-feature-settings:'cv02','cv03','cv04','cv11','ss01','tnum'; color:var(--text); }
+
+  /* ─── PAGE HEADER ─── */
+  .as-header { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:24px; }
+  .as-title { font-size:22px; font-weight:600; letter-spacing:-.02em; color:var(--text); margin:0; line-height:1.2; }
+  .as-sub   { color:var(--text-3); font-size:13px; margin-top:6px; display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+  .as-sub b { color:var(--text-2); font-weight:500; font-variant-numeric:tabular-nums; }
+  .as-sub-dot { display:inline-block; width:6px; height:6px; border-radius:50%; vertical-align:middle; margin-right:4px; }
+  .as-sub-dot--success { background:var(--success); }
+  .as-sub-dot--warning { background:var(--warning); }
+  .as-sub-dot--accent  { background:var(--accent); }
+
+  /* Buttons (match MessageTemplate) */
+  .as-btn {
+    display:inline-flex; align-items:center; gap:8px;
+    height:32px; padding:0 12px; border-radius:var(--r-sm);
+    background:var(--surface-2); border:1px solid var(--border-2);
+    color:var(--text-2); font-size:13px; font-weight:500;
+    cursor:pointer; transition:all var(--dur-fast) var(--ease-std);
+    text-decoration:none;
+  }
+  .as-btn:hover { background:var(--surface-3); border-color:var(--border-3); color:var(--text); }
+  .as-btn:focus-visible { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-ring); }
+  .as-btn--primary { background:#fafafa; color:#09090b; border-color:#fafafa; font-weight:500; }
+  .as-btn--primary:hover { background:#fff; border-color:#fff; color:#000; }
+
+  /* ─── TABS (date range) ─── */
+  .as-tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+  .as-tab {
+    position:relative; display:inline-flex; align-items:center; gap:8px;
+    padding:10px 14px 12px; border:0; background:transparent;
+    color:var(--text-3); font-size:13px; font-weight:500;
+    cursor:pointer; transition:color var(--dur-fast); margin-bottom:-1px;
+  }
+  .as-tab:hover { color:var(--text); }
+  .as-tab::after {
+    content:""; position:absolute; left:0; right:0; bottom:0;
+    height:2px; background:transparent;
+    transition:background var(--dur-med) var(--ease-out-quart);
+  }
+  .as-tab[aria-selected="true"] { color:var(--text); }
+  .as-tab[aria-selected="true"]::after { background:var(--accent); }
+  .as-tab-count {
+    display:inline-flex; align-items:center; justify-content:center; min-width:18px;
+    height:18px; padding:0 5px; border-radius:999px;
+    background:var(--surface-3); color:var(--text-3);
+    font-size:10.5px; font-weight:600; font-variant-numeric:tabular-nums;
+  }
+  .as-tab[aria-selected="true"] .as-tab-count { background:var(--accent-soft); color:var(--accent); }
+
+  /* ─── TOOLBAR — doctor + status chips ─── */
+  .as-toolbar { display:flex; flex-direction:column; gap:12px; margin-bottom:18px; }
+  .as-chip-row { display:flex; flex-wrap:wrap; gap:18px; align-items:center; }
+  .as-chip-group { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .as-chip-group-label { color:var(--text-3); font-size:11.5px; font-weight:500; letter-spacing:.02em; margin-right:2px; }
+  .as-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    height:26px; padding:0 10px; border-radius:999px;
+    background:var(--surface); border:1px solid var(--border-2);
+    color:var(--text-2); font-size:12px; font-weight:500;
+    cursor:pointer; transition:all var(--dur-fast);
+    user-select:none;
+  }
+  .as-chip:hover { border-color:var(--border-3); color:var(--text); }
+  .as-chip[aria-pressed="true"] {
+    background:transparent; border-color:var(--accent); color:var(--accent);
+  }
+  .as-chip-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .as-chip-dot--success { background:var(--success); }
+  .as-chip-dot--accent  { background:var(--accent); }
+
+  .as-meta-row {
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:0 2px;
+  }
+  .as-result-summary { color:var(--text-3); font-size:12.5px; }
+  .as-result-summary b { color:var(--text); font-weight:500; font-variant-numeric:tabular-nums; }
+  .as-result-summary button {
+    background:transparent; border:0; color:var(--accent); font-size:12.5px;
+    cursor:pointer; padding:0 0 0 8px; margin-left:6px; border-left:1px solid var(--border);
+  }
+
+  /* ─── CARDS — one per (doctor, date) ─── */
+  .as-results { margin-top:18px; display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); }
+
+  .as-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r); padding:16px;
+    display:flex; flex-direction:column; gap:12px;
+    transition:border-color var(--dur-fast) var(--ease-std), background var(--dur-fast) var(--ease-std);
+    position:relative;
+  }
+  .as-card:hover { border-color:var(--accent); background:var(--surface-2); }
+  .as-card[data-hidden="1"] { display:none !important; }
+
+  .as-card-head { display:flex; align-items:flex-start; gap:10px; }
+  .as-card-avatar {
+    width:32px; height:32px; border-radius:var(--r-sm);
+    background:var(--surface-3); border:1px solid var(--border-2);
+    color:var(--text); font-weight:500; font-size:13px;
+    display:inline-flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    font-family:ui-monospace,'JetBrains Mono',Menlo,monospace;
+    letter-spacing:-.02em;
+  }
+  .as-card-titleblock { flex:1; min-width:0; }
+  .as-card-doctor {
+    color:var(--text); font-size:13.5px; font-weight:500;
+    letter-spacing:-.005em; line-height:1.25;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .as-card-meta {
+    margin-top:2px; color:var(--text-3); font-size:11.5px; line-height:1.3;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .as-card-date-pill {
+    display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
+    flex-shrink:0; padding:4px 10px; border-radius:var(--r-sm);
+    background:var(--surface-3); border:1px solid var(--border-2);
+    min-width:46px; text-align:center;
+  }
+  .as-card-date-day {
+    font-size:9.5px; font-weight:600; color:var(--text-3);
+    letter-spacing:.08em; text-transform:uppercase; line-height:1;
+  }
+  .as-card-date-num {
+    font-size:14px; font-weight:600; color:var(--text);
+    line-height:1.1; font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em; margin-top:2px;
+  }
+  .as-card-date-pill--today {
+    background:var(--accent); border-color:var(--accent);
+  }
+  .as-card-date-pill--today .as-card-date-day { color:rgba(255,255,255,.78); }
+  .as-card-date-pill--today .as-card-date-num { color:#fff; }
+
+  .as-card-stats {
+    display:flex; gap:14px; padding:8px 0;
+    border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+  }
+  .as-card-stat { flex:1; min-width:0; }
+  .as-card-stat-num {
+    color:var(--text); font-size:16px; font-weight:600; line-height:1;
+    font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+  }
+  .as-card-stat-num--success { color:var(--success); }
+  .as-card-stat-num--accent  { color:var(--accent); }
+  .as-card-stat-num--muted   { color:var(--text-3); }
+  .as-card-stat-lbl {
+    color:var(--text-3); font-size:10.5px; font-weight:500;
+    letter-spacing:.04em; text-transform:uppercase; margin-top:4px;
+  }
+
+  /* Time chips — open vs booked */
+  .as-card-times { display:flex; flex-wrap:wrap; gap:4px; }
+  .as-time {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:3px 7px; border-radius:4px;
+    font:500 11px/1.5 ui-monospace,'JetBrains Mono',Menlo,monospace;
+    background:var(--surface-3); color:var(--text-2);
+    border:1px solid var(--border);
+    font-variant-numeric:tabular-nums;
+  }
+  .as-time--open {
+    background:rgba(52,211,153,.07);
+    color:#6ee7b7;
+    border-color:rgba(52,211,153,.18);
+  }
+  .as-time--booked {
+    background:var(--accent-soft);
+    color:#a5b4fc;
+    border-color:rgba(129,140,248,.25);
+  }
+  .as-times-more {
+    display:inline-flex; align-items:center;
+    padding:3px 7px; border-radius:4px;
+    background:var(--surface-3); color:var(--text-3);
+    font:500 11px/1.5 Inter,system-ui;
+  }
+
+  /* ─── EMPTY ─── */
+  .as-empty {
+    grid-column:1 / -1;
+    display:flex; flex-direction:column; align-items:center; gap:16px;
+    padding:80px 24px; text-align:center;
+    background:var(--surface); border:1px dashed var(--border-2);
+    border-radius:var(--r-lg);
+  }
+  .as-empty-icon {
+    width:80px; height:80px; border-radius:var(--r);
+    background:transparent; color:#52525b;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .as-empty-title { color:var(--text); font-size:16px; font-weight:500; margin:0; }
+  .as-empty-desc { color:var(--text-3); font-size:13.5px; max-width:380px; margin:0; line-height:1.55; }
+
+  .as-hidden { display:none !important; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    #content { padding:20px 16px 60px !important; }
+    .as-header { flex-direction:column; gap:14px; }
+    .as-results { grid-template-columns:1fr; }
+    .as-tabs { overflow-x:auto; mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 24px),transparent); }
+  }
+</style>
+{% endblock %}
+
+{% block result_list %}
+<div class="as">
+
+  {# ─────── HEADER ─────── #}
+  <header class="as-header">
+    <div>
+      <h1 class="as-title">Available slots</h1>
+      <div class="as-sub">
+        <span><span class="as-sub-dot as-sub-dot--success"></span><b>{{ slot_stats.open_total }}</b> open</span>
+        <span><span class="as-sub-dot as-sub-dot--accent"></span><b>{{ slot_stats.booked_total }}</b> booked</span>
+        <span><b>{{ slot_stats.doctors_total }}</b> doctor{{ slot_stats.doctors_total|pluralize }} with slots</span>
+      </div>
+    </div>
+    <div>
+      <a href="add/" class="as-btn as-btn--primary">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+        </svg>
+        Add slots
+      </a>
+    </div>
+  </header>
+
+  {# ─────── DATE-RANGE TABS ─────── #}
+  <nav class="as-tabs" role="tablist" aria-label="Date range">
+    <button type="button" class="as-tab" role="tab" aria-selected="true" data-as-range="7">
+      Next 7 days <span class="as-tab-count">{{ slot_stats.open_7d }}</span>
+    </button>
+    <button type="button" class="as-tab" role="tab" aria-selected="false" data-as-range="today">
+      Today <span class="as-tab-count">{{ slot_stats.open_today }}</span>
+    </button>
+    <button type="button" class="as-tab" role="tab" aria-selected="false" data-as-range="30">
+      Next 30 days
+    </button>
+  </nav>
+
+  {# ─────── TOOLBAR — doctor chips + status chips ─────── #}
+  <div class="as-toolbar">
+    <div class="as-chip-row">
+      {% if slot_doctors %}
+      <div class="as-chip-group" role="group" aria-label="Doctor">
+        <span class="as-chip-group-label">Doctor</span>
+        {% for d in slot_doctors %}
+          <button type="button" class="as-chip" aria-pressed="false" data-as-filter="doctor" data-as-value="{{ d.pk }}">
+            Dr. {{ d.name }}
+          </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="as-chip-group" role="group" aria-label="Booking status">
+        <span class="as-chip-group-label">Show</span>
+        <button type="button" class="as-chip" aria-pressed="false" data-as-filter="has-open" data-as-value="1">
+          <span class="as-chip-dot as-chip-dot--success"></span>Has open
+        </button>
+        <button type="button" class="as-chip" aria-pressed="false" data-as-filter="has-booked" data-as-value="1">
+          <span class="as-chip-dot as-chip-dot--accent"></span>Has booked
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="as-meta-row">
+    <div class="as-result-summary" aria-live="polite">
+      Showing <b id="as-visible-count">0</b> of <b>{{ slot_cards|length }}</b> day{{ slot_cards|length|pluralize }} across doctors
+      <button type="button" id="as-clear" class="as-hidden">Clear filters</button>
+    </div>
+  </div>
+
+  {# ─────── CARDS ─────── #}
+  <div class="as-results" id="as-results">
+    {% for card in slot_cards %}
+      <article class="as-card"
+               data-doctor="{{ card.doctor.pk }}"
+               data-date="{{ card.date|date:'Y-m-d' }}"
+               data-has-open="{% if card.open %}1{% else %}0{% endif %}"
+               data-has-booked="{% if card.booked %}1{% else %}0{% endif %}"
+               data-days-from-today="{% if card.date == today %}0{% elif card.date == tomorrow %}1{% else %}999{% endif %}">
+
+        <header class="as-card-head">
+          <div class="as-card-avatar">{{ card.doctor.name|slice:":2"|upper }}</div>
+          <div class="as-card-titleblock">
+            <div class="as-card-doctor">Dr. {{ card.doctor.name }}</div>
+            <div class="as-card-meta">{{ card.doctor.get_specialty_display }} · {{ card.doctor.clinic.name }}</div>
+          </div>
+          <div class="as-card-date-pill {% if card.date == today %}as-card-date-pill--today{% endif %}">
+            <div class="as-card-date-day">{{ card.date|date:'D' }}</div>
+            <div class="as-card-date-num">{{ card.date|date:'j' }}</div>
+          </div>
+        </header>
+
+        <div class="as-card-stats">
+          <div class="as-card-stat">
+            <div class="as-card-stat-num as-card-stat-num--success">{{ card.open|length }}</div>
+            <div class="as-card-stat-lbl">Open</div>
+          </div>
+          <div class="as-card-stat">
+            <div class="as-card-stat-num as-card-stat-num--accent">{{ card.booked|length }}</div>
+            <div class="as-card-stat-lbl">Booked</div>
+          </div>
+          <div class="as-card-stat">
+            {% with total=card.open|length|add:card.booked|length %}
+              <div class="as-card-stat-num as-card-stat-num--muted">{{ total }}</div>
+              <div class="as-card-stat-lbl">Total</div>
+            {% endwith %}
+          </div>
+        </div>
+
+        <div class="as-card-times">
+          {% with open_n=card.open|length booked_n=card.booked|length %}
+            {% for t in card.open|slice:":10" %}
+              <span class="as-time as-time--open">{{ t|time:"H:i" }}</span>
+            {% endfor %}
+            {% for t in card.booked|slice:":6" %}
+              <span class="as-time as-time--booked">{{ t|time:"H:i" }}</span>
+            {% endfor %}
+            {% if open_n > 10 and booked_n > 6 %}
+              <span class="as-times-more">+{{ open_n|add:booked_n|add:"-16" }} more</span>
+            {% elif open_n > 10 %}
+              <span class="as-times-more">+{{ open_n|add:"-10" }} more</span>
+            {% elif booked_n > 6 %}
+              <span class="as-times-more">+{{ booked_n|add:"-6" }} more</span>
+            {% endif %}
+          {% endwith %}
+        </div>
+      </article>
+
+    {% empty %}
+      <div class="as-empty">
+        <div class="as-empty-icon">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="8" y="12" width="48" height="44" rx="3"/>
+            <path d="M8 24h48M20 6v12M44 6v12"/>
+          </svg>
+        </div>
+        <h2 class="as-empty-title">No upcoming slots yet</h2>
+        <p class="as-empty-desc">
+          Add some availability so patients can book appointments through the bot. You can create slots for one doctor
+          across multiple dates and times in a single flow.
+        </p>
+        <a href="add/" class="as-btn as-btn--primary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+          </svg>
+          Add slots
+        </a>
+      </div>
+    {% endfor %}
+
+    <div class="as-empty as-hidden" id="as-no-matches">
+      <div class="as-empty-icon">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="28" cy="28" r="20" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M44 44l14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2 class="as-empty-title">No days match these filters</h2>
+      <p class="as-empty-desc">Try clearing the chips above, or switch to a wider date range.</p>
+      <button type="button" class="as-btn" id="as-empty-clear">Clear all filters</button>
+    </div>
+  </div>
+</div>
+
+{% verbatim %}
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
+
+  const results = $('#as-results');
+  if (!results) return;
+  const cards = $$('.as-card', results);
+  if (cards.length === 0) return;
+
+  const tabs = $$('.as-tab');
+  const chips = $$('.as-chip');
+  const visCount = $('#as-visible-count');
+  const noMatches = $('#as-no-matches');
+  const clearBtn = $('#as-clear');
+
+  const state = {
+    range: '7',
+    doctor: new Set(),
+    hasOpen: false,
+    hasBooked: false,
+  };
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  function dateFromIso(iso) { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); }
+  function daysFromToday(iso) {
+    const d = dateFromIso(iso); d.setHours(0, 0, 0, 0);
+    return Math.round((d - today) / 86400000);
+  }
+
+  function matches(c) {
+    const dft = daysFromToday(c.dataset.date);
+    if (state.range === 'today' && dft !== 0) return false;
+    if (state.range === '7' && dft > 7) return false;
+    if (state.range === '30' && dft > 30) return false;
+    if (state.doctor.size && !state.doctor.has(c.dataset.doctor)) return false;
+    if (state.hasOpen && c.dataset.hasOpen !== '1') return false;
+    if (state.hasBooked && c.dataset.hasBooked !== '1') return false;
+    return true;
+  }
+
+  function render() {
+    let n = 0;
+    cards.forEach(c => {
+      const hit = matches(c);
+      c.dataset.hidden = hit ? '0' : '1';
+      if (hit) n++;
+    });
+    visCount.textContent = n;
+    const filtersOn = state.doctor.size || state.hasOpen || state.hasBooked || state.range !== '7';
+    clearBtn.classList.toggle('as-hidden', !filtersOn);
+    noMatches.classList.toggle('as-hidden', n !== 0);
+  }
+
+  tabs.forEach(t => {
+    t.addEventListener('click', () => {
+      tabs.forEach(x => x.setAttribute('aria-selected', 'false'));
+      t.setAttribute('aria-selected', 'true');
+      state.range = t.dataset.asRange;
+      render();
+    });
+  });
+
+  chips.forEach(c => {
+    c.addEventListener('click', () => {
+      const filter = c.dataset.asFilter;
+      const value = c.dataset.asValue;
+      const pressed = c.getAttribute('aria-pressed') === 'true';
+      c.setAttribute('aria-pressed', pressed ? 'false' : 'true');
+      if (filter === 'doctor') {
+        if (pressed) state.doctor.delete(value); else state.doctor.add(value);
+      } else if (filter === 'has-open') {
+        state.hasOpen = !pressed;
+      } else if (filter === 'has-booked') {
+        state.hasBooked = !pressed;
+      }
+      render();
+    });
+  });
+
+  function clearAll() {
+    state.doctor.clear();
+    state.hasOpen = false; state.hasBooked = false;
+    chips.forEach(c => c.setAttribute('aria-pressed', 'false'));
+    tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.asRange === '7')));
+    state.range = '7';
+    render();
+  }
+  clearBtn.addEventListener('click', clearAll);
+  $('#as-empty-clear')?.addEventListener('click', clearAll);
+
+  // Card click → filter to that doctor (quick drill-down)
+  results.addEventListener('click', e => {
+    const card = e.target.closest('.as-card'); if (!card) return;
+    // Only on the avatar+doctor area, not on time chips
+    const head = e.target.closest('.as-card-head'); if (!head) return;
+    const did = card.dataset.doctor;
+    const chip = chips.find(c => c.dataset.asFilter === 'doctor' && c.dataset.asValue === did);
+    if (chip && chip.getAttribute('aria-pressed') !== 'true') chip.click();
+  });
+
+  render();
+})();
+</script>
+{% endverbatim %}
+{% endblock %}

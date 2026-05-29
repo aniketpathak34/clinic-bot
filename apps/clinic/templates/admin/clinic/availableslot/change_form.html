@@ -1,0 +1,750 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% comment %}
+  Dual-mode:
+  • add  -> custom bulk-add page (doctor + dates + times)
+  • edit -> stock Django form (block.super)
+{% endcomment %}
+
+{% block extrastyle %}{{ block.super }}
+{% if add %}
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     Tokens (inherit) — same as MessageTemplate wizard
+     ═══════════════════════════════════════════════════════════ */
+  :root {
+    --bg:#09090b; --surface:#131316; --surface-2:#18181b; --surface-3:#1f1f23;
+    --border:#232327; --border-2:#2e2e33; --border-3:#3f3f46;
+    --text:#fafafa; --text-2:#a1a1aa; --text-3:#71717a; --text-4:#52525b;
+    --accent:#818cf8; --accent-hover:#6366f1;
+    --accent-soft:rgba(129,140,248,.12); --accent-ring:rgba(129,140,248,.22);
+    --success:#34d399; --warning:#fbbf24; --danger:#f87171;
+    --r:8px; --r-sm:6px;
+    --ease-std:cubic-bezier(.4,0,.2,1);
+    --ease-out-quart:cubic-bezier(.2,.8,.2,1);
+    --dur-fast:120ms; --dur-med:200ms;
+  }
+
+  /* Kill Django chrome */
+  body { background:var(--bg) !important; }
+  #header, #branding, .breadcrumbs, #content > h1,
+  #content-related, .submit-row, .messagelist, .errornote { display:none !important; }
+  #content { padding:0 !important; max-width:none !important; background:transparent !important; }
+  #content-main { padding:0 !important; }
+  .module, fieldset.module { background:transparent !important; border:0 !important; margin:0 !important; padding:0 !important; }
+  .module h2, fieldset h2, .form-row > div > label, .help, .field-box .help { display:none !important; }
+  .form-row { background:transparent !important; border:0 !important; padding:0 !important; }
+  label { font:inherit !important; color:inherit !important; }
+
+  .ba { font-feature-settings:'cv02','cv03','cv04','cv11','ss01','tnum'; color:var(--text); }
+
+  /* ═══════════════════════════════════════════════════════════
+     LAYOUT
+     ═══════════════════════════════════════════════════════════ */
+  .ba {
+    min-height:100vh;
+    display:grid; grid-template-rows:56px 1fr 64px;
+    background:var(--bg);
+  }
+  .ba-topbar {
+    display:flex; align-items:center; gap:14px;
+    padding:0 24px; border-bottom:1px solid var(--border);
+    background:var(--bg); position:sticky; top:0; z-index:10;
+  }
+  .ba-back {
+    display:inline-flex; align-items:center; gap:6px;
+    background:transparent; border:0; color:var(--text-2);
+    font-size:13px; cursor:pointer; padding:6px 10px; border-radius:var(--r-sm);
+    transition:all var(--dur-fast);
+  }
+  .ba-back:hover { background:var(--surface-2); color:var(--text); }
+  .ba-topbar-title { font-size:14px; font-weight:500; color:var(--text); flex-shrink:0; }
+  .ba-topbar-title small { color:var(--text-3); font-weight:400; margin-left:8px; }
+
+  /* ─── Topbar step trail ─── */
+  .ba-trail {
+    display:flex; align-items:center; gap:8px;
+    flex:1; justify-content:center;
+    color:var(--text-3); font-size:11.5px; font-weight:500;
+    letter-spacing:.01em;
+  }
+  .ba-trail-step {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; border-radius:999px;
+    background:var(--surface); border:1px solid var(--border);
+    transition:all var(--dur-fast) var(--ease-std);
+  }
+  .ba-trail-step[data-done="true"] {
+    background:var(--accent-soft); border-color:rgba(129,140,248,.35); color:var(--accent);
+  }
+  .ba-trail-dot { width:6px; height:6px; border-radius:50%; background:var(--text-4); flex-shrink:0; }
+  .ba-trail-step[data-done="true"] .ba-trail-dot { background:var(--accent); }
+  .ba-trail-sep {
+    width:14px; height:1px; background:var(--border-2);
+  }
+
+  .ba-topbar-hints { display:flex; gap:8px; color:var(--text-3); font-size:11.5px; flex-shrink:0; }
+  .ba-hint-pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 9px; border-radius:999px;
+    background:var(--surface); border:1px solid var(--border);
+  }
+  .ba-kbd {
+    display:inline-flex; align-items:center; padding:1px 5px;
+    border:1px solid var(--border-2); border-bottom-width:2px;
+    border-radius:4px; background:var(--surface-3); color:var(--text-2);
+    font:500 10.5px/1 ui-monospace,Menlo,monospace; letter-spacing:.02em;
+  }
+  @media (max-width: 880px) {
+    .ba-trail { display:none; }
+  }
+
+  /* Body — full-width single column */
+  .ba-body {
+    overflow-y:auto;
+    padding:40px 48px 24px;
+    background:var(--bg);
+  }
+  .ba-content { max-width:860px; margin:0 auto; }
+  @media (max-width: 880px) {
+    .ba-body { padding:24px 20px; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SECTIONS
+     ═══════════════════════════════════════════════════════════ */
+  .ba-section { margin-bottom:36px; }
+  .ba-section-head { margin-bottom:14px; }
+  .ba-section-eyebrow {
+    color:var(--accent); font-size:11px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px;
+  }
+  .ba-section-title {
+    color:var(--text); font-size:16px; font-weight:600;
+    letter-spacing:-.01em; line-height:1.3; margin:0;
+  }
+  .ba-section-desc {
+    color:var(--text-3); font-size:12.5px; line-height:1.55;
+    margin-top:6px; max-width:540px;
+  }
+  .ba-section-desc code {
+    background:var(--surface-2); color:var(--text-2);
+    padding:1px 5px; border-radius:3px;
+    font:500 11px/1.5 ui-monospace,Menlo,monospace;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     DOCTOR CARDS
+     ═══════════════════════════════════════════════════════════ */
+  .ba-doctor-grid {
+    display:grid; gap:10px;
+    grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+  }
+  .ba-doctor {
+    text-align:left; padding:14px 16px; border-radius:var(--r);
+    background:var(--surface); border:1px solid var(--border-2);
+    color:var(--text-2); cursor:pointer;
+    transition:all var(--dur-fast) var(--ease-std);
+    display:flex; align-items:center; gap:12px;
+  }
+  .ba-doctor:hover { background:var(--surface-2); border-color:var(--border-3); color:var(--text); }
+  .ba-doctor[aria-pressed="true"] {
+    background:var(--accent-soft); border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-ring);
+  }
+  .ba-doctor-avatar {
+    width:34px; height:34px; border-radius:var(--r-sm);
+    background:var(--surface-3); border:1px solid var(--border-2);
+    color:var(--text); font-weight:500; font-size:13.5px;
+    display:inline-flex; align-items:center; justify-content:center;
+    flex-shrink:0; font-family:ui-monospace,'JetBrains Mono',Menlo,monospace;
+    letter-spacing:-.02em;
+  }
+  .ba-doctor[aria-pressed="true"] .ba-doctor-avatar {
+    background:var(--accent); color:var(--bg); border-color:var(--accent);
+  }
+  .ba-doctor-info { flex:1; min-width:0; }
+  .ba-doctor-name { color:var(--text); font-size:13.5px; font-weight:500; line-height:1.25; letter-spacing:-.005em; }
+  .ba-doctor-meta { color:var(--text-3); font-size:11.5px; margin-top:2px; line-height:1.3;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* Empty doctors */
+  .ba-doctor-empty {
+    padding:40px 24px; border:1px dashed var(--border-2); border-radius:var(--r);
+    background:var(--surface); text-align:center;
+    color:var(--text-3);
+  }
+  .ba-doctor-empty a { color:var(--accent); }
+
+  /* ═══════════════════════════════════════════════════════════
+     DATE PICKER — quick presets + calendar
+     ═══════════════════════════════════════════════════════════ */
+  .ba-quickfill { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .ba-quickfill button {
+    display:inline-flex; align-items:center;
+    height:28px; padding:0 11px; border-radius:999px;
+    background:var(--surface); border:1px solid var(--border-2);
+    color:var(--text-2); font-size:12px; font-weight:500;
+    cursor:pointer; transition:all var(--dur-fast);
+  }
+  .ba-quickfill button:hover { border-color:var(--border-3); color:var(--text); }
+
+  .ba-cal {
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
+    padding:12px;
+    max-width:340px;            /* cap width so cells stay reasonable */
+  }
+  .ba-cal-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .ba-cal-title { color:var(--text); font-size:12.5px; font-weight:500; }
+  .ba-cal-nav { display:flex; gap:3px; }
+  .ba-cal-nav button {
+    width:22px; height:22px; border:0; border-radius:var(--r-sm);
+    background:var(--surface-2); color:var(--text-2);
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    transition:all var(--dur-fast);
+  }
+  .ba-cal-nav button:hover { background:var(--surface-3); color:var(--text); }
+
+  .ba-cal-grid {
+    display:grid; grid-template-columns:repeat(7, 1fr); gap:2px;
+  }
+  .ba-cal-wd {
+    text-align:center; color:var(--text-3); font-size:9.5px; font-weight:600;
+    letter-spacing:.04em; text-transform:uppercase; padding:4px 0 2px;
+  }
+  .ba-cal-day {
+    height:32px;                /* fixed, compact */
+    display:inline-flex; align-items:center; justify-content:center;
+    border:0; border-radius:var(--r-sm); background:transparent;
+    color:var(--text-2); font-size:11.5px; cursor:pointer;
+    font-variant-numeric:tabular-nums;
+    transition:all var(--dur-fast);
+  }
+  .ba-cal-day:hover:not(:disabled) { background:var(--surface-2); color:var(--text); }
+  .ba-cal-day:disabled { opacity:.3; cursor:not-allowed; }
+  .ba-cal-day[aria-pressed="true"] {
+    background:var(--accent); color:var(--bg); font-weight:600;
+  }
+  .ba-cal-day.is-today { box-shadow:inset 0 0 0 1px var(--accent); color:var(--accent); }
+  .ba-cal-day.is-today[aria-pressed="true"] { color:var(--bg); }
+  .ba-cal-day.is-other-month { color:var(--text-4); }
+
+  /* ═══════════════════════════════════════════════════════════
+     TIME CHIPS
+     ═══════════════════════════════════════════════════════════ */
+  .ba-times-wrap {
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
+    padding:14px;
+  }
+  .ba-times-empty { color:var(--text-3); font-size:12.5px; text-align:center; padding:14px; }
+  .ba-times-grid { display:flex; flex-wrap:wrap; gap:6px; }
+  .ba-time-chip {
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:6px 11px; border-radius:var(--r-sm);
+    background:var(--surface-2); border:1px solid var(--border-2);
+    color:var(--text-2); font-size:12.5px;
+    font-family:ui-monospace,'JetBrains Mono',Menlo,monospace;
+    cursor:pointer; transition:all var(--dur-fast);
+    font-variant-numeric:tabular-nums;
+  }
+  .ba-time-chip:hover { border-color:var(--border-3); color:var(--text); }
+  .ba-time-chip[aria-pressed="true"] {
+    background:var(--accent-soft); border-color:rgba(129,140,248,.4);
+    color:#c7d2fe;
+  }
+  .ba-times-needs-doctor {
+    background:rgba(251,191,36,.07); border-color:rgba(251,191,36,.25);
+    padding:10px 14px; font-size:12.5px; color:var(--warning); border-radius:var(--r-sm);
+    border-style:dashed;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SUMMARY
+     ═══════════════════════════════════════════════════════════ */
+  .ba-summary {
+    background:var(--surface); border:1px solid var(--border);
+    border-left:3px solid var(--border-2);
+    border-radius:var(--r); padding:18px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:24px;
+    transition:border-left-color var(--dur-fast) var(--ease-std),
+               border-color var(--dur-fast) var(--ease-std);
+  }
+  .ba-summary--ready { border-left-color:var(--accent); }
+  .ba-summary-text { font-size:13.5px; color:var(--text-2); }
+  .ba-summary-text b { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+  .ba-summary-num {
+    font-size:48px; font-weight:600; color:var(--accent);
+    line-height:1; font-variant-numeric:tabular-nums; letter-spacing:-.03em;
+  }
+  .ba-summary--inactive .ba-summary-num { color:var(--text-4); }
+
+  /* ═══════════════════════════════════════════════════════════
+     SAVE BAR
+     ═══════════════════════════════════════════════════════════ */
+  .ba-savebar {
+    display:flex; align-items:center; gap:14px;
+    padding:0 24px; border-top:1px solid var(--border);
+    background:rgba(9,9,11,.94); backdrop-filter:blur(10px);
+  }
+  .ba-savebar-status { color:var(--text-3); font-size:12px; flex-shrink:0; }
+  .ba-savebar-status b { color:var(--text); font-weight:500; font-variant-numeric:tabular-nums; }
+  .ba-savebar-spacer { flex:1; }
+  .ba-savebar-actions { display:flex; gap:10px; }
+
+  .ba-btn {
+    display:inline-flex; align-items:center; gap:7px;
+    height:34px; padding:0 14px; border-radius:var(--r-sm);
+    background:var(--surface-2); border:1px solid var(--border-2);
+    color:var(--text-2); font-size:13px; font-weight:500;
+    cursor:pointer; transition:all var(--dur-fast) var(--ease-std);
+  }
+  .ba-btn:hover { background:var(--surface-3); border-color:var(--border-3); color:var(--text); }
+  .ba-btn:disabled { opacity:.4; cursor:not-allowed; }
+  .ba-btn--primary {
+    background:#fafafa; color:#09090b; border-color:#fafafa; font-weight:500;
+  }
+  .ba-btn--primary:hover { background:#fff; color:#000; }
+  .ba-btn--primary:disabled { background:var(--surface-3); color:var(--text-3); border-color:var(--border-2); }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if add %}
+
+<form method="post" id="ba-form" class="ba" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="ba_bulk" value="1">
+
+  {# ─── TOP BAR ─── #}
+  <header class="ba-topbar">
+    <button type="button" class="ba-back" onclick="window.location.href='../'">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M9 3L4 7l5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Back
+    </button>
+    <div class="ba-topbar-title">Add available slots</div>
+
+    {# Completion trail — each step fills indigo as it completes #}
+    <nav class="ba-trail" aria-label="Completion trail" id="ba-trail">
+      <span class="ba-trail-step" data-done="false" data-trail="doctor">
+        <span class="ba-trail-dot" aria-hidden="true"></span>Doctor
+      </span>
+      <span class="ba-trail-sep" aria-hidden="true"></span>
+      <span class="ba-trail-step" data-done="false" data-trail="dates">
+        <span class="ba-trail-dot" aria-hidden="true"></span>Dates
+      </span>
+      <span class="ba-trail-sep" aria-hidden="true"></span>
+      <span class="ba-trail-step" data-done="false" data-trail="times">
+        <span class="ba-trail-dot" aria-hidden="true"></span>Times
+      </span>
+    </nav>
+
+    <div class="ba-topbar-hints">
+      <span class="ba-hint-pill"><span class="ba-kbd">Esc</span> Cancel</span>
+      <span class="ba-hint-pill"><span class="ba-kbd">⌘</span><span class="ba-kbd">↵</span> Create</span>
+    </div>
+  </header>
+
+  {# ─── BODY ─── #}
+  <div class="ba-body">
+    <div class="ba-content">
+
+      {# ─── Doctor ─── #}
+      <section class="ba-section">
+        <header class="ba-section-head">
+          <div class="ba-section-eyebrow">Step 1</div>
+          <h2 class="ba-section-title">Pick a doctor</h2>
+          <p class="ba-section-desc">Slot times default to this doctor's clinic operating hours.</p>
+        </header>
+        {% if slot_add.doctors %}
+        <div class="ba-doctor-grid" role="radiogroup" aria-label="Doctor">
+          {% for d in slot_add.doctors %}
+            <button type="button" class="ba-doctor" role="radio" aria-pressed="false"
+                    data-id="{{ d.id }}"
+                    data-slot-minutes="{{ d.slot_minutes }}"
+                    data-clinic-name="{{ d.clinic_name }}"
+                    data-operating-hours='{{ d.operating_hours|safe }}'>
+              <span class="ba-doctor-avatar">{{ d.name|slice:":2"|upper }}</span>
+              <span class="ba-doctor-info">
+                <span class="ba-doctor-name">Dr. {{ d.name }}</span>
+                <span class="ba-doctor-meta">{{ d.specialty }} · {{ d.clinic_name }}</span>
+              </span>
+            </button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="ba-doctor-empty">
+          No registered doctors yet. <a href="{% url 'admin:clinic_doctor_changelist' %}">Add a doctor</a> first.
+        </div>
+        {% endif %}
+        <input type="hidden" name="doctor" id="ba-doctor-id" value="">
+      </section>
+
+      {# ─── Dates ─── #}
+      <section class="ba-section">
+        <header class="ba-section-head">
+          <div class="ba-section-eyebrow">Step 2</div>
+          <h2 class="ba-section-title">Pick dates</h2>
+          <p class="ba-section-desc">Use the quick presets or click days in the calendar. Past days are disabled.</p>
+        </header>
+
+        <div class="ba-quickfill">
+          <button type="button" data-ba-preset="today">Today</button>
+          <button type="button" data-ba-preset="tomorrow">Tomorrow</button>
+          <button type="button" data-ba-preset="weekdays7">Next 7 weekdays</button>
+          <button type="button" data-ba-preset="weekdays14">Next 14 weekdays</button>
+          <button type="button" data-ba-preset="month">Whole month</button>
+          <button type="button" data-ba-preset="clear">Clear</button>
+        </div>
+
+        <div class="ba-cal">
+          <div class="ba-cal-head">
+            <div class="ba-cal-title" id="ba-cal-title">—</div>
+            <div class="ba-cal-nav">
+              <button type="button" id="ba-cal-prev" aria-label="Previous month">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7 2L3.5 5.5 7 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button type="button" id="ba-cal-next" aria-label="Next month">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2l3.5 3.5L4 9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="ba-cal-grid" id="ba-cal-grid"></div>
+        </div>
+        <input type="hidden" name="dates" id="ba-dates" value="">
+      </section>
+
+      {# ─── Times ─── #}
+      <section class="ba-section">
+        <header class="ba-section-head">
+          <div class="ba-section-eyebrow">Step 3</div>
+          <h2 class="ba-section-title">Pick times</h2>
+          <p class="ba-section-desc">
+            Auto-generated from <span id="ba-clinic-label">the clinic's operating hours</span>
+            and <code id="ba-slot-min">slot size</code>.
+            Slots that already exist for the chosen dates will be skipped — no duplicates.
+          </p>
+        </header>
+
+        <div class="ba-quickfill" id="ba-time-quickfill" hidden>
+          <button type="button" data-ba-tpreset="morning">Morning only</button>
+          <button type="button" data-ba-tpreset="afternoon">Afternoon only</button>
+          <button type="button" data-ba-tpreset="all">Select all</button>
+          <button type="button" data-ba-tpreset="clear">Clear</button>
+        </div>
+
+        <div class="ba-times-wrap">
+          <div id="ba-times-empty" class="ba-times-needs-doctor">Pick a doctor first to load their clinic's time slots.</div>
+          <div id="ba-times-grid" class="ba-times-grid" hidden></div>
+        </div>
+        <input type="hidden" name="times" id="ba-times" value="">
+      </section>
+
+      {# ─── Summary ─── #}
+      <section class="ba-section">
+        <header class="ba-section-head">
+          <div class="ba-section-eyebrow">Review</div>
+          <h2 class="ba-section-title">Summary</h2>
+        </header>
+        <div class="ba-summary ba-summary--inactive" id="ba-summary">
+          <div>
+            <div class="ba-summary-text" id="ba-summary-text">Pick a doctor, dates, and times to see the plan.</div>
+            <div class="ba-summary-text" id="ba-summary-detail" style="margin-top:6px; font-size:12px; color:var(--text-3);"></div>
+          </div>
+          <div class="ba-summary-num" id="ba-summary-num">0</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  {# ─── SAVE BAR ─── #}
+  <footer class="ba-savebar">
+    <div class="ba-savebar-status" id="ba-savebar-status">Pick a doctor to start</div>
+    <div class="ba-savebar-spacer"></div>
+    <div class="ba-savebar-actions">
+      <button type="button" class="ba-btn" onclick="window.location.href='../'">Cancel</button>
+      <button type="submit" name="_save" class="ba-btn ba-btn--primary" id="ba-submit" disabled>
+        Create slots
+      </button>
+    </div>
+  </footer>
+</form>
+
+{% verbatim %}
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
+
+  // ── State ───────────────────────────────────────────────────
+  const state = {
+    doctor: null,        // selected doctor object {id, slotMin, clinicName, operating_hours, ...}
+    dates: new Set(),    // 'YYYY-MM-DD' strings
+    times: new Set(),    // 'HH:MM' strings
+    calMonth: null,      // Date — first of displayed month
+  };
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const toIso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fromIso = (s) => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+
+  // ── Doctor picker ───────────────────────────────────────────
+  $$('.ba-doctor').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.ba-doctor').forEach(b => b.setAttribute('aria-pressed', 'false'));
+      btn.setAttribute('aria-pressed', 'true');
+      state.doctor = {
+        id: btn.dataset.id,
+        slotMin: parseInt(btn.dataset.slotMinutes, 10) || 30,
+        clinicName: btn.dataset.clinicName,
+        operatingHours: JSON.parse(btn.dataset.operatingHours || '{}'),
+        name: btn.querySelector('.ba-doctor-name').textContent.trim().replace(/^Dr\.\s*/i, ''),
+      };
+      $('#ba-doctor-id').value = state.doctor.id;
+      $('#ba-slot-min').textContent = `${state.doctor.slotMin}-min slots`;
+      $('#ba-clinic-label').textContent = `${state.doctor.clinicName}'s operating hours`;
+      buildTimeChips();
+      updateSummary();
+    });
+  });
+
+  // ── Time chips ──────────────────────────────────────────────
+  const DEFAULT_HOURS = { mon:[['09:00','13:00'],['16:00','21:00']], tue:[['09:00','13:00'],['16:00','21:00']],
+                          wed:[['09:00','13:00'],['16:00','21:00']], thu:[['09:00','13:00'],['16:00','21:00']],
+                          fri:[['09:00','13:00'],['16:00','21:00']], sat:[['09:00','13:00'],['16:00','21:00']],
+                          sun:[] };
+
+  function buildTimeChips() {
+    state.times.clear();
+    const wrap = $('.ba-times-wrap');
+    const empty = $('#ba-times-empty');
+    const grid  = $('#ba-times-grid');
+    const tpf   = $('#ba-time-quickfill');
+    if (!state.doctor) { empty.hidden = false; grid.hidden = true; tpf.hidden = true; return; }
+
+    const hours = (state.doctor.operatingHours && Object.keys(state.doctor.operatingHours).length)
+                  ? state.doctor.operatingHours : DEFAULT_HOURS;
+    // Union of all shifts across all weekdays
+    const shifts = new Set();
+    Object.values(hours).forEach(dayShifts => {
+      (dayShifts || []).forEach(([from, to]) => shifts.add(`${from}|${to}`));
+    });
+
+    // Generate times within each shift at slotMin intervals
+    const slotMin = state.doctor.slotMin;
+    const allTimes = new Set();
+    shifts.forEach(s => {
+      const [from, to] = s.split('|');
+      const [fh, fm] = from.split(':').map(Number);
+      const [th, tm] = to.split(':').map(Number);
+      let cur = fh * 60 + fm, end = th * 60 + tm;
+      while (cur < end) {
+        const h = Math.floor(cur / 60), m = cur % 60;
+        allTimes.add(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+        cur += slotMin;
+      }
+    });
+
+    const sorted = [...allTimes].sort();
+    if (sorted.length === 0) {
+      empty.hidden = false; empty.textContent = "No operating hours set on this doctor's clinic. Edit the clinic first.";
+      grid.hidden = true; tpf.hidden = true; return;
+    }
+    empty.hidden = true; grid.hidden = false; tpf.hidden = false;
+    grid.innerHTML = sorted.map(t =>
+      `<button type="button" class="ba-time-chip" aria-pressed="false" data-time="${t}">${t}</button>`
+    ).join('');
+    $$('.ba-time-chip', grid).forEach(c => {
+      c.addEventListener('click', () => {
+        const t = c.dataset.time;
+        const pressed = c.getAttribute('aria-pressed') === 'true';
+        c.setAttribute('aria-pressed', String(!pressed));
+        if (pressed) state.times.delete(t); else state.times.add(t);
+        updateSummary();
+      });
+    });
+  }
+
+  // ── Time quick-fills ───────────────────────────────────────
+  $('#ba-time-quickfill').addEventListener('click', e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    const preset = btn.dataset.baTpreset;
+    state.times.clear();
+    $$('.ba-time-chip').forEach(c => {
+      const t = c.dataset.time;
+      const [h] = t.split(':').map(Number);
+      let on = false;
+      if (preset === 'all') on = true;
+      else if (preset === 'morning')   on = h < 13;
+      else if (preset === 'afternoon') on = h >= 13;
+      else if (preset === 'clear')     on = false;
+      c.setAttribute('aria-pressed', String(on));
+      if (on) state.times.add(t);
+    });
+    updateSummary();
+  });
+
+  // ── Calendar ───────────────────────────────────────────────
+  function renderCal() {
+    const m = state.calMonth;
+    const year = m.getFullYear(), month = m.getMonth();
+    $('#ba-cal-title').textContent = m.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+    const wd = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const firstOfMonth = new Date(year, month, 1);
+    const dowOfFirst = (firstOfMonth.getDay() + 6) % 7; // 0=Mon
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const cells = [];
+    wd.forEach(w => cells.push(`<div class="ba-cal-wd">${w}</div>`));
+    for (let i = 0; i < dowOfFirst; i++) cells.push('<div></div>');
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const iso = toIso(date);
+      const isPast = date < today;
+      const isToday = date.getTime() === today.getTime();
+      const isSel = state.dates.has(iso);
+      cells.push(
+        `<button type="button" class="ba-cal-day ${isToday?'is-today':''}" data-iso="${iso}" ` +
+        `aria-pressed="${isSel}" ${isPast?'disabled':''}>${d}</button>`
+      );
+    }
+    $('#ba-cal-grid').innerHTML = cells.join('');
+    $$('.ba-cal-day', $('#ba-cal-grid')).forEach(b => {
+      b.addEventListener('click', () => {
+        const iso = b.dataset.iso;
+        if (state.dates.has(iso)) state.dates.delete(iso); else state.dates.add(iso);
+        b.setAttribute('aria-pressed', String(state.dates.has(iso)));
+        updateSummary();
+      });
+    });
+  }
+  state.calMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  renderCal();
+
+  $('#ba-cal-prev').addEventListener('click', () => {
+    state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth()-1, 1);
+    renderCal();
+  });
+  $('#ba-cal-next').addEventListener('click', () => {
+    state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth()+1, 1);
+    renderCal();
+  });
+
+  // ── Date quick-fills ───────────────────────────────────────
+  $$('[data-ba-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.baPreset;
+      if (preset === 'clear') { state.dates.clear(); renderCal(); updateSummary(); return; }
+      if (preset === 'today')    { state.dates.add(toIso(today)); }
+      if (preset === 'tomorrow') { const t = new Date(today); t.setDate(t.getDate()+1); state.dates.add(toIso(t)); }
+      if (preset === 'weekdays7' || preset === 'weekdays14') {
+        const target = preset === 'weekdays7' ? 7 : 14;
+        const d = new Date(today); let added = 0;
+        while (added < target) {
+          const dow = d.getDay();
+          if (dow !== 0 && dow !== 6) { state.dates.add(toIso(d)); added++; }
+          d.setDate(d.getDate()+1);
+        }
+      }
+      if (preset === 'month') {
+        const m = state.calMonth;
+        const daysInMonth = new Date(m.getFullYear(), m.getMonth()+1, 0).getDate();
+        for (let i = 1; i <= daysInMonth; i++) {
+          const d = new Date(m.getFullYear(), m.getMonth(), i);
+          if (d >= today) state.dates.add(toIso(d));
+        }
+      }
+      renderCal(); updateSummary();
+    });
+  });
+
+  // ── Topbar trail ────────────────────────────────────────────
+  function updateTrail() {
+    const done = {
+      doctor: !!state.doctor,
+      dates:  state.dates.size > 0,
+      times:  state.times.size > 0,
+    };
+    $$('.ba-trail-step').forEach(el => {
+      el.setAttribute('data-done', String(done[el.dataset.trail]));
+    });
+  }
+
+  // ── Summary + submit gate ──────────────────────────────────
+  function updateSummary() {
+    const d = state.dates.size, t = state.times.size;
+    const total = d * t;
+    const num = $('#ba-summary-num');
+    const txt = $('#ba-summary-text');
+    const det = $('#ba-summary-detail');
+    const wrap = $('#ba-summary');
+    const submit = $('#ba-submit');
+    const status = $('#ba-savebar-status');
+
+    num.textContent = total;
+    const ready = !!state.doctor && total > 0;
+    wrap.classList.toggle('ba-summary--inactive', !ready);
+    wrap.classList.toggle('ba-summary--ready', ready);
+
+    updateTrail();
+
+    if (!state.doctor) {
+      txt.innerHTML = 'Pick a doctor, dates, and times to see the plan.'; det.textContent = '';
+      submit.disabled = true; submit.textContent = 'Create slots';
+      status.textContent = 'Pick a doctor to start';
+      return;
+    }
+    if (d === 0) {
+      txt.innerHTML = `Doctor: <b>Dr. ${state.doctor.name}</b> · pick at least one date.`;
+      det.textContent = ''; submit.disabled = true; submit.textContent = 'Create slots';
+      status.textContent = 'Add dates'; return;
+    }
+    if (t === 0) {
+      txt.innerHTML = `<b>${d}</b> date${d>1?'s':''} selected · pick at least one time.`;
+      det.textContent = ''; submit.disabled = true; submit.textContent = 'Create slots';
+      status.textContent = 'Add times'; return;
+    }
+    txt.innerHTML = `Will create <b>${total}</b> slot${total>1?'s':''} for <b>Dr. ${state.doctor.name}</b>.`;
+    det.textContent = `${d} date${d>1?'s':''} × ${t} time${t>1?'s':''} · existing slots will be skipped, no duplicates.`;
+    submit.disabled = false;
+    submit.textContent = `Create ${total} slot${total>1?'s':''}`;
+    status.innerHTML = `Ready · <b>${total}</b> slot${total>1?'s':''} queued`;
+  }
+  updateSummary();
+
+  // ── Form submit ─────────────────────────────────────────────
+  $('#ba-form').addEventListener('submit', e => {
+    if (!state.doctor || state.dates.size === 0 || state.times.size === 0) {
+      e.preventDefault(); return;
+    }
+    $('#ba-dates').value = [...state.dates].sort().join(',');
+    $('#ba-times').value = [...state.times].sort().join(',');
+  });
+
+  // ── Keyboard ────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !e.target.matches('input, textarea, select, button')) {
+      window.location.href = '../';
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (!$('#ba-submit').disabled) $('#ba-form').requestSubmit();
+    }
+  });
+})();
+</script>
+{% endverbatim %}
+
+{% else %}
+  {# Edit single slot — fall through to stock Django form #}
+  {{ block.super }}
+{% endif %}
+{% endblock %}

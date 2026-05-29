@@ -1,11 +1,11 @@
 {% extends "admin/change_form.html" %}
 {% load i18n admin_urls %}
 
-{# ════════════════════════════════════════════════════════════
-   Dual-mode template:
-   • add mode (object_id is None)  → 5-step wizard
-   • edit mode                     → stock Django form (block.super)
-   ════════════════════════════════════════════════════════════ #}
+{% comment %}
+  Dual-mode template:
+  • add mode (object_id is None)  -> 5-step wizard
+  • edit mode                     -> stock Django form (block.super)
+{% endcomment %}
 
 {% block extrastyle %}{{ block.super }}
 {% if add %}
@@ -658,11 +658,11 @@
 {% block content %}
 {% if add %}
 
-{# ════════════════════════════════════════════════════════════
-   5-STEP WIZARD
-   Posts to the same admin add endpoint using Django's field
-   names. CSRF + form structure preserved.
-   ════════════════════════════════════════════════════════════ #}
+{% comment %}
+  5-STEP WIZARD
+  Posts to the same admin add endpoint using Django's field
+  names. CSRF + form structure preserved.
+{% endcomment %}
 <form method="post" id="mw-form" class="mw" novalidate>
   {% csrf_token %}
 

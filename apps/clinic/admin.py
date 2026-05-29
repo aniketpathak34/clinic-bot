@@ -178,8 +178,126 @@ class PatientAdmin(admin.ModelAdmin):
 
 @admin.register(AvailableSlot)
 class AvailableSlotAdmin(admin.ModelAdmin):
+    # ─── Custom list + bulk-add (matches MessageTemplate aesthetic) ──
+    change_list_template = 'admin/clinic/availableslot/change_list.html'
+    change_form_template = 'admin/clinic/availableslot/change_form.html'
+
     list_display = ('doctor', 'date', 'time', 'is_booked')
     list_filter = ('is_booked', 'date', 'doctor')
+    search_fields = ('doctor__name', 'doctor__clinic__name')
+
+    # ─── Inject slot summary into list context ─────────────────────
+    def changelist_view(self, request, extra_context=None):
+        from datetime import date, timedelta
+        from collections import defaultdict
+        ctx = extra_context or {}
+        today = date.today()
+        week_end = today + timedelta(days=7)
+        month_end = today + timedelta(days=30)
+
+        future = AvailableSlot.objects.filter(date__gte=today).select_related(
+            'doctor', 'doctor__clinic'
+        )
+
+        # Per-doctor + per-date aggregation for the cards
+        # cards[(doctor_id, date)] = {open: [time], booked: [time]}
+        cards_data = defaultdict(lambda: {'doctor': None, 'date': None, 'open': [], 'booked': []})
+        for s in future.filter(date__lt=month_end).order_by('doctor__name', 'date', 'time'):
+            k = (s.doctor_id, s.date)
+            cards_data[k]['doctor'] = s.doctor
+            cards_data[k]['date'] = s.date
+            (cards_data[k]['booked'] if s.is_booked else cards_data[k]['open']).append(s.time)
+
+        cards = sorted(cards_data.values(), key=lambda x: (x['date'], x['doctor'].name))
+
+        ctx['slot_cards'] = cards
+        ctx['slot_stats'] = {
+            'open_total':    future.filter(is_booked=False).count(),
+            'booked_total':  future.filter(is_booked=True).count(),
+            'open_today':    future.filter(date=today, is_booked=False).count(),
+            'open_7d':       future.filter(date__lte=week_end, is_booked=False).count(),
+            'doctors_total': Doctor.objects.filter(slots__date__gte=today).distinct().count(),
+        }
+        ctx['slot_doctors'] = list(
+            Doctor.objects.filter(slots__date__gte=today)
+                          .select_related('clinic').distinct().order_by('name')
+        )
+        ctx['today'] = today
+        ctx['tomorrow'] = today + timedelta(days=1)
+        return super().changelist_view(request, extra_context=ctx)
+
+    # ─── Inject bulk-add context (clinics, doctors w/ operating hours) ──
+    def add_view(self, request, form_url='', extra_context=None):
+        # Intercept bulk POST before Django's stock add_view tries to validate
+        # it as a single-slot form (which would fail — there's no date/time field).
+        if request.method == 'POST' and request.POST.get('ba_bulk') == '1':
+            return self._bulk_create_slots(request)
+
+        import json
+        ctx = extra_context or {}
+        ctx['slot_add'] = {
+            'doctors': [
+                {
+                    'id': d.pk,
+                    'name': d.name,
+                    'specialty': d.get_specialty_display(),
+                    'clinic_id': d.clinic_id,
+                    'clinic_name': d.clinic.name,
+                    'slot_minutes': d.clinic.slot_minutes,
+                    'operating_hours': json.dumps(d.clinic.operating_hours or {}),
+                }
+                for d in Doctor.objects.filter(is_registered=True)
+                    .select_related('clinic').order_by('clinic__name', 'name')
+            ],
+        }
+        return super().add_view(request, form_url, extra_context=ctx)
+
+    # ─── Bulk-create handler (doctor × dates × times → AvailableSlot rows) ──
+    def _bulk_create_slots(self, request):
+        from datetime import datetime
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        try:
+            doctor_id = int(request.POST.get('doctor', '0'))
+            doctor = Doctor.objects.select_related('clinic').get(pk=doctor_id)
+        except (Doctor.DoesNotExist, ValueError):
+            messages.error(request, "Pick a doctor before submitting.")
+            return redirect(request.path)
+
+        date_strs = [s for s in (request.POST.get('dates', '').split(',')) if s]
+        time_strs = [s for s in (request.POST.get('times', '').split(',')) if s]
+        if not date_strs or not time_strs:
+            messages.error(request, "Pick at least one date and one time.")
+            return redirect(request.path)
+
+        dates, bad_dates = [], 0
+        for s in date_strs:
+            try: dates.append(datetime.strptime(s, '%Y-%m-%d').date())
+            except ValueError: bad_dates += 1
+        times, bad_times = [], 0
+        for s in time_strs:
+            try: times.append(datetime.strptime(s, '%H:%M').time())
+            except ValueError: bad_times += 1
+
+        # Diff before vs after to count actually-created rows accurately.
+        # ignore_conflicts skips dupes on the unique_together (doctor, date, time).
+        match_qs = AvailableSlot.objects.filter(
+            doctor=doctor, date__in=dates, time__in=times,
+        )
+        existed_before = match_qs.count()
+        rows = [AvailableSlot(doctor=doctor, date=d, time=t, is_booked=False)
+                for d in dates for t in times]
+        AvailableSlot.objects.bulk_create(rows, ignore_conflicts=True)
+        existed_after = match_qs.count()
+        new_count = existed_after - existed_before
+        skipped = len(rows) - new_count
+
+        msg = f"Created {new_count} new slot{'s' if new_count != 1 else ''} for Dr. {doctor.name}"
+        if skipped:
+            msg += f" · {skipped} already existed (skipped)"
+        messages.success(request, msg)
+        from django.urls import reverse
+        return redirect(reverse('admin:clinic_availableslot_changelist'))
 
 
 @admin.register(Appointment)
