@@ -31,6 +31,7 @@ class ClinicAdmin(admin.ModelAdmin):
     list_display = ('name_with_code', 'wa_pill', 'maps_pill', 'doctors_pill', 'created_at')
     search_fields = ('name', 'clinic_code', 'display_phone_number', 'phone_number_id')
     ordering = ('-created_at',)
+    list_per_page = 20
 
     # ─── Inject hero stats into both list + detail context ─────────
     def changelist_view(self, request, extra_context=None):

@@ -3,306 +3,719 @@
 
 {% block extrastyle %}{{ block.super }}
 <style>
-  /* ──────────────────────────────────────────────────────────────
-     Clinic command-center — card grid changelist
-     ────────────────────────────────────────────────────────────── */
+  :root {
+    --bg-base:      #0a0a0b;
+    --bg-surface:   #111113;
+    --bg-raised:    #18181b;
+    --border:       #27272a;
+    --border-focus: #3f3f46;
+    --text-primary: #fafafa;
+    --text-muted:   #71717a;
+    --text-dim:     #3f3f46;
+    --accent:       #6366f1;
+    --accent-dim:   #1e1b4b;
+    --success:      #22c55e;
+    --warning:      #f59e0b;
+    --danger:       #ef4444;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
 
-  /* Kill default table styles so we render cards instead */
-  #changelist .results { background: transparent !important; border: 0 !important; }
-  #changelist table thead { display: none !important; }
-  #changelist table tbody tr { display: contents !important; }
-  #changelist #result_list { display: contents !important; border: 0 !important; }
+  /* ─── Reset stock admin chrome ─── */
+  #changelist          { background: transparent !important; border: 0 !important; padding: 0 !important; }
+  #changelist .results { padding: 0 !important; background: transparent !important; border: 0 !important; overflow: visible !important; }
+  #changelist .actions { display: none !important; }
+  #changelist-form     { padding: 0 !important; }
 
-  /* Hero stat strip */
-  .cc-hero {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
-    margin-bottom: 20px;
+  /* ─── Summary bar ─── */
+  .cc-summary {
+    font: 14.5px var(--sans);
+    color: var(--text-muted);
+    margin: 0 0 16px 0;
     padding: 0;
+    background: none;
   }
-  .cc-stat {
-    background: linear-gradient(135deg, #18181f, #14141b);
-    border: 1px solid #26262f;
-    border-radius: 14px;
-    padding: 18px 20px;
-    position: relative;
-    overflow: hidden;
+  .cc-summary b {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
-  .cc-stat::before {
-    content: ""; position: absolute; right: -40px; top: -40px;
-    width: 120px; height: 120px;
-    border-radius: 50%;
-    pointer-events: none;
-  }
-  .cc-stat.s-blue::before  { background: radial-gradient(circle, rgba(34,211,238,.25), transparent 70%); }
-  .cc-stat.s-green::before { background: radial-gradient(circle, rgba(16,185,129,.25), transparent 70%); }
-  .cc-stat.s-amber::before { background: radial-gradient(circle, rgba(245,158,11,.22), transparent 70%); }
-  .cc-stat.s-purple::before{ background: radial-gradient(circle, rgba(168,85,247,.22), transparent 70%); }
+  .cc-summary .sep { color: var(--text-dim); margin: 0 6px; }
 
-  .cc-stat-eyebrow {
-    color: #71717a; font-size: 10.5px; font-weight: 700;
-    letter-spacing: .12em; text-transform: uppercase;
-  }
-  .cc-stat-num {
-    font-size: 36px; font-weight: 800; letter-spacing: -.02em;
-    margin-top: 4px; line-height: 1.05;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  }
-  .cc-stat.s-blue   .cc-stat-num { color: #22d3ee; }
-  .cc-stat.s-green  .cc-stat-num { color: #34d399; }
-  .cc-stat.s-amber  .cc-stat-num { color: #fbbf24; }
-  .cc-stat.s-purple .cc-stat-num { color: #c084fc; }
-  .cc-stat-sub { color: #94a3b8; font-size: 12px; margin-top: 4px; }
-
-  /* Card grid */
-  .cc-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
-    margin: 0;
-    padding: 0;
-  }
-
-  .cc-card {
+  /* ─── Toolbar ─── */
+  .cc-toolbar {
     display: flex;
-    flex-direction: column;
-    background: linear-gradient(180deg, #16161e, #11111a);
-    border: 1px solid #26262f;
-    border-radius: 16px;
-    padding: 18px 18px 16px;
-    text-decoration: none !important;
-    position: relative;
-    transition: all .18s ease;
-    overflow: hidden;
-    color: inherit !important;
-  }
-  .cc-card::before {
-    content: ""; position: absolute; right: -50px; top: -50px;
-    width: 160px; height: 160px;
-    background: radial-gradient(circle, rgba(34,211,238,.12), transparent 70%);
-    pointer-events: none;
-    opacity: .6;
-    transition: opacity .18s ease;
-  }
-  .cc-card:hover {
-    border-color: #36364a;
-    transform: translateY(-3px);
-    box-shadow: 0 12px 32px -12px rgba(0,0,0,.6),
-                0 0 0 1px rgba(34,211,238,.18);
-  }
-  .cc-card:hover::before { opacity: 1; }
-
-  /* Card top row: avatar + name + live dot */
-  .cc-top {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 14px; min-width: 0;
-  }
-  .cc-avatar {
-    width: 44px; height: 44px;
-    border-radius: 11px;
-    background: linear-gradient(135deg, #22d3ee, #818cf8);
-    color: #0a0a0f;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 16px;
-    letter-spacing: -.02em;
-    flex-shrink: 0;
-    box-shadow: 0 2px 12px rgba(34,211,238,.3);
-  }
-  .cc-name { min-width: 0; flex: 1; }
-  .cc-name-big {
-    color: #f4f4f5; font-weight: 700; font-size: 16px;
-    line-height: 1.2; letter-spacing: -.01em;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .cc-name-code {
-    color: #71717a; font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    margin-top: 3px;
-  }
-
-  /* Status indicator (top-right) */
-  .cc-live {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 8px; border-radius: 999px;
-    font-size: 10.5px; font-weight: 700;
-    letter-spacing: .04em; text-transform: uppercase;
-    flex-shrink: 0;
-  }
-  .cc-live.on  { background: rgba(16,185,129,.13); color: #6ee7b7; }
-  .cc-live.off { background: rgba(148,163,184,.13); color: #94a3b8; }
-  .cc-live-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-  }
-  .cc-live.on .cc-live-dot {
-    background: #34d399;
-    box-shadow: 0 0 8px #34d399;
-    animation: cc-pulse 2s infinite;
-  }
-  .cc-live.off .cc-live-dot { background: #64748b; }
-  @keyframes cc-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: .4; }
-  }
-
-  /* Inline stats row */
-  .cc-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    background: #0e0e16;
-    border: 1px solid #1c1c25;
-    border-radius: 10px;
-    padding: 10px;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
   }
-  .cc-stats-item { text-align: center; }
-  .cc-stats-num {
-    color: #f4f4f5; font-weight: 700; font-size: 18px;
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: -.01em;
-  }
-  .cc-stats-lbl {
-    color: #71717a; font-size: 9.5px; font-weight: 700;
-    letter-spacing: .08em; text-transform: uppercase;
-    margin-top: 2px;
-  }
+  .cc-tb-chips { display: flex; gap: 6px; }
+  .cc-tb-spacer { flex: 1; min-width: 12px; }
 
-  /* Chips row */
-  .cc-chips {
-    display: flex; flex-wrap: wrap; gap: 6px;
-    margin-top: auto;
-  }
   .cc-chip {
-    font-size: 11px; font-weight: 600;
-    padding: 4px 9px; border-radius: 999px;
-    background: #1c1c25;
-    border: 1px solid #26262f;
-    color: #a1a1aa;
-    display: inline-flex; align-items: center; gap: 5px;
-  }
-  .cc-chip.has-wa   { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: #6ee7b7; }
-  .cc-chip.has-maps { background: rgba(59,130,246,.1); border-color: rgba(59,130,246,.3); color: #93c5fd; }
-  .cc-chip.no       { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.25); color: #fcd34d; }
-
-  /* Hide standard pagination styling we don't want to clash */
-  #changelist .actions { display: none; }
-
-  /* Delete button — top-right of each card */
-  .cc-card { position: relative; }
-  .cc-card-delete {
-    position: absolute; top: 10px; right: 10px;
-    width: 24px; height: 24px; padding: 0;
-    background: transparent; border: 1px solid #26262f;
+    height: 32px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid var(--border);
     border-radius: 6px;
-    color: #71717a; font-size: 14px; line-height: 1;
-    cursor: pointer; z-index: 2;
-    opacity: 0; transition: all .15s ease;
-    display: inline-flex; align-items: center; justify-content: center;
+    font: 500 13.5px var(--sans);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
   }
-  .cc-card:hover .cc-card-delete { opacity: 1; }
-  .cc-card-delete:hover {
-    background: rgba(239,68,68,.12);
-    border-color: rgba(239,68,68,.4);
-    color: #fca5a5;
+  .cc-chip:hover {
+    background: var(--bg-raised);
+    color: var(--text-primary);
   }
+  .cc-chip.active {
+    background: var(--bg-raised);
+    color: var(--text-primary);
+    border-color: var(--border-focus);
+  }
+  .cc-chip-num {
+    font: 500 12px var(--mono);
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .cc-chip.active .cc-chip-num { color: var(--accent); }
+
+  .cc-filter {
+    width: 240px;
+    height: 34px;
+    padding: 0 10px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: 14px var(--sans);
+    color: var(--text-primary);
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .cc-filter::placeholder { color: var(--text-dim); }
+  .cc-filter:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+  }
+  .cc-add {
+    background: var(--accent);
+    color: #fff !important;
+    font: 500 14px var(--sans);
+    height: 34px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none !important;
+    transition: background .12s ease;
+  }
+  .cc-add:hover { background: #4f46e5; }
+
+  /* ─── Bulk action bar (appears when ≥1 row selected) ─── */
+  .cc-bulk {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    font: 14px var(--sans);
+    color: var(--text-primary);
+  }
+  .cc-bulk.show { display: flex; }
+  .cc-bulk-count b {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .cc-bulk-spacer { flex: 1; }
+  .cc-bulk-clear {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font: 13.5px var(--sans);
+    cursor: pointer;
+    padding: 0 8px;
+    text-decoration: underline;
+  }
+  .cc-bulk-clear:hover { color: var(--text-primary); }
+  .cc-bulk-delete {
+    background: var(--danger);
+    color: #fff;
+    border: none;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 6px;
+    font: 500 13.5px var(--sans);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .12s ease;
+  }
+  .cc-bulk-delete:hover { background: #dc2626; }
+
+  /* ─── Table ─── */
+  .cc-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: transparent;
+    font-family: var(--sans);
+  }
+  .cc-table thead tr {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .cc-table th {
+    height: 38px;
+    padding: 0 12px;
+    font: 600 12.5px var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dim);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .cc-table th.cb-col,
+  .cc-table td.cb-col {
+    width: 36px;
+    padding: 0;
+    text-align: center;
+  }
+  .cc-table tbody tr {
+    background: var(--bg-base);
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cc-table tbody tr:hover { background: var(--bg-raised); }
+  .cc-table tbody tr.is-selected {
+    background: rgba(99,102,241,0.08);
+  }
+  .cc-table tbody tr.is-selected:hover {
+    background: rgba(99,102,241,0.12);
+  }
+  .cc-table td {
+    padding: 0 12px;
+    vertical-align: middle;
+    color: var(--text-primary);
+  }
+  .cc-table td.actions-cell { padding: 0 8px; white-space: nowrap; }
+
+  /* Custom checkbox */
+  .cc-cb {
+    width: 16px; height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+    vertical-align: middle;
+  }
+
+  /* Clinic cell */
+  .cc-clinic-name {
+    font: 500 14.5px var(--sans);
+    color: var(--text-primary);
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cc-clinic-meta {
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font: 12px var(--mono);
+  }
+  .cc-clinic-code { color: var(--text-dim); }
+  .cc-next {
+    color: var(--warning);
+    text-decoration: none !important;
+    border-bottom: 1px dashed rgba(245,158,11,0.4);
+    transition: color .12s ease, border-color .12s ease;
+  }
+  .cc-next:hover {
+    color: #fbbf24;
+    border-color: rgba(245,158,11,0.8);
+  }
+
+  /* Mono cells */
+  .cc-mono     { font: 13px var(--mono); color: var(--text-primary); }
+  .cc-mono-dim { font: 13px var(--mono); color: var(--text-dim); }
+
+  /* Copyable */
+  .copy-cell { cursor: pointer; user-select: none; }
+  .copy-cell:hover { color: var(--accent); }
+
+  /* ─── Setup checklist ─── */
+  .cc-checklist {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+  }
+  .cc-step {
+    font: 600 11px var(--mono);
+    padding: 4px 7px;
+    border-radius: 3px;
+    background: var(--bg-raised);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    cursor: help;
+  }
+  .cc-step.done {
+    background: rgba(34,197,94,0.08);
+    color: var(--success);
+    border-color: rgba(34,197,94,0.25);
+  }
+
+  /* Actions */
+  .cc-actions { display: inline-flex; gap: 4px; }
+  .cc-icon-btn {
+    width: 30px; height: 30px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    text-decoration: none !important;
+    padding: 0;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .cc-icon-btn:hover {
+    background: var(--bg-raised);
+    color: var(--text-primary);
+    border-color: var(--border-focus);
+  }
+  .cc-icon-btn.danger:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+  .cc-icon-btn svg { width: 15px; height: 15px; display: block; }
 
   /* Empty state */
-  .cc-empty {
-    grid-column: 1 / -1;
-    padding: 60px 30px; text-align: center;
-    color: #71717a;
-    background: linear-gradient(180deg, #16161e, #11111a);
-    border: 1px dashed #26262f;
-    border-radius: 16px;
+  .cc-empty-row td {
+    padding: 48px 12px;
+    text-align: center;
+    color: var(--text-muted);
+    font: 14px var(--sans);
   }
-  .cc-empty-title { color: #f4f4f5; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+
+  /* ─── Pagination ─── */
+  /* Django's {% pagination cl %} emits page links AND a trailing
+     "N clinics" text node. We already show that count in the summary
+     bar at the top, so hide the redundant text by zeroing the
+     paginator's own font-size and restoring it on the page links only. */
+  .paginator {
+    margin-top: 16px !important;
+    padding: 14px 0 0 0 !important;
+    border-top: 1px solid var(--border) !important;
+    background: transparent !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    font-size: 0 !important;   /* kills the "N clinics" text node */
+    line-height: 0 !important;
+  }
+  /* When the paginator has neither links nor a current-page marker
+     (i.e. result_count ≤ list_per_page), hide it completely so the
+     bare border-top doesn't leave a ghost line. */
+  .paginator:not(:has(a)):not(:has(.this-page)) {
+    display: none !important;
+  }
+  .paginator a, .paginator a:link, .paginator a:visited {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    background: var(--bg-raised) !important;
+    color: var(--text-primary) !important;
+    text-decoration: none !important;
+    font: 500 13px var(--sans) !important;
+    line-height: 1 !important;
+    transition: background .12s ease, border-color .12s ease;
+  }
+  .paginator a:hover {
+    background: var(--bg-surface) !important;
+    border-color: var(--border-focus) !important;
+  }
+  .paginator .this-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    font: 600 13px var(--sans);
+    line-height: 1;
+  }
 </style>
 {% endblock %}
 
 {% block result_list %}
-  {# ─── Hero stats strip ──────────────────────────────────────── #}
-  <div class="cc-hero">
-    <div class="cc-stat s-blue">
-      <div class="cc-stat-eyebrow">Total clinics</div>
-      <div class="cc-stat-num">{{ cl.result_count }}</div>
-      <div class="cc-stat-sub">on the platform</div>
-    </div>
-    <div class="cc-stat s-green">
-      <div class="cc-stat-eyebrow">Live</div>
-      <div class="cc-stat-num">{{ cc_stats.live }}</div>
-      <div class="cc-stat-sub">with WhatsApp number set</div>
-    </div>
-    <div class="cc-stat s-purple">
-      <div class="cc-stat-eyebrow">Doctors</div>
-      <div class="cc-stat-num">{{ cc_stats.doctors }}</div>
-      <div class="cc-stat-sub">across all clinics</div>
-    </div>
-    <div class="cc-stat s-amber">
-      <div class="cc-stat-eyebrow">Appointments</div>
-      <div class="cc-stat-num">{{ cc_stats.appts }}</div>
-      <div class="cc-stat-sub">total booked</div>
-    </div>
+  {# ─── Summary bar ─── #}
+  <p class="cc-summary">
+    <b>{{ cl.result_count }}</b> clinic{{ cl.result_count|pluralize }}
+    <span class="sep">·</span>
+    <b>{{ cc_stats.live }}</b> live
+    <span class="sep">·</span>
+    <b>{{ cc_stats.doctors }}</b> doctor{{ cc_stats.doctors|pluralize }}
+    <span class="sep">·</span>
+    <b>{{ cc_stats.appts }}</b> appointment{{ cc_stats.appts|pluralize }} today
+  </p>
+
+  {# ─── Bulk-action bar (hidden until ≥1 row checked) ─── #}
+  <div class="cc-bulk" id="cc-bulk-bar">
+    <span class="cc-bulk-count"><b id="cc-bulk-n">0</b> selected</span>
+    <button type="button" class="cc-bulk-clear" id="cc-bulk-clear">Clear selection</button>
+    <span class="cc-bulk-spacer"></span>
+    <button type="button" class="cc-bulk-delete" id="cc-bulk-delete">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+      </svg>
+      Delete <span id="cc-bulk-n2">0</span> selected
+    </button>
   </div>
 
-  {# ─── Card grid ─────────────────────────────────────────────── #}
-  <div class="cc-grid">
-    {% for clinic in cl.result_list %}
-      <a href="{{ clinic.pk }}/change/" class="cc-card">
-        <button type="button" class="cc-card-delete" title="Delete clinic"
-                aria-label="Delete {{ clinic.name }}"
-                onclick="event.stopPropagation(); event.preventDefault(); window.location.href='{{ clinic.pk }}/delete/';">
-          ✕
-        </button>
-        <div class="cc-top">
-          <div class="cc-avatar">{{ clinic.name|slice:":2"|upper }}</div>
-          <div class="cc-name">
-            <div class="cc-name-big">{{ clinic.name }}</div>
-            <div class="cc-name-code">{{ clinic.clinic_code }}</div>
-          </div>
-          {% if clinic.display_phone_number or clinic.whatsapp_number %}
-            <span class="cc-live on"><span class="cc-live-dot"></span>Live</span>
-          {% else %}
-            <span class="cc-live off"><span class="cc-live-dot"></span>Setup</span>
-          {% endif %}
-        </div>
-
-        <div class="cc-stats">
-          <div class="cc-stats-item">
-            <div class="cc-stats-num">{{ clinic.doctors.count }}</div>
-            <div class="cc-stats-lbl">Doctors</div>
-          </div>
-          <div class="cc-stats-item">
-            <div class="cc-stats-num">{{ clinic.appointments.count }}</div>
-            <div class="cc-stats-lbl">Appts</div>
-          </div>
-          <div class="cc-stats-item">
-            <div class="cc-stats-num">{{ clinic.slot_minutes }}<span style="font-size:10px;color:#71717a;">m</span></div>
-            <div class="cc-stats-lbl">Slot</div>
-          </div>
-        </div>
-
-        <div class="cc-chips">
-          {% if clinic.display_phone_number or clinic.whatsapp_number %}
-            <span class="cc-chip has-wa">📱 WhatsApp</span>
-          {% else %}
-            <span class="cc-chip no">📱 No WhatsApp</span>
-          {% endif %}
-          {% if clinic.location_map_url %}
-            <span class="cc-chip has-maps">📍 Map</span>
-          {% else %}
-            <span class="cc-chip no">📍 No map</span>
-          {% endif %}
-          {% if clinic.address %}
-            <span class="cc-chip">🏥 Address</span>
-          {% endif %}
-        </div>
-      </a>
-    {% empty %}
-      <div class="cc-empty">
-        <div class="cc-empty-title">No clinics yet</div>
-        <div>Add your first clinic with the “Add clinic” button above-right.</div>
-      </div>
-    {% endfor %}
+  {# ─── Toolbar: filter chips · text filter · add ─── #}
+  <div class="cc-toolbar">
+    <div class="cc-tb-chips">
+      <button type="button" class="cc-chip active" data-filter-mode="all">
+        All <span class="cc-chip-num">{{ cl.result_count }}</span>
+      </button>
+      <button type="button" class="cc-chip" data-filter-mode="needs">
+        Needs setup <span class="cc-chip-num" data-chip-needs>—</span>
+      </button>
+      <button type="button" class="cc-chip" data-filter-mode="live">
+        Live <span class="cc-chip-num">{{ cc_stats.live }}</span>
+      </button>
+    </div>
+    <div class="cc-tb-spacer"></div>
+    <input type="text" id="clinic-filter" class="cc-filter"
+           placeholder="Filter by name or code..." autocomplete="off">
+    <a href="{% url 'admin:clinic_clinic_add' %}" class="cc-add">+ Add clinic</a>
   </div>
+
+  {# ─── Table ─── #}
+  <table class="cc-table">
+    <thead>
+      <tr>
+        <th class="cb-col">
+          <input type="checkbox" class="cc-cb" id="cc-cb-all"
+                 aria-label="Select all on this page">
+        </th>
+        <th>Clinic</th>
+        <th>Code</th>
+        <th>WA Number</th>
+        <th>Phone Number ID</th>
+        <th>Setup</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for clinic in cl.result_list %}
+        {% with edit_url=clinic.pk|stringformat:"s"|add:"/change/" %}
+        <tr class="clinic-row"
+            data-name="{{ clinic.name }}"
+            data-code="{{ clinic.clinic_code }}"
+            data-status="{% if clinic.phone_number_id and clinic.access_token %}live{% elif clinic.phone_number_id or clinic.access_token or clinic.whatsapp_number %}partial{% else %}none{% endif %}">
+
+          {# Checkbox — name matches Django's action-form contract #}
+          <td class="cb-col">
+            <input type="checkbox" class="cc-cb cc-cb-row"
+                   name="_selected_action" value="{{ clinic.pk }}"
+                   aria-label="Select {{ clinic.name }}">
+          </td>
+
+          {# Clinic + next-step hint #}
+          <td>
+            <div class="cc-clinic-name" title="{{ clinic.name }}">{{ clinic.name }}</div>
+            <div class="cc-clinic-meta">
+              <span class="cc-clinic-code">{{ clinic.clinic_code }}</span>
+              {% if not clinic.whatsapp_number %}
+                <a href="{{ edit_url }}#id_whatsapp_number" class="cc-next">· next: WhatsApp number</a>
+              {% elif not clinic.phone_number_id %}
+                <a href="{{ edit_url }}#id_phone_number_id" class="cc-next">· next: phone number ID</a>
+              {% elif not clinic.access_token %}
+                <a href="{{ edit_url }}#id_access_token" class="cc-next">· next: access token</a>
+              {% endif %}
+            </div>
+          </td>
+
+          {# Code #}
+          <td>
+            <span class="cc-mono copy-cell"
+                  data-copy="{{ clinic.clinic_code }}"
+                  title="Click to copy">{{ clinic.clinic_code }}</span>
+          </td>
+
+          {# WA Number #}
+          <td>
+            {% if clinic.whatsapp_number %}
+              <span class="cc-mono copy-cell"
+                    data-copy="{{ clinic.whatsapp_number }}"
+                    title="Click to copy">{{ clinic.whatsapp_number }}</span>
+            {% else %}
+              <span class="cc-mono-dim">— not set</span>
+            {% endif %}
+          </td>
+
+          {# Phone Number ID #}
+          <td>
+            {% if clinic.phone_number_id %}
+              <span class="cc-mono copy-cell"
+                    data-copy="{{ clinic.phone_number_id }}"
+                    title="{{ clinic.phone_number_id }}">{{ clinic.phone_number_id|slice:":6" }}…{{ clinic.phone_number_id|slice:"-4:" }}</span>
+            {% else %}
+              <span class="cc-mono-dim">not set</span>
+            {% endif %}
+          </td>
+
+          {# Setup checklist — 4 mini chips #}
+          <td>
+            <div class="cc-checklist">
+              <span class="cc-step {% if clinic.whatsapp_number %}done{% endif %}" title="WhatsApp number">WA</span>
+              <span class="cc-step {% if clinic.phone_number_id %}done{% endif %}" title="Phone Number ID">ID</span>
+              <span class="cc-step {% if clinic.access_token %}done{% endif %}" title="Access token">TK</span>
+              <span class="cc-step {% if clinic.doctors.count %}done{% endif %}" title="At least one doctor">DR</span>
+            </div>
+          </td>
+
+          {# Actions #}
+          <td class="actions-cell">
+            <div class="cc-actions">
+              <a href="{% url 'admin:clinic_clinic_change' clinic.pk %}"
+                 class="cc-icon-btn" title="Edit clinic" aria-label="Edit clinic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 20h9"/>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                </svg>
+              </a>
+
+              <a href="/admin/observability/requestlog/?clinic_id={{ clinic.pk }}"
+                 class="cc-icon-btn" title="View request logs" aria-label="View logs">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8"  y1="6"  x2="21" y2="6"/>
+                  <line x1="8"  y1="12" x2="21" y2="12"/>
+                  <line x1="8"  y1="18" x2="21" y2="18"/>
+                  <line x1="3"  y1="6"  x2="3.01" y2="6"/>
+                  <line x1="3"  y1="12" x2="3.01" y2="12"/>
+                  <line x1="3"  y1="18" x2="3.01" y2="18"/>
+                </svg>
+              </a>
+
+              <button type="button" class="cc-icon-btn"
+                      data-copy="https://docping.in/api/webhook/whatsapp/"
+                      title="Copy webhook URL" aria-label="Copy webhook URL">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+              </button>
+
+              <a href="{{ clinic.pk }}/delete/"
+                 class="cc-icon-btn danger" title="Delete clinic" aria-label="Delete clinic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6"/>
+                  <path d="M14 11v6"/>
+                </svg>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+      {% empty %}
+        <tr class="cc-empty-row">
+          <td colspan="7">No clinics yet. Add your first one with the "+ Add clinic" button.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# ─── Pagination — Django's standard, restyled via .paginator above ─── #}
+  {% pagination cl %}
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('tr.clinic-row'));
+  var filterInput = document.getElementById('clinic-filter');
+  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-filter-mode]'));
+  var currentMode = 'all';
+
+  // ── "Needs setup" count from row data ──
+  var needsCount = rows.filter(function (r) { return r.dataset.status !== 'live'; }).length;
+  var needsBadge = document.querySelector('[data-chip-needs]');
+  if (needsBadge) needsBadge.textContent = needsCount;
+
+  // ── Paginator: hide redundant "N clinics" trailing text node.
+  // CSS handles the main case via font-size:0 + :has() to hide when
+  // empty; this is the fallback for older browsers without :has(). ──
+  var paginator = document.querySelector('.paginator');
+  if (paginator) {
+    var hasNav = paginator.querySelector('a, .this-page');
+    if (!hasNav) paginator.style.display = 'none';
+  }
+
+  function applyFilter() {
+    var q = (filterInput && filterInput.value || '').toLowerCase();
+    rows.forEach(function (row) {
+      var name = (row.dataset.name || '').toLowerCase();
+      var code = (row.dataset.code || '').toLowerCase();
+      var status = row.dataset.status;
+      var textHit = !q || name.indexOf(q) !== -1 || code.indexOf(q) !== -1;
+      var modeHit;
+      if      (currentMode === 'all')   modeHit = true;
+      else if (currentMode === 'needs') modeHit = (status !== 'live');
+      else if (currentMode === 'live')  modeHit = (status === 'live');
+      else                              modeHit = true;
+      row.style.display = (textHit && modeHit) ? '' : 'none';
+    });
+  }
+
+  if (filterInput) filterInput.addEventListener('input', applyFilter);
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      currentMode = chip.dataset.filterMode;
+      applyFilter();
+    });
+  });
+
+  // ── Bulk-select logic ──
+  var rowCheckboxes = Array.prototype.slice.call(document.querySelectorAll('.cc-cb-row'));
+  var selectAll = document.getElementById('cc-cb-all');
+  var bulkBar = document.getElementById('cc-bulk-bar');
+  var bulkN = document.getElementById('cc-bulk-n');
+  var bulkN2 = document.getElementById('cc-bulk-n2');
+  var bulkClear = document.getElementById('cc-bulk-clear');
+  var bulkDelete = document.getElementById('cc-bulk-delete');
+
+  function refreshBulk() {
+    var checked = rowCheckboxes.filter(function (cb) { return cb.checked; });
+    var n = checked.length;
+    if (bulkN) bulkN.textContent = n;
+    if (bulkN2) bulkN2.textContent = n;
+    if (bulkBar) bulkBar.classList.toggle('show', n > 0);
+    rowCheckboxes.forEach(function (cb) {
+      var tr = cb.closest('tr');
+      if (tr) tr.classList.toggle('is-selected', cb.checked);
+    });
+    if (selectAll) {
+      if (n === 0) {
+        selectAll.checked = false; selectAll.indeterminate = false;
+      } else if (n === rowCheckboxes.length) {
+        selectAll.checked = true; selectAll.indeterminate = false;
+      } else {
+        selectAll.checked = false; selectAll.indeterminate = true;
+      }
+    }
+  }
+
+  rowCheckboxes.forEach(function (cb) {
+    cb.addEventListener('change', refreshBulk);
+  });
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      rowCheckboxes.forEach(function (cb) {
+        // Only toggle currently-visible rows so filter+select feel coherent
+        var tr = cb.closest('tr');
+        if (tr && tr.style.display !== 'none') cb.checked = selectAll.checked;
+      });
+      refreshBulk();
+    });
+  }
+
+  if (bulkClear) {
+    bulkClear.addEventListener('click', function () {
+      rowCheckboxes.forEach(function (cb) { cb.checked = false; });
+      refreshBulk();
+    });
+  }
+
+  // Delete-selected — fills Django's action contract on the parent
+  // changelist-form then submits. Django's changelist_view picks up
+  // action=delete_selected + _selected_action[] and routes to its
+  // delete confirmation page.
+  if (bulkDelete) {
+    bulkDelete.addEventListener('click', function () {
+      var n = rowCheckboxes.filter(function (cb) { return cb.checked; }).length;
+      if (!n) return;
+      if (!confirm('Delete ' + n + ' selected clinic' + (n === 1 ? '' : 's') + '?')) return;
+      var form = document.getElementById('changelist-form');
+      if (!form) { alert('Cannot find changelist form'); return; }
+      function setHidden(name, value) {
+        var input = form.querySelector('input[name="' + name + '"][data-cc-bulk]');
+        if (!input) {
+          input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.setAttribute('data-cc-bulk', '1');
+          form.appendChild(input);
+        }
+        input.value = value;
+      }
+      setHidden('action', 'delete_selected');
+      setHidden('index', '0');
+      setHidden('select_across', '0');
+      form.submit();
+    });
+  }
+
+  // ── Copy-to-clipboard ──
+  document.querySelectorAll('[data-copy]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var text = this.dataset.copy;
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      var tip = document.createElement('span');
+      tip.textContent = 'Copied';
+      tip.style.cssText =
+        'position:fixed;background:#18181b;color:#fafafa;font-size:11px;' +
+        'padding:2px 6px;border-radius:4px;pointer-events:none;white-space:nowrap;' +
+        'z-index:9999;border:1px solid #27272a;' +
+        'top:' + (e.clientY - 28) + 'px;left:' + e.clientX + 'px;';
+      document.body.appendChild(tip);
+      setTimeout(function () { tip.remove(); }, 1500);
+    });
+  });
+})();
+</script>
 {% endblock %}
