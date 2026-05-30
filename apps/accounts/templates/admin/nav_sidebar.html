@@ -117,34 +117,24 @@
     <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}" class="dp-link">
       <span class="dp-link-name">Subscriptions</span>
       <span class="dp-link-meta">
-        {% if c.subs_suspended %}<span class="dp-badge dp-badge--danger">{{ c.subs_suspended }}</span>{% endif %}
-        {% if c.subs_past_due %}<span class="dp-badge dp-badge--warning">{{ c.subs_past_due }}</span>{% endif %}
-        {% if c.subs_total %}<span class="dp-badge">{{ c.subs_total }}</span>{% endif %}
+        {% if c.subs_past_due %}<span class="dp-badge dp-badge--danger">{{ c.subs_past_due }}</span>{% endif %}
+        {% if c.subs_active %}<span class="dp-badge">{{ c.subs_active }}</span>{% endif %}
       </span>
     </a>
     <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}?status__exact=past_due" class="dp-link dp-sublink">
       <span class="dp-link-name">Past due</span>
       <span class="dp-link-meta">
-        {% if c.subs_past_due %}<span class="dp-badge dp-badge--warning">{{ c.subs_past_due }}</span>{% endif %}
-      </span>
-    </a>
-    <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}?status__exact=suspended" class="dp-link dp-sublink">
-      <span class="dp-link-name">Suspended</span>
-      <span class="dp-link-meta">
-        {% if c.subs_suspended %}<span class="dp-badge dp-badge--danger">{{ c.subs_suspended }}</span>{% endif %}
+        {% if c.subs_past_due %}<span class="dp-badge dp-badge--danger">{{ c.subs_past_due }}</span>{% endif %}
       </span>
     </a>
     <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}?status__exact=pilot" class="dp-link dp-sublink">
       <span class="dp-link-name">On pilot</span>
       <span class="dp-link-meta">
-        {% if c.subs_pilot %}<span class="dp-badge dp-badge--accent">{{ c.subs_pilot }}</span>{% endif %}
+        {% if c.subs_pilot %}<span class="dp-badge dp-badge--warning">{{ c.subs_pilot }}</span>{% endif %}
       </span>
     </a>
-    <a href="{% admin_url 'admin:subscriptions_payment_changelist' %}" class="dp-link">
-      <span class="dp-link-name">Payments</span>
-      <span class="dp-link-meta">
-        {% if c.payments_this_month %}<span class="dp-badge">{{ c.payments_this_month }}</span>{% endif %}
-      </span>
+    <a href="{% admin_url 'admin:subscriptions_payment_changelist' %}" class="dp-link dp-sublink">
+      <span class="dp-link-name">Payment history</span>
     </a>
   </div>
 
@@ -152,7 +142,7 @@
   <div class="dp-section">
     <div class="dp-section-head">Conversations</div>
     <a href="{% admin_url 'admin:conversations_conversationstate_changelist' %}" class="dp-link">
-      <span class="dp-link-name">Active chats</span>
+      <span class="dp-link-name">Conversations</span>
     </a>
     <a href="{% admin_url 'admin:notifications_calllog_changelist' %}" class="dp-link">
       <span class="dp-link-name">Call logs</span>
@@ -166,7 +156,7 @@
   <div class="dp-section">
     <div class="dp-section-head">Observability</div>
     <a href="{% admin_url 'admin:observability_requestlog_changelist' %}" class="dp-link">
-      <span class="dp-link-name">Logs</span>
+      <span class="dp-link-name">Request logs</span>
     </a>
     <a href="{% admin_url 'admin:observability_requestlog_changelist' %}?level__exact=error" class="dp-link dp-sublink">
       <span class="dp-link-name">Errors only</span>
