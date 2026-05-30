@@ -3,221 +3,653 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="noindex,nofollow">
-  <title>For {{ lead.name }} — DocPing</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  {# ─── Personalized title + OG (link previews when shared on WhatsApp) ─── #}
+  <title>DocPing — Built for {{ lead.name }}</title>
+  <meta property="og:title" content="DocPing built this for {{ lead.name }}">
+  <meta property="og:description" content="See exactly how many bookings you're missing — and how to fix it in 10 minutes.">
+  <meta property="og:image" content="https://docping.in{% static 'marketing/brand/docping-og.svg' %}">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DocPing built this for {{ lead.name }}">
+  <meta name="twitter:description" content="See exactly how many bookings you're missing — and how to fix it in 10 minutes.">
+  <meta name="twitter:image" content="https://docping.in{% static 'marketing/brand/docping-og.svg' %}">
+
   <link rel="icon" type="image/svg+xml" href="{% static 'marketing/brand/docping-icon.svg' %}">
-  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <style>
+    /* ═══════════════════════════════════════════════════════════════
+       DESIGN TOKENS — match main site
+       ═══════════════════════════════════════════════════════════════ */
     :root {
-      --bg: #0a0a0f; --surface: #14141b; --surface-2: #1c1c25;
-      --border: #26262f; --text: #f4f4f5; --muted: #a1a1aa; --dim: #71717a;
-      --accent: #22d3ee; --accent-hover: #67e8f9;
-      --wa: #25D366; --wa-dark: #128C7E;
+      --lp-green:       #25D366;
+      --lp-green-hover: #1ebd5a;
+      --lp-bg:          #0a0a0a;
+      --lp-surface:     rgba(255,255,255,0.04);
+      --lp-surface-2:   rgba(255,255,255,0.05);
+      --lp-border:      rgba(255,255,255,0.08);
+      --lp-border-2:    rgba(255,255,255,0.1);
+      --lp-text:        #ffffff;
+      --lp-text-2:      rgba(255,255,255,0.7);
+      --lp-text-3:      rgba(255,255,255,0.5);
+      --lp-text-4:      rgba(255,255,255,0.4);
+      --lp-text-5:      rgba(255,255,255,0.25);
+      --lp-danger:      #F87171;
+      --lp-gold:        #FFD700;
+      --lp-amber:       #FFA500;
     }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--lp-text);
+      margin: 0;
       -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 70% 10%, rgba(37,211,102,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 20% 80%, rgba(37,211,102,0.06) 0%, transparent 50%),
+        var(--lp-bg);
+      background-attachment: fixed;
     }
-    .mono { font-family: 'JetBrains Mono', monospace; }
-    .grad-text {
+    .lp-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       1. HEADER — sticky dark with blur
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-header {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(10,10,10,0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--lp-border);
+    }
+    .lp-header-inner {
+      max-width: 880px; margin: 0 auto;
+      padding: 14px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+    }
+    .lp-logo {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: var(--lp-text); font-weight: 700; font-size: 15px;
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .lp-logo img { border-radius: 6px; }
+    .lp-logo .accent { color: var(--lp-green); }
+    .lp-built-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(37,211,102,0.12);
+      border: 1px solid rgba(37,211,102,0.35);
+      color: var(--lp-green);
+      padding: 5px 12px; border-radius: 999px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.02em;
+      max-width: 60%;
+    }
+    .lp-built-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--lp-green);
+      box-shadow: 0 0 0 0 rgba(37,211,102,0.55);
+      animation: lp-pulse-dot 1.8s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes lp-pulse-dot {
+      0%   { box-shadow: 0 0 0 0 rgba(37,211,102,0.55); }
+      70%  { box-shadow: 0 0 0 8px rgba(37,211,102,0); }
+      100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
+    }
+    .lp-built-badge-name {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Page wrapper
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-wrap {
+      max-width: 760px; margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       2. HERO
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-eyebrow {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--lp-green);
+      margin-bottom: 16px;
+    }
+    .lp-h1 {
+      font-size: 46px; line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin: 0 0 14px;
       background: linear-gradient(180deg, #fafafa, #a1a1aa);
       -webkit-background-clip: text; background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .glow {
-      position: absolute; pointer-events: none;
-      filter: blur(60px); opacity: .35;
+    .lp-sub {
+      font-size: 18px; line-height: 1.55;
+      color: var(--lp-text-2);
+      margin: 0;
     }
-    .pulse-dot {
-      width: 8px; height: 8px; background: #10b981;
-      border-radius: 50%; display: inline-block;
-      box-shadow: 0 0 0 0 rgba(16,185,129,.7);
-      animation: pulse 1.8s ease-in-out infinite;
+    .lp-sub .star-rating {
+      color: var(--lp-gold);
+      font-weight: 600;
+      text-decoration: underline;
+      text-decoration-color: var(--lp-gold);
+      text-underline-offset: 3px;
+      text-decoration-thickness: 2px;
     }
-    @keyframes pulse {
-      0%   { box-shadow: 0 0 0 0 rgba(16,185,129,.7); }
-      70%  { box-shadow: 0 0 0 10px rgba(16,185,129,0); }
-      100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+    .lp-sub-extra {
+      margin: 8px 0 0;
+      font-size: 16px; line-height: 1.5;
+      color: var(--lp-text-3);
+      font-style: italic;
     }
-    .wa-cta {
-      background: linear-gradient(135deg, var(--wa), var(--wa-dark));
-      box-shadow: 0 12px 30px -8px rgba(37,211,102,.5);
-      transition: all .2s ease;
-    }
-    .wa-cta:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 18px 40px -8px rgba(37,211,102,.65);
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
+
+    /* ═══════════════════════════════════════════════════════════════
+       3. QUICK MATH CARD
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-math {
+      margin-top: 36px;
+      background: var(--lp-surface);
+      border: 1px solid rgba(37,211,102,0.3);
+      border-left: 3px solid var(--lp-green);
       border-radius: 16px;
+      padding: 28px;
     }
-    .card-hover {
-      transition: all .2s ease;
+    .lp-math-label {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--lp-green);
+      margin-bottom: 22px;
     }
-    .card-hover:hover {
-      border-color: rgba(34,211,238,.3);
-      transform: translateY(-2px);
+    .lp-math-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0;
+      margin-bottom: 24px;
+    }
+    .lp-math-cell {
+      padding: 0 20px;
+      border-left: 1px solid rgba(255,255,255,0.08);
+    }
+    .lp-math-cell:first-child {
+      padding-left: 0;
+      border-left: 0;
+    }
+    .lp-math-cell:last-child { padding-right: 0; }
+    .lp-math-cell-label {
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--lp-text-4);
+      margin-bottom: 8px;
+    }
+    .lp-math-cell-num {
+      font-size: 36px; font-weight: 600;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+    .lp-math-cell-num.white  { color: var(--lp-text); }
+    .lp-math-cell-num.danger { color: var(--lp-danger); }
+    .lp-math-cell-num.success{ color: var(--lp-green); }
+    .lp-math-cell-sub {
+      font-size: 11px;
+      color: var(--lp-text-4);
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    .lp-math-quote {
+      border-left: 2px solid var(--lp-green);
+      padding-left: 16px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--lp-text-2);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       4. SEE-IT-IN-ACTION CARD
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-demos {
+      margin-top: 24px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--lp-border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .lp-demos-row {
+      display: flex; gap: 16px;
+      align-items: flex-start;
+    }
+    .lp-demos-icon {
+      width: 44px; height: 44px;
+      border-radius: 11px;
+      background: rgba(37,211,102,0.12);
+      border: 1px solid rgba(37,211,102,0.3);
+      color: var(--lp-green);
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .lp-demos-body { flex: 1; min-width: 0; }
+    .lp-demos-label {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--lp-green);
+      margin-bottom: 8px;
+    }
+    .lp-demos-title {
+      font-size: 20px; font-weight: 600;
+      color: var(--lp-text);
+      margin: 0 0 8px;
+      letter-spacing: -0.015em;
+    }
+    .lp-demos-desc {
+      font-size: 14px; line-height: 1.6;
+      color: var(--lp-text-3);
+      margin: 0 0 18px;
+    }
+    .lp-demos-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+    .lp-demos-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 16px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--lp-text);
+      font-size: 14px; font-weight: 500;
+      text-decoration: none;
+      transition: border-color .15s ease, color .15s ease, background .15s ease;
+    }
+    .lp-demos-btn:hover {
+      border-color: var(--lp-green);
+      color: var(--lp-green);
+      background: rgba(37,211,102,0.04);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       5. 3-STEP CARDS
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-steps {
+      margin-top: 24px;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .lp-step {
+      background: var(--lp-surface-2);
+      border: 1px solid var(--lp-border-2);
+      border-radius: 12px;
+      padding: 24px;
+      transition: border-color .2s ease, transform .2s ease;
+    }
+    .lp-step:hover {
+      border-color: rgba(37,211,102,0.3);
+      transform: translateY(-1px);
+    }
+    .lp-step-num {
+      font-size: 13px; font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--lp-green);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .lp-step-title {
+      font-size: 16px; font-weight: 600;
+      color: var(--lp-text);
+      margin: 12px 0 6px;
+      letter-spacing: -0.01em;
+    }
+    .lp-step-desc {
+      font-size: 14px; line-height: 1.6;
+      color: rgba(255,255,255,0.6);
+      margin: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       6. TRUST PILLS
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-trust {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      justify-content: center;
+      margin: 32px auto;
+    }
+    .lp-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.8);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px; font-weight: 500;
+    }
+    .lp-pill::before {
+      content: "✓";
+      color: var(--lp-green);
+      font-weight: 700;
+    }
+    .lp-pill.is-pune {
+      border-color: rgba(255,165,0,0.3);
+    }
+    .lp-pill.is-pune::before { content: ""; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       7. CTA SECTION
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-cta-wrap { text-align: center; margin-top: 32px; }
+    .lp-cta-urgency {
+      font-size: 13px;
+      color: var(--lp-text-4);
+      margin: 0 0 20px;
+      line-height: 1.5;
+    }
+    .lp-cta {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 10px;
+      width: 100%; max-width: 420px;
+      height: 56px;
+      padding: 0 22px;
+      background: var(--lp-green);
+      color: #000 !important;
+      font-size: 17px; font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      animation: lp-pulse-green 2s infinite;
+      transition: background .15s ease, transform .12s ease;
+      letter-spacing: -0.01em;
+    }
+    .lp-cta:hover { background: var(--lp-green-hover); }
+    .lp-cta:active { transform: translateY(1px); }
+    .lp-cta svg { color: #000; }
+    .lp-cta .arrow { opacity: 0.7; }
+    @keyframes lp-pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(37,211,102,0.4); }
+      50%      { box-shadow: 0 0 0 12px rgba(37,211,102,0); }
+    }
+
+    /* Founder inline card */
+    .lp-founder {
+      display: flex; align-items: center; gap: 12px;
+      justify-content: center;
+      margin-top: 16px;
+      flex-wrap: nowrap;
+    }
+    .lp-founder-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--lp-green); color: #000;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 13px;
+      flex-shrink: 0;
+    }
+    .lp-founder-info {
+      display: flex; flex-direction: column;
+      align-items: flex-start;
+      line-height: 1.2;
+      min-width: 0;
+    }
+    .lp-founder-name {
+      font-size: 14px; font-weight: 500;
+      color: rgba(255,255,255,0.9);
+    }
+    .lp-founder-title {
+      font-size: 12px;
+      color: var(--lp-text-4);
+      margin-top: 2px;
+    }
+    .lp-founder-responds {
+      font-size: 12px; font-weight: 500;
+      color: var(--lp-green);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       8. FOOTER
+       ═══════════════════════════════════════════════════════════════ */
+    .lp-footer {
+      margin-top: 48px;
+      padding: 32px 0 40px;
+      border-top: 1px solid var(--lp-border);
+      text-align: center;
+    }
+    .lp-footer-logo {
+      width: 20px; height: 20px;
+      margin: 0 auto 10px;
+      display: block;
+      border-radius: 5px;
+    }
+    .lp-footer-l1 {
+      font-size: 13px;
+      color: var(--lp-text-4);
+      margin: 0;
+    }
+    .lp-footer-l2 {
+      font-size: 11px;
+      color: var(--lp-text-5);
+      margin: 4px 0 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MOBILE
+       ═══════════════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .lp-wrap { padding: 28px 16px 48px; }
+      .lp-header-inner { padding: 12px 16px; }
+      .lp-built-badge { font-size: 10px; padding: 4px 10px; max-width: 55%; }
+
+      .lp-h1 { font-size: 28px; line-height: 1.1; }
+      .lp-sub { font-size: 16px; }
+      .lp-sub-extra { font-size: 14px; }
+
+      .lp-math { padding: 22px 20px; }
+      .lp-math-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .lp-math-cell {
+        padding: 16px 0;
+        border-left: 0;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        text-align: center;
+      }
+      .lp-math-cell:first-child {
+        padding-top: 0;
+        border-top: 0;
+      }
+      .lp-math-cell:last-child { padding-bottom: 0; }
+      .lp-math-cell-num { font-size: 32px; }
+
+      .lp-demos { padding: 22px 20px; }
+      .lp-demos-row { flex-direction: column; gap: 12px; }
+
+      .lp-steps { grid-template-columns: 1fr; gap: 10px; }
+
+      .lp-trust { gap: 8px; }
+
+      .lp-cta {
+        max-width: 100%;
+        height: 60px;
+        font-size: 16px;
+      }
+
+      .lp-founder {
+        flex-wrap: wrap;
+        justify-content: center;
+        text-align: center;
+        gap: 8px 12px;
+      }
+      .lp-founder-info { align-items: center; }
+      .lp-founder-responds {
+        margin-left: 0;
+        flex-basis: 100%;
+        text-align: center;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Reduced motion
+       ═══════════════════════════════════════════════════════════════ */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+      .lp-cta { animation: none; }
+      .lp-built-badge-dot { animation: none; box-shadow: none; }
     }
   </style>
 </head>
-<body class="relative overflow-x-hidden">
+<body>
 
-  {# Ambient glows #}
-  <div class="glow" style="top:-200px;right:-150px;width:600px;height:600px;background:#22d3ee;"></div>
-  <div class="glow" style="top:300px;left:-200px;width:500px;height:500px;background:#a855f7;opacity:.2;"></div>
-
-  <div class="relative max-w-3xl mx-auto px-5 py-10 md:py-16">
-
-    {# ─── Header strip ───────────────────────────────────── #}
-    <div class="flex items-center justify-between mb-10">
-      <a href="/?from={{ lead.slug }}" class="flex items-center gap-2.5 group">
-        <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="32" height="32" class="rounded-lg">
-        <span class="font-bold text-sm tracking-tight text-zinc-200 group-hover:text-white transition-colors">Doc<span class="text-cyan-400">Ping</span></span>
+  <!-- ═══════ 1. STICKY HEADER ═══════ -->
+  <header class="lp-header">
+    <div class="lp-header-inner">
+      <a href="/?from={{ lead.slug }}" class="lp-logo">
+        <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="28" height="28">
+        <span>Doc<span class="accent">Ping</span></span>
       </a>
-      <div class="flex items-center gap-2 text-xs mono uppercase tracking-wider text-zinc-500">
-        <span class="pulse-dot"></span>
-        <span>built specifically for</span>
-      </div>
+      <span class="lp-built-badge" title="Built specifically for {{ lead.name }}">
+        <span class="lp-built-badge-dot"></span>
+        <span class="lp-built-badge-name">Built for {{ lead.name }}</span>
+      </span>
     </div>
+  </header>
 
-    {# ─── Hero: clinic name + personalised greeting ─────── #}
-    <h1 class="text-3xl md:text-5xl font-extrabold leading-tight mb-3 tracking-tight grad-text">
-      {{ lead.name }}
-    </h1>
-    <p class="text-lg md:text-xl text-zinc-400 mb-10 leading-relaxed">
+  <div class="lp-wrap">
+
+    <!-- ═══════ 2. HERO ═══════ -->
+    <div class="lp-eyebrow">Personal pitch · {% now "F j, Y" %}</div>
+    <h1 class="lp-h1">{{ lead.name }}</h1>
+    <p class="lp-sub">
       {% if lead.rating %}
-        Your <span class="text-amber-400 font-semibold">{{ lead.rating }}★ from {{ lead.reviews|intcomma }} reviews</span> caught my eye.
+        Your <span class="star-rating">{{ lead.rating }}★ from {{ lead.reviews|intcomma }} reviews</span> caught my eye.
       {% else %}
-        Saw <span class="text-white font-semibold">{{ lead.name }}</span> online — looks like a great fit.
+        Saw <span class="star-rating">{{ lead.name }}</span> online — looks like a great fit.
       {% endif %}
       I'd love to help you book more patients without lifting a finger.
     </p>
+    <p class="lp-sub-extra">Here's exactly what I found — and what I can do about it.</p>
 
-    {# ─── ROI math card — the killer punch ──────────────── #}
-    <div class="card p-6 md:p-8 mb-10">
-      <div class="text-xs mono uppercase tracking-wider text-cyan-400 mb-4">
-        Quick math, just for {{ lead.name|truncatechars:30 }}
+    <!-- ═══════ 3. QUICK MATH CARD ═══════ -->
+    <section class="lp-math">
+      <div class="lp-math-label">Quick math, just for {{ lead.name|truncatechars:30 }}</div>
+
+      <div class="lp-math-grid">
+        <div class="lp-math-cell">
+          <div class="lp-math-cell-label">Booking calls / day</div>
+          <div class="lp-math-cell-num white">~{{ lead.estimated_calls_per_day }}</div>
+          <div class="lp-math-cell-sub">based on {{ lead.reviews|intcomma|default:"your" }} reviews</div>
+        </div>
+        <div class="lp-math-cell">
+          <div class="lp-math-cell-label">Missed after hours</div>
+          <div class="lp-math-cell-num danger">~30%</div>
+          <div class="lp-math-cell-sub">industry average</div>
+        </div>
+        <div class="lp-math-cell">
+          <div class="lp-math-cell-label">Recoverable / month</div>
+          <div class="lp-math-cell-num success">₹{{ lead.estimated_monthly_recovery|intcomma }}</div>
+          <div class="lp-math-cell-sub">avg ₹500 / consultation</div>
+        </div>
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-5 mb-6">
-        <div>
-          <div class="text-[10px] mono uppercase tracking-wider text-zinc-500 mb-1">Booking calls / day</div>
-          <div class="text-2xl md:text-3xl font-bold mono text-white">~{{ lead.estimated_calls_per_day }}</div>
-          <div class="text-[11px] text-zinc-500 mt-1">based on {{ lead.reviews|intcomma|default:"your" }} reviews</div>
-        </div>
-        <div>
-          <div class="text-[10px] mono uppercase tracking-wider text-zinc-500 mb-1">Missed after hours</div>
-          <div class="text-2xl md:text-3xl font-bold mono text-rose-400">~30%</div>
-          <div class="text-[11px] text-zinc-500 mt-1">industry average</div>
-        </div>
-        <div class="col-span-2 md:col-span-1">
-          <div class="text-[10px] mono uppercase tracking-wider text-zinc-500 mb-1">Recoverable / month</div>
-          <div class="text-2xl md:text-3xl font-bold mono text-emerald-400">₹{{ lead.estimated_monthly_recovery|intcomma }}</div>
-          <div class="text-[11px] text-zinc-500 mt-1">avg ₹500 / consultation</div>
-        </div>
-      </div>
-
-      <div class="text-sm text-zinc-300 leading-relaxed border-l-2 border-cyan-500/40 pl-4">
+      <blockquote class="lp-math-quote">
         With our WhatsApp bot answering 24×7, you'd capture the after-hours calls you currently miss
         — and {% if lead.specialty == 'physio' %}physio patients book in seconds without leaving WhatsApp{% elif lead.specialty == 'dental' %}dental patients book in seconds without an app{% elif lead.specialty == 'chiro' %}chiro patients book in seconds without back-and-forth{% else %}patients book in seconds without an app{% endif %}.
-      </div>
-    </div>
+      </blockquote>
+    </section>
 
-    {# ─── See it in action — drives prospect to the full home page ─── #}
-    <div class="card p-6 md:p-8 mb-10 card-hover" style="background: linear-gradient(135deg, rgba(34,211,238,.06), rgba(168,85,247,.04));">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-xl bg-cyan-500/15 flex items-center justify-center flex-shrink-0 border border-cyan-500/30">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-cyan-400">
+    <!-- ═══════ 4. SEE-IT-IN-ACTION CARD ═══════ -->
+    <section class="lp-demos">
+      <div class="lp-demos-row">
+        <div class="lp-demos-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </div>
-        <div class="flex-1 min-w-0">
-          <div class="text-xs mono uppercase tracking-wider text-cyan-400 mb-2">See it in action</div>
-          <h3 class="text-lg md:text-xl font-bold text-white mb-2 tracking-tight">Watch the full demos</h3>
-          <p class="text-sm text-zinc-400 leading-relaxed mb-5">
+        <div class="lp-demos-body">
+          <div class="lp-demos-label">See it in action</div>
+          <h3 class="lp-demos-title">Watch the full demos</h3>
+          <p class="lp-demos-desc">
             See the patient flow, the provider flow, real testimonials, and an ROI calculator
             — everything live on our home page.
           </p>
-          <div class="flex flex-wrap gap-3">
-            <a href="/?from={{ lead.slug }}" target="_blank"
-               class="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white
-                      px-5 py-2.5 rounded-xl text-sm font-semibold border border-zinc-700
-                      transition-all">
-              <span>Patient flow demo</span>
-              <span class="text-cyan-400">→</span>
+          <div class="lp-demos-buttons">
+            <a href="/?from={{ lead.slug }}" target="_blank" rel="noopener" class="lp-demos-btn">
+              <span>Patient flow demo</span><span>→</span>
             </a>
-            <a href="/?from={{ lead.slug }}#provider" target="_blank"
-               class="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white
-                      px-5 py-2.5 rounded-xl text-sm font-semibold border border-zinc-700
-                      transition-all">
-              <span>Provider flow demo</span>
-              <span class="text-cyan-400">→</span>
-            </a>
-            <a href="/?from={{ lead.slug }}" target="_blank"
-               class="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300
-                      px-3 py-2.5 text-sm font-semibold transition-all">
-              <span>Open full home page</span>
-              <span>↗</span>
+            <a href="/?from={{ lead.slug }}#provider" target="_blank" rel="noopener" class="lp-demos-btn">
+              <span>Provider flow demo</span><span>→</span>
             </a>
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ═══════ 5. 3-STEP CARDS ═══════ -->
+    <section class="lp-steps">
+      <div class="lp-step">
+        <div class="lp-step-num">01</div>
+        <div class="lp-step-title">Patient messages your number</div>
+        <p class="lp-step-desc">No app install. No new number. Same WhatsApp they already use.</p>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-num">02</div>
+        <div class="lp-step-title">Bot books in 4 taps</div>
+        <p class="lp-step-desc">Pick date → pick slot → confirm → done. Hindi, Marathi, English.</p>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-num">03</div>
+        <div class="lp-step-title">You get a ping</div>
+        <p class="lp-step-desc">Real-time WhatsApp alert. Your front desk doesn't lift a finger.</p>
+      </div>
+    </section>
+
+    <!-- ═══════ 6. TRUST PILLS ═══════ -->
+    <div class="lp-trust">
+      <span class="lp-pill">Free 30-day pilot</span>
+      <span class="lp-pill">No card</span>
+      <span class="lp-pill">No contract</span>
+      <span class="lp-pill is-pune">Made in Pune 🇮🇳</span>
     </div>
 
-    {# ─── How it works (3 quick beats) ───────────────────── #}
-    <div class="grid md:grid-cols-3 gap-3 mb-10">
-      <div class="card p-5">
-        <div class="text-cyan-400 text-xs mono mb-2">01</div>
-        <div class="font-semibold text-white mb-1">Patient messages your number</div>
-        <div class="text-sm text-zinc-400">No app install. No new number. Same WhatsApp they already use.</div>
-      </div>
-      <div class="card p-5">
-        <div class="text-cyan-400 text-xs mono mb-2">02</div>
-        <div class="font-semibold text-white mb-1">Bot books in 4 taps</div>
-        <div class="text-sm text-zinc-400">Pick date → pick slot → confirm → done. Hindi, Marathi, English.</div>
-      </div>
-      <div class="card p-5">
-        <div class="text-cyan-400 text-xs mono mb-2">03</div>
-        <div class="font-semibold text-white mb-1">You get a ping</div>
-        <div class="text-sm text-zinc-400">Real-time WhatsApp alert. Your front desk doesn't lift a finger.</div>
-      </div>
-    </div>
-
-    {# ─── Trust strip ────────────────────────────────────── #}
-    <div class="flex flex-wrap items-center justify-center gap-3 mb-10 text-xs mono text-zinc-500">
-      <span class="px-3 py-1 rounded-full border border-zinc-800">✓ Free 30-day pilot</span>
-      <span class="px-3 py-1 rounded-full border border-zinc-800">✓ No card</span>
-      <span class="px-3 py-1 rounded-full border border-zinc-800">✓ No contract</span>
-      <span class="px-3 py-1 rounded-full border border-zinc-800">✓ Made in Pune 🇮🇳</span>
-    </div>
-
-    {# ─── The CTA ────────────────────────────────────────── #}
-    <div class="text-center mb-8">
+    <!-- ═══════ 7. CTA ═══════ -->
+    <div class="lp-cta-wrap">
+      <p class="lp-cta-urgency">
+        This page was built specifically for your clinic — offer valid for 7 days.
+      </p>
       <a href="https://wa.me/{{ contact_number }}?text=Yes%2C%20interested%20—%20pls%20share%20more%20about%20the%20pilot%20for%20{{ lead.name|urlencode }}"
-         target="_blank"
-         class="wa-cta inline-flex items-center gap-3 text-white font-bold text-base md:text-lg px-8 py-4 rounded-2xl">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.297-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+         target="_blank" rel="noopener"
+         class="lp-cta">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
         </svg>
         <span>Reply "Yes, I'm in" on WhatsApp</span>
-        <span class="opacity-80">→</span>
+        <span class="arrow">→</span>
       </a>
-      <div class="text-xs mono text-zinc-500 mt-4">
-        Direct message to {{ contact_name }} · {{ contact_number|pretty_phone }}
+
+      <div class="lp-founder">
+        <div class="lp-founder-avatar">AP</div>
+        <div class="lp-founder-info">
+          <span class="lp-founder-name">{{ contact_name }}</span>
+          <span class="lp-founder-title">Founder, DocPing · Pune</span>
+        </div>
+        <span class="lp-founder-responds">Usually replies in &lt;2 hrs</span>
       </div>
     </div>
 
-    {# ─── Footer ─────────────────────────────────────────── #}
-    <div class="text-center text-xs text-zinc-600 mono pt-6 border-t border-zinc-900">
-      <div>Built by an Indian dev for Indian clinics</div>
-      <div class="mt-1 opacity-60">DPDP Act 2023 compliant · Meta WhatsApp Business API</div>
-    </div>
+    <!-- ═══════ 8. FOOTER ═══════ -->
+    <footer class="lp-footer">
+      <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="20" height="20" class="lp-footer-logo">
+      <p class="lp-footer-l1">Built by an Indian dev for Indian clinics</p>
+      <p class="lp-footer-l2">DPDP Act 2023 compliant · Meta WhatsApp Business API</p>
+    </footer>
 
   </div>
 </body>

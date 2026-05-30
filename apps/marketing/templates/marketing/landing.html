@@ -178,17 +178,586 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        html { scroll-behavior: smooth; }
-        body { font-family: 'Inter', system-ui, sans-serif; }
-        .gradient-text {
-            background: linear-gradient(90deg, #25D366 0%, #128C7E 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        /* ═══════════════════════════════════════════════════════════════
+           DESIGN TOKENS
+           ═══════════════════════════════════════════════════════════════ */
+        :root {
+            --dp-green:       #25D366;
+            --dp-green-hover: #1ebd5a;
+            --dp-bg-dark:     #0A0A0A;
+            --dp-bg-darker:   #050505;
+            --dp-bg-white:    #ffffff;
+            --dp-bg-section:  #f7f8fa;
+            --dp-text:        #1a1a1a;
+            --dp-text-heading:#111827;
+            --dp-text-body:   #374151;
+            --dp-text-muted:  #6b7280;
+            --dp-text-dim:    #9ca3af;
+            --dp-border:      #e5e7eb;
+            --dp-danger:      #E24B4A;
+            --dp-r-card:      12px;
+            --dp-r-btn:       8px;
         }
-        .wa-shadow { box-shadow: 0 10px 30px -10px rgba(37, 211, 102, 0.4); }
 
-        /* ─── Phone mockup + chat animation ───────────────────── */
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dp-bg-white);
+            color: var(--dp-text);
+            margin: 0;
+        }
+
+        /* ─── Generic helpers ─────────────────────────────────────── */
+        .dp-container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+        @media (max-width: 768px) { .dp-container { padding: 0 16px; } }
+
+        .dp-section-h2 {
+            font-size: 32px; font-weight: 700;
+            color: var(--dp-text); letter-spacing: -0.02em;
+            margin: 0 0 12px; text-align: center; line-height: 1.2;
+        }
+        .dp-section-sub {
+            text-align: center; color: var(--dp-text-muted);
+            font-size: 17px; line-height: 1.6;
+            max-width: 560px; margin: 0 auto 48px;
+        }
+        @media (max-width: 768px) {
+            .dp-section-h2 { font-size: 26px; }
+            .dp-section-sub { font-size: 16px; margin-bottom: 36px; }
+        }
+
+        .dp-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 8px; min-height: 48px; padding: 12px 24px;
+            border-radius: var(--dp-r-btn);
+            font-size: 15px; font-weight: 600;
+            text-decoration: none; cursor: pointer;
+            border: 0; transition: background .15s ease, transform .15s ease;
+            line-height: 1; white-space: nowrap;
+        }
+        .dp-btn-primary { background: var(--dp-green); color: #000 !important; }
+        .dp-btn-primary:hover { background: var(--dp-green-hover); }
+        .dp-btn-secondary {
+            background: transparent; color: #fff !important;
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+        .dp-btn-secondary:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.7); }
+        .dp-btn-outline-light {
+            background: #fff; color: var(--dp-text) !important;
+            border: 1px solid var(--dp-border);
+        }
+        .dp-btn-outline-light:hover { background: #f9fafb; border-color: #d1d5db; }
+        .dp-btn-lg { min-height: 52px; padding: 14px 32px; font-size: 16px; border-radius: 10px; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           1. URGENCY BANNER  (FIX 12)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-banner {
+            background: var(--dp-green);
+            color: #000;
+            padding: 10px 40px;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: center;
+            position: sticky;
+            top: 0; left: 0; right: 0;
+            z-index: 101;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .dp-banner a { color: #000; font-weight: 600; text-decoration: none; }
+        .dp-banner a:hover { text-decoration: underline; }
+        .dp-banner-close {
+            position: absolute; right: 16px; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: 0;
+            color: #000; opacity: 0.6;
+            cursor: pointer; padding: 4px 8px;
+            font-size: 16px; line-height: 1;
+        }
+        .dp-banner-close:hover { opacity: 1; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           2. NAVBAR
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(10,10,10,0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .dp-banner:not([style*="display: none"]) ~ .dp-nav { top: 40px; }
+        .dp-nav-inner {
+            max-width: 1200px; margin: 0 auto;
+            padding: 12px 20px;
+            display: flex; align-items: center; gap: 28px;
+        }
+        .dp-nav-logo {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: #fff; font-weight: 700; font-size: 17px;
+            text-decoration: none;
+        }
+        .dp-nav-logo img { border-radius: 6px; }
+        .dp-nav-links {
+            display: flex; gap: 28px;
+            list-style: none; padding: 0; margin: 0;
+            flex: 1;
+        }
+        .dp-nav-links a {
+            color: rgba(255,255,255,0.6); font-size: 14px;
+            font-weight: 500; text-decoration: none;
+            transition: color .15s ease;
+        }
+        .dp-nav-links a:hover { color: #fff; }
+        .dp-nav-cta {
+            background: var(--dp-green); color: #000 !important;
+            font-size: 13px; font-weight: 600;
+            padding: 9px 20px; border-radius: 8px;
+            text-decoration: none; transition: background .15s ease;
+            white-space: nowrap;
+        }
+        .dp-nav-cta:hover { background: var(--dp-green-hover); }
+        .dp-nav-burger {
+            display: none; background: transparent;
+            border: 0; color: #fff;
+            font-size: 22px; cursor: pointer;
+            padding: 4px 8px; line-height: 1;
+        }
+        .dp-nav-mobile { display: none; }
+        @media (max-width: 768px) {
+            .dp-nav-links, .dp-nav-cta { display: none; }
+            .dp-nav-burger { display: block; margin-left: auto; }
+            .dp-nav-mobile {
+                display: none; flex-direction: column;
+                padding: 8px 20px 16px;
+                background: rgba(10,10,10,0.98);
+                border-top: 1px solid rgba(255,255,255,0.06);
+            }
+            .dp-nav-mobile.open { display: flex; }
+            .dp-nav-mobile a {
+                color: #fff; padding: 14px 0;
+                text-decoration: none; font-size: 15px;
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+            }
+            .dp-nav-mobile a:last-child { border-bottom: 0; }
+            .dp-nav-mobile .dp-nav-cta {
+                display: inline-flex; margin-top: 12px;
+                width: fit-content; padding: 10px 20px;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           3. HERO  (FIX 1, 2, 3)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-hero {
+            background: linear-gradient(180deg, #0A0A0A 0%, #131316 100%);
+            color: #fff;
+            padding: 70px 24px 90px;
+            position: relative; overflow: hidden;
+        }
+        .dp-hero-inner {
+            max-width: 1100px; margin: 0 auto;
+            display: grid; grid-template-columns: 1.05fr 1fr;
+            gap: 56px; align-items: center;
+            position: relative;
+        }
+        .dp-hero-pill {
+            display: inline-flex; align-items: center; gap: 8px;
+            border: 1px solid rgba(37,211,102,0.35);
+            color: var(--dp-green);
+            padding: 6px 12px; border-radius: 999px;
+            font-size: 12px; font-weight: 600;
+            margin-bottom: 24px;
+        }
+        .dp-hero-pill-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--dp-green);
+        }
+        .dp-hero-h1 {
+            font-size: 48px; line-height: 1.1;
+            font-weight: 600; color: #fff;
+            letter-spacing: -0.025em; margin: 0;
+        }
+        .dp-hero-h1 .accent { color: var(--dp-green); }
+
+        /* FIX 1 — subheadline */
+        .dp-hero-sub {
+            margin: 20px 0 0;
+            font-size: 18px;
+            line-height: 1.7;
+            color: rgba(255,255,255,0.6);
+            max-width: 480px;
+        }
+
+        /* FIX 1 — CTAs spacing */
+        .dp-hero-ctas {
+            margin-top: 32px;
+            display: flex; gap: 12px; flex-wrap: wrap;
+        }
+
+        /* FIX 1 — trust line */
+        .dp-hero-trust {
+            margin-top: 16px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.3);
+        }
+
+        /* FIX 2 — stats row: top border + vertical dividers between cells */
+        .dp-hero-stats {
+            margin-top: 28px;
+            padding-top: 28px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+        }
+        .dp-hero-stats > div {
+            display: flex; flex-direction: column;
+            padding: 0 16px;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            min-height: 32px; justify-content: center;
+        }
+        .dp-hero-stats > div:first-child { padding-left: 0; border-left: 0; }
+        .dp-hero-stats > div:last-child  { padding-right: 0; }
+        .dp-hero-stats b {
+            font-size: 28px; font-weight: 600;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+        .dp-hero-stats span {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        /* FIX 3 — phone mockup: smaller, hidden on mobile */
+        .dp-hero-right {
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .dp-mock {
+            border-radius: 24px; padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 30px 60px -15px rgba(0,0,0,0.6);
+            max-width: 220px; width: 100%;
+            margin: 0 auto;
+            flex-shrink: 0;
+        }
+        .dp-mock-screen {
+            background: #e5ddd5;
+            border-radius: 16px;
+            overflow: hidden;
+            height: 360px;
+            display: flex; flex-direction: column;
+        }
+        .dp-mock-header {
+            background: #075E54; color: #fff;
+            padding: 10px 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .dp-mock-avatar {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: #25D366;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .dp-mock-name { font-weight: 600; font-size: 12px; }
+        .dp-mock-status {
+            font-size: 10px; opacity: 0.8;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .dp-mock-status-dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: #34d399;
+        }
+        .dp-mock-chat {
+            padding: 12px 10px; flex: 1;
+            overflow: hidden;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .dp-bubble {
+            max-width: 160px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 11px; line-height: 1.4;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+            opacity: 0;
+            transform: translateY(8px);
+            animation: dpBubbleIn 0.4s ease-out forwards;
+            white-space: pre-line;
+        }
+        .dp-bubble-in {
+            background: #fff;
+            align-self: flex-start;
+            border-top-left-radius: 0;
+            color: #1a1a1a;
+        }
+        .dp-bubble-out {
+            background: #DCF8C6;
+            align-self: flex-end;
+            border-top-right-radius: 0;
+            color: #1a1a1a;
+        }
+        @keyframes dpBubbleIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .dp-hero { padding: 48px 20px 70px; }
+            .dp-hero-inner { grid-template-columns: 1fr; gap: 40px; }
+            .dp-hero-h1 { font-size: 32px; }
+            .dp-hero-sub { font-size: 16px; }
+            .dp-hero-stats > div { padding: 0 10px; }
+            .dp-hero-stats b { font-size: 24px; }
+            .dp-hero-ctas .dp-btn { width: 100%; }
+
+            /* FIX 3 — hide phone mockup below 768px */
+            .dp-hero-right { display: none; }
+        }
+        @media (max-width: 480px) {
+            .dp-hero-stats { grid-template-columns: repeat(2, 1fr); row-gap: 20px; }
+            .dp-hero-stats > div:nth-child(3) { padding-left: 0; border-left: 0; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           4. TRUST BAR
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-trust {
+            background: #fff;
+            padding: 20px 0;
+            border-top: 1px solid var(--dp-border);
+            border-bottom: 1px solid var(--dp-border);
+        }
+        .dp-trust-inner {
+            max-width: 1100px; margin: 0 auto;
+            padding: 0 24px;
+            display: flex; align-items: center;
+            gap: 16px; flex-wrap: wrap;
+        }
+        .dp-trust-label {
+            color: var(--dp-text-muted);
+            font-size: 13px; font-weight: 500;
+        }
+        .dp-trust-cities {
+            display: flex; gap: 6px;
+            flex-wrap: wrap; flex: 1;
+        }
+        .dp-trust-pill {
+            background: #f3f4f6; color: #374151;
+            font-size: 11px; padding: 4px 10px;
+            border-radius: 20px; font-weight: 500;
+        }
+        .dp-trust-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--dp-text-muted);
+            font-size: 12px; font-weight: 500;
+        }
+        @media (max-width: 640px) {
+            .dp-trust-inner { gap: 12px; padding: 0 16px; }
+            .dp-trust-label { font-size: 12px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           5. FEATURES  (FIX 4)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-features { background: #fff; padding: 80px 24px; }
+        .dp-features-grid {
+            margin-top: 48px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            max-width: 980px;
+            margin-left: auto; margin-right: auto;
+        }
+        .dp-feature-card {
+            background: #fff;
+            border: 1px solid var(--dp-border);
+            border-radius: var(--dp-r-card);
+            padding: 24px;
+            min-height: 160px;
+            display: flex; flex-direction: column;
+            transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+        }
+        .dp-feature-card:hover {
+            border-color: var(--dp-green);
+            box-shadow: 0 4px 20px rgba(37,211,102,0.08);
+        }
+        .dp-feature-icon {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            background: #f0fdf4; color: var(--dp-green);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .dp-feature-title {
+            font-size: 15px; font-weight: 600;
+            color: var(--dp-text-heading);
+            margin: 14px 0 6px;
+        }
+        .dp-feature-desc {
+            font-size: 14px; line-height: 1.65;
+            color: var(--dp-text-muted);
+            margin: 0;
+        }
+        @media (max-width: 768px) {
+            .dp-features { padding: 48px 16px; }
+            .dp-features-grid { grid-template-columns: 1fr; gap: 12px; margin-top: 36px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           6. ROI CALCULATOR  (FIX 5)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-roi { background: var(--dp-bg-section); padding: 80px 24px; }
+        .dp-roi-wrap {
+            max-width: 800px; margin: 48px auto 0;
+            background: #fff;
+            border: 1px solid var(--dp-border);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .dp-roi-sliders {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 28px;
+        }
+        .dp-roi-slider-head {
+            display: flex; justify-content: space-between; align-items: baseline;
+        }
+        .dp-roi-slider-label { color: var(--dp-text-body); font-weight: 500; font-size: 14px; }
+        .dp-roi-slider-value {
+            color: var(--dp-green); font-size: 22px; font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .dp-roi input[type="range"] {
+            width: 100%; margin-top: 8px;
+            accent-color: var(--dp-green);
+        }
+        .dp-roi-slider-range {
+            display: flex; justify-content: space-between;
+            font-size: 11px; color: var(--dp-text-dim); margin-top: 4px;
+        }
+        .dp-roi-divider {
+            height: 1px; background: var(--dp-border);
+            margin: 32px 0;
+        }
+        .dp-roi-results {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .dp-roi-metric {
+            background: #fff;
+            border: 1px solid var(--dp-border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .dp-roi-metric.is-highlight {
+            border: 2px solid var(--dp-green);
+            padding: 19px 23px;
+        }
+        .dp-roi-metric-num {
+            font-size: 28px; font-weight: 700;
+            color: var(--dp-text);
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
+        }
+        .dp-roi-metric-num.danger { color: var(--dp-danger); }
+        .dp-roi-metric-num.success { color: var(--dp-green); }
+        .dp-roi-metric-label {
+            font-size: 13px; color: var(--dp-text-muted);
+            margin-top: 6px;
+        }
+        .dp-roi-metric-sub {
+            font-size: 11px; color: var(--dp-text-dim);
+            margin-top: 4px;
+        }
+        .dp-roi-cta-wrap { text-align: center; margin-top: 32px; }
+        @media (max-width: 768px) {
+            .dp-roi { padding: 48px 16px; }
+            .dp-roi-wrap { padding: 24px 20px; }
+            .dp-roi-sliders { grid-template-columns: 1fr; gap: 20px; }
+            .dp-roi-results { grid-template-columns: 1fr; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           7. DEMO / VIDEO  (FIX 6)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-demo { background: #0f172a; color: #fff; padding: 80px 24px; }
+        .dp-demo .dp-section-h2 { color: #fff; }
+        .dp-demo .dp-section-sub { color: rgba(255,255,255,0.65); }
+
+        .dp-demo-tabs {
+            display: flex; gap: 8px;
+            justify-content: center;
+            margin: 32px auto 0;
+        }
+        .dp-demo-tab {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 20px;
+            border-radius: 8px;
+            color: rgba(255,255,255,0.5);
+            font-weight: 500; font-size: 14px;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease;
+        }
+        .dp-demo-tab:hover { color: #fff; }
+        .dp-demo-tab.is-active {
+            background: var(--dp-green);
+            color: #000;
+            font-weight: 600;
+            border-color: var(--dp-green);
+        }
+
+        .dp-demo-panel { display: none; margin-top: 24px; }
+        .dp-demo-panel.is-active { display: block; }
+
+        .dp-demo-frame {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 760px;
+            margin: 0 auto;
+            background: #1a1a1a;
+        }
+        /* Loading placeholder behind iframe — visible until the embed paints */
+        .dp-demo-frame::before {
+            content: "▶ Loading demo…";
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.4);
+            font-size: 13px; font-weight: 500;
+            background: #1a1a1a;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .dp-demo-frame iframe,
+        .dp-demo-frame > div,
+        .dp-demo-frame > a {
+            position: relative; z-index: 1;
+        }
+
+        .dp-demo-empty {
+            background: #1e293b;
+            border: 2px dashed rgba(255,255,255,0.18);
+            border-radius: 12px;
+            padding: 60px 24px;
+            color: rgba(255,255,255,0.55);
+            max-width: 720px; margin: 0 auto;
+        }
+        @media (max-width: 768px) {
+            .dp-demo { padding: 48px 16px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           8. TRY-IT-YOURSELF — preserved styles + FIX 7 mockup sizing
+           ═══════════════════════════════════════════════════════════════ */
         .phone-frame {
             border-radius: 44px;
             background: #111827;
@@ -203,8 +772,7 @@
             position: relative;
         }
         .wa-header {
-            background: #075E54;
-            color: white;
+            background: #075E54; color: white;
             padding: 12px 14px;
             display: flex; align-items: center; gap: 10px;
         }
@@ -261,7 +829,6 @@
             opacity: 0;
             animation: pop 0.3s ease-out forwards;
         }
-        /* Interactive (tappable) buttons in the doctor try-out chat */
         .wa-btn.tappable {
             cursor: pointer;
             transition: background .15s, color .15s, transform .1s;
@@ -270,7 +837,6 @@
             background: #00a884; color: white; border-color: #00a884;
         }
         .wa-btn.tappable:active { transform: scale(0.96); }
-        /* Final call-to-action button inside the doctor chat */
         .wa-cta {
             display: block; text-align: center;
             background: #25D366; color: white !important;
@@ -286,280 +852,793 @@
             margin-top: 2px; margin-bottom: 6px;
         }
         .wa-replay:hover { text-decoration: underline; }
-
-        /* ─── Floating WA button ──────────────────────────────── */
-        .fab {
-            position: fixed; right: 20px; bottom: 20px;
-            z-index: 40;
-            background: #25D366;
-            color: white;
-            width: 60px; height: 60px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 10px 25px -5px rgba(37, 211, 102, 0.5);
-            transition: transform 0.2s;
-            text-decoration: none;
-        }
-        .fab:hover { transform: scale(1.08); }
-        .fab::before {
-            content: ''; position: absolute; inset: 0; border-radius: 50%;
-            background: #25D366; opacity: 0.35;
-            animation: ripple 1.6s ease-out infinite;
-        }
-        @keyframes ripple {
-            0% { transform: scale(1); opacity: 0.5; }
-            100% { transform: scale(1.7); opacity: 0; }
-        }
-
-        /* ─── Live counter pulse ──────────────────────────────── */
         .live-dot {
             width: 10px; height: 10px; border-radius: 50%;
             background: #22c55e;
             box-shadow: 0 0 0 0 rgba(34,197,94,0.7);
-            animation: pulse 2s infinite;
+            animation: dpPulse 2s infinite;
             display: inline-block;
         }
-        @keyframes pulse {
+        @keyframes dpPulse {
             0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
             70%  { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
             100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
         }
+        /* FIX 7 — constrain the try-it mockup, allow reordering on mobile */
+        #tryout .phone-frame {
+            max-width: 280px !important;
+            flex-shrink: 0;
+        }
+        @media (max-width: 768px) {
+            #tryout .phone-frame { max-width: 240px !important; }
+            #tryout .grid > div:first-child { order: 2; }
+            #tryout .grid > div:last-child  { order: 1; }
+        }
 
-        /* ─── FAQ accordion ───────────────────────────────────── */
-        details[open] summary .faq-icon { transform: rotate(45deg); }
-        .faq-icon { transition: transform 0.2s; display: inline-block; }
+        /* ═══════════════════════════════════════════════════════════════
+           9. HOW IT WORKS — horizontal stepper  (FIX 8)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-how { background: #fff; padding: 80px 24px; }
+        .dp-how-steps {
+            margin-top: 56px;
+            display: grid;
+            grid-template-columns: 1fr 40px 1fr 40px 1fr;
+            gap: 16px;
+            align-items: start;
+            max-width: 1000px;
+            margin-left: auto; margin-right: auto;
+        }
+        .dp-how-step { text-align: center; padding: 0 8px; }
+        .dp-how-num {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: var(--dp-green); color: #000;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 16px;
+            box-shadow: 0 4px 12px rgba(37,211,102,0.25);
+        }
+        .dp-how-title {
+            font-size: 15px; font-weight: 600;
+            color: var(--dp-text);
+            margin: 16px 0 8px;
+        }
+        .dp-how-desc {
+            font-size: 14px; color: var(--dp-text-muted);
+            line-height: 1.6;
+            margin: 0;
+        }
+        .dp-how-line {
+            margin-top: 19px;
+            border-top: 2px dashed var(--dp-green);
+            opacity: 0.5;
+            height: 0;
+        }
+        @media (max-width: 768px) {
+            .dp-how { padding: 48px 16px; }
+            .dp-how-steps {
+                grid-template-columns: 40px 1fr;
+                row-gap: 28px; column-gap: 20px;
+                max-width: 500px;
+            }
+            .dp-how-step { text-align: left; padding: 0; }
+            .dp-how-line {
+                grid-column: 1;
+                width: 0; height: 28px;
+                border-top: 0;
+                border-left: 2px dashed var(--dp-green);
+                margin: 0 auto;
+                opacity: 0.5;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           10. PRICING  (FIX 9)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-pricing { background: #fff; padding: 80px 24px; }
+        .dp-pricing-grid {
+            margin-top: 48px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            align-items: stretch;
+        }
+        .dp-pricing-card {
+            background: #fff;
+            border: 1px solid var(--dp-border);
+            border-radius: 16px;
+            padding: 28px;
+            display: flex; flex-direction: column;
+            position: relative;
+            min-height: 420px;
+            transition: transform 200ms ease, box-shadow 200ms ease;
+        }
+        .dp-pricing-card.is-popular {
+            border: 2px solid var(--dp-green);
+            padding: 27px;
+            transform: translateY(-8px);
+            box-shadow: 0 8px 32px rgba(37,211,102,0.15);
+        }
+        .dp-pricing-badge {
+            position: absolute; top: -14px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--dp-green); color: #000;
+            font-size: 12px; font-weight: 600;
+            padding: 4px 16px; border-radius: 20px;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+        }
+        .dp-pricing-tier {
+            font-size: 16px; font-weight: 600;
+            color: var(--dp-text); margin: 0;
+        }
+        .dp-pricing-price {
+            font-size: 36px; font-weight: 700;
+            color: var(--dp-text);
+            margin: 8px 0 0; line-height: 1;
+        }
+        .dp-pricing-price span {
+            font-size: 16px; color: var(--dp-text-muted);
+            font-weight: 400;
+        }
+        .dp-pricing-features {
+            list-style: none; padding: 0;
+            margin: 22px 0 24px;
+            flex: 1;
+        }
+        .dp-pricing-features li {
+            font-size: 14px; line-height: 1.8;
+            color: var(--dp-text-body);
+        }
+        .dp-pricing-features li:not(.is-dim) {
+            color: var(--dp-text-heading);
+        }
+        .dp-pricing-features li.is-dim { color: var(--dp-text-dim); }
+        .dp-pricing-cta {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; padding: 12px;
+            border-radius: 8px;
+            font-size: 14px; font-weight: 600;
+            text-decoration: none;
+            margin-top: auto;
+            transition: background .15s ease, color .15s ease, border-color .15s ease;
+            box-sizing: border-box;
+        }
+        .dp-pricing-cta.is-outline {
+            background: #fff;
+            border: 1px solid var(--dp-green);
+            color: var(--dp-green);
+        }
+        .dp-pricing-cta.is-outline:hover {
+            background: #f0fdf4;
+        }
+        .dp-pricing-cta.is-filled {
+            background: var(--dp-green);
+            color: #000; border: 1px solid var(--dp-green);
+        }
+        .dp-pricing-cta.is-filled:hover { background: var(--dp-green-hover); border-color: var(--dp-green-hover); }
+        .dp-pricing-note {
+            text-align: center; margin-top: 32px;
+            color: var(--dp-text-muted); font-size: 13px;
+        }
+        @media (max-width: 900px) {
+            .dp-pricing-grid { grid-template-columns: 1fr; }
+            .dp-pricing-card.is-popular { transform: none; }
+        }
+        @media (max-width: 768px) {
+            .dp-pricing { padding: 56px 16px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           11. FAQ — accordion  (FIX 10)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-faq { background: #fff; padding: 80px 24px; }
+        .dp-faq-inner { max-width: 720px; margin: 0 auto; }
+        .dp-faq-list { margin-top: 40px; }
+        .dp-faq-item { border-bottom: 1px solid var(--dp-border); }
+        .dp-faq-q {
+            width: 100%;
+            background: transparent; border: 0;
+            cursor: pointer;
+            padding: 18px 0;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 15px; font-weight: 500;
+            color: var(--dp-text);
+            text-align: left;
+            font-family: inherit;
+            user-select: none;
+        }
+        .dp-faq-icon {
+            font-size: 22px; color: var(--dp-green);
+            font-weight: 300;
+            transition: transform .2s ease;
+            display: inline-block;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-left: 16px;
+        }
+        .dp-faq-item.is-open .dp-faq-icon { transform: rotate(45deg); }
+        .dp-faq-a {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 300ms ease, padding 300ms ease;
+        }
+        .dp-faq-item.is-open .dp-faq-a { padding-bottom: 4px; }
+        .dp-faq-a p {
+            padding: 0 0 18px;
+            font-size: 14px; color: var(--dp-text-muted);
+            line-height: 1.7;
+            margin: 0;
+        }
+        @media (max-width: 768px) {
+            .dp-faq { padding: 48px 16px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           12. FOUNDER
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-founder { background: #f9fafb; padding: 80px 24px; }
+        .dp-founder-grid {
+            display: grid; grid-template-columns: 1.4fr 1fr;
+            gap: 48px; align-items: start;
+            max-width: 1100px; margin: 0 auto;
+        }
+        .dp-eyebrow {
+            display: inline-block;
+            background: #f3f4f6; color: #374151;
+            padding: 4px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .dp-founder-h2 {
+            font-size: 28px; font-weight: 700;
+            color: var(--dp-text);
+            margin: 16px 0 20px;
+            letter-spacing: -0.02em;
+        }
+        .dp-founder-text p {
+            font-size: 16px; line-height: 1.7;
+            color: var(--dp-text-muted);
+            margin-bottom: 16px;
+        }
+        .dp-founder-card {
+            background: #fff;
+            border: 1px solid var(--dp-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            text-align: center;
+        }
+        .dp-founder-avatar {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: var(--dp-green); color: #fff;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 22px; font-weight: 700;
+            margin-bottom: 16px;
+            object-fit: cover;
+        }
+        .dp-founder-name {
+            font-size: 18px; font-weight: 600;
+            color: var(--dp-text);
+            margin: 0;
+        }
+        .dp-founder-title, .dp-founder-loc {
+            font-size: 13px; color: var(--dp-text-muted);
+            margin: 4px 0;
+        }
+        .dp-founder-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #f0fdf4; color: #166534;
+            padding: 6px 12px; border-radius: 999px;
+            font-size: 12px; font-weight: 500;
+            margin: 14px 0;
+        }
+        .dp-founder-ctas {
+            display: flex; flex-direction: column; gap: 8px;
+            margin-top: 14px;
+        }
+        .dp-founder-ctas .dp-btn { width: 100%; min-height: 40px; font-size: 14px; padding: 10px 16px; }
+        @media (max-width: 768px) {
+            .dp-founder { padding: 48px 16px; }
+            .dp-founder-grid { grid-template-columns: 1fr; gap: 32px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           13. FOUNDING CLINICS  (FIX 11)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-founding {
+            background: #0a0a0a; color: #fff;
+            padding: 80px 24px;
+        }
+        .dp-founding-inner { max-width: 1100px; margin: 0 auto; text-align: center; }
+        .dp-founding-head {
+            display: inline-flex; align-items: center; gap: 10px;
+            flex-wrap: wrap; justify-content: center;
+        }
+        .dp-founding-h2 {
+            color: #fff; font-size: 32px; font-weight: 700;
+            margin: 0; letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+        .dp-founding-limited {
+            background: var(--dp-danger); color: #fff;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.04em;
+            vertical-align: middle;
+        }
+        .dp-founding-sub {
+            color: rgba(255,255,255,0.65);
+            font-size: 16px; line-height: 1.6;
+            max-width: 600px; margin: 16px auto 0;
+        }
+        .dp-founding-grid {
+            margin-top: 48px;
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            text-align: left;
+        }
+        .dp-founding-card {
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .dp-founding-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: rgba(37,211,102,0.12); color: var(--dp-green);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .dp-founding-card h3 {
+            font-size: 15px; font-weight: 600;
+            color: #fff;
+            margin: 14px 0 6px;
+        }
+        .dp-founding-card p {
+            font-size: 14px; line-height: 1.6;
+            color: rgba(255,255,255,0.55);
+            margin: 0;
+        }
+        .dp-founding-cta-wrap { margin-top: 32px; }
+        .dp-founding-cta {
+            display: block;
+            background: var(--dp-green); color: #000 !important;
+            font-size: 16px; font-weight: 600;
+            padding: 14px 32px; border-radius: 10px;
+            text-decoration: none;
+            max-width: 320px; margin: 0 auto;
+            text-align: center;
+            transition: background .15s ease;
+        }
+        .dp-founding-cta:hover { background: var(--dp-green-hover); }
+        .dp-founding-cta-note {
+            margin-top: 12px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.35);
+        }
+        @media (max-width: 768px) {
+            .dp-founding { padding: 56px 16px; }
+            .dp-founding-grid { grid-template-columns: 1fr; }
+            .dp-founding-h2 { font-size: 26px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           FINAL CTA strip (preserved content)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-final {
+            background: var(--dp-green);
+            padding: 64px 24px;
+            text-align: center;
+        }
+        .dp-final h2 {
+            color: #000; font-size: 32px; font-weight: 700;
+            margin: 0; letter-spacing: -0.02em;
+        }
+        .dp-final p {
+            color: rgba(0,0,0,0.7);
+            font-size: 16px; margin: 12px 0 24px;
+        }
+        .dp-final .dp-btn { background: #000; color: #fff !important; }
+        .dp-final .dp-btn:hover { background: #1a1a1a; }
+        @media (max-width: 768px) {
+            .dp-final { padding: 48px 16px; }
+            .dp-final h2 { font-size: 26px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           14. FOOTER
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-footer {
+            background: #0a0a0a;
+            color: rgba(255,255,255,0.6);
+            padding: 64px 24px 32px;
+        }
+        .dp-footer-inner { max-width: 1100px; margin: 0 auto; }
+        .dp-footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1.5fr;
+            gap: 40px;
+        }
+        .dp-footer-logo {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: #fff; font-weight: 700; font-size: 18px;
+            text-decoration: none;
+        }
+        .dp-footer-logo img { border-radius: 6px; }
+        .dp-footer-brand p {
+            font-size: 14px; line-height: 1.6;
+            color: rgba(255,255,255,0.5);
+            margin: 14px 0;
+            max-width: 280px;
+        }
+        .dp-footer-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.75);
+            padding: 6px 12px; border-radius: 999px;
+            font-size: 12px; font-weight: 500;
+        }
+        .dp-footer-col h3 {
+            color: rgba(255,255,255,0.4);
+            font-size: 11px; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            margin: 0 0 16px;
+        }
+        .dp-footer-col a, .dp-footer-col a:link {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            text-decoration: none;
+            margin-bottom: 10px;
+            transition: color .15s ease;
+        }
+        .dp-footer-col a:hover { color: #fff; }
+        .dp-footer-col .dp-footer-loc {
+            color: rgba(255,255,255,0.4);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .dp-footer-bottom {
+            margin-top: 48px; padding-top: 24px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 12px;
+        }
+        .dp-footer-bottom p {
+            font-size: 12px; color: rgba(255,255,255,0.4);
+            margin: 0;
+        }
+        @media (max-width: 768px) {
+            .dp-footer { padding: 48px 16px 24px; }
+            .dp-footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+            .dp-footer-brand { grid-column: 1 / -1; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           15. FLOATING WHATSAPP BUTTON (desktop)  (FIX 13)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-fab {
+            position: fixed; bottom: 24px; right: 24px;
+            z-index: 98;
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: var(--dp-green); color: #fff;
+            display: inline-flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 16px rgba(37,211,102,0.4);
+            text-decoration: none;
+            transition: transform 200ms ease, box-shadow 200ms ease;
+        }
+        .dp-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 24px rgba(37,211,102,0.5);
+        }
+        .dp-fab-tooltip {
+            position: absolute; right: 68px; top: 50%;
+            transform: translateY(-50%);
+            background: #18181b; color: #fff;
+            padding: 6px 10px; border-radius: 6px;
+            font-size: 12px; font-weight: 500;
+            white-space: nowrap;
+            opacity: 0; pointer-events: none;
+            transition: opacity .15s ease;
+        }
+        .dp-fab:hover .dp-fab-tooltip { opacity: 1; }
+        @media (max-width: 768px) {
+            .dp-fab { display: none; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           16. STICKY MOBILE CTA BAR  (FIX 14)
+           ═══════════════════════════════════════════════════════════════ */
+        .dp-mobile-cta { display: none; }
+        @media (max-width: 768px) {
+            .dp-mobile-cta {
+                display: block;
+                position: fixed;
+                bottom: 0; left: 0; right: 0;
+                z-index: 99;
+                background: #ffffff;
+                padding: 12px 16px;
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
+                border-top: 1px solid var(--dp-border);
+                box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+            }
+            .dp-mobile-cta a {
+                display: block;
+                width: 100%;
+                background: var(--dp-green);
+                color: #000 !important;
+                text-align: center;
+                padding: 14px;
+                border-radius: 10px;
+                font-size: 15px; font-weight: 600;
+                text-decoration: none;
+                line-height: 1;
+            }
+            body { padding-bottom: 80px; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           Reduced motion
+           ═══════════════════════════════════════════════════════════════ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
+            .dp-bubble { opacity: 1; transform: none; }
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body>
 
-    <!-- ═══════ NAV ═══════ -->
-    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <a href="/" class="flex items-center gap-2.5">
-                <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="32" height="32" class="rounded-lg">
-                <span class="font-extrabold text-lg tracking-tight">Doc<span class="text-cyan-500">Ping</span></span>
+    <!-- ═══════ 1. STICKY URGENCY BANNER ═══════ -->
+    <div class="dp-banner" id="dpBanner" role="region" aria-label="Founding clinics offer">
+        🏥&nbsp;Founding clinics open — only 10 spots.&nbsp;<a href="#founding">Lock lifetime pricing forever →</a>
+        <button class="dp-banner-close" id="dpBannerClose" aria-label="Dismiss banner" title="Dismiss">✕</button>
+    </div>
+
+    <!-- ═══════ 2. NAV ═══════ -->
+    <nav class="dp-nav" id="dpNav">
+        <div class="dp-nav-inner">
+            <a href="/" class="dp-nav-logo">
+                <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="28" height="28">
+                <span>DocPing</span>
             </a>
-            <div class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-                <a href="#features" class="hover:text-slate-900">Features</a>
-                <a href="#demo" class="hover:text-slate-900">Demo</a>
-                <a href="#roi" class="hover:text-slate-900">Calculator</a>
-                <a href="#faq" class="hover:text-slate-900">FAQ</a>
-                <a href="#about" class="hover:text-slate-900">About</a>
-                <a href="#pricing" class="hover:text-slate-900">Pricing</a>
-            </div>
+            <ul class="dp-nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#roi">Calculator</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#faq">FAQ</a></li>
+            </ul>
             {% if bot_number %}
-            <a href="https://wa.me/{{ bot_number }}?text=hi"
-               class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold wa-shadow transition">
-                Try Demo
-            </a>
+            <a href="https://wa.me/{{ bot_number }}?text=hi" class="dp-nav-cta">Start free pilot</a>
+            {% endif %}
+            <button class="dp-nav-burger" id="dpBurger" aria-label="Open menu" aria-expanded="false">☰</button>
+        </div>
+        <div class="dp-nav-mobile" id="dpNavMobile">
+            <a href="#features">Features</a>
+            <a href="#demo">Demo</a>
+            <a href="#roi">Calculator</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
+            {% if bot_number %}
+            <a href="https://wa.me/{{ bot_number }}?text=hi" class="dp-nav-cta">Start free pilot</a>
             {% endif %}
         </div>
     </nav>
 
-    <!-- ═══════ HERO with Interactive Chat ═══════ -->
-    <section class="pt-10 pb-14 sm:pt-14 sm:pb-20">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-12 items-center">
+    <!-- ═══════ 3. HERO ═══════ -->
+    <section class="dp-hero">
+        <div class="dp-hero-inner">
             <div>
-                <div id="liveCounter"
-                     data-count="{{ today_bookings }}"
-                     class="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-semibold mb-6">
-                    <span class="live-dot"></span>
-                    {{ today_bookings }}+ appointments booked today
-                </div>
-                <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.1]">
-                    Your clinic on <span class="gradient-text">WhatsApp</span>.<br>
-                    Zero apps. Zero hassle.
+                <span class="dp-hero-pill"><span class="dp-hero-pill-dot"></span>Live on WhatsApp Business API</span>
+                <h1 class="dp-hero-h1">
+                    Patients book in<br>
+                    <span class="accent">30 seconds.</span><br>
+                    On WhatsApp.
                 </h1>
-                <p class="mt-6 text-lg sm:text-xl text-slate-600 max-w-xl">
-                    Patients book in 30 seconds. Doctors get instant alerts.
-                    Nobody downloads anything. It just works on WhatsApp.
-                </p>
-                <div class="mt-8 flex flex-col sm:flex-row gap-3">
+                <p class="dp-hero-sub">No app. No login. No calls. Your clinic fills up while you sleep.</p>
+                <div class="dp-hero-ctas">
                     {% if bot_number %}
-                    <a href="https://wa.me/{{ bot_number }}?text=hi"
-                       class="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold wa-shadow transition">
-                        💬 Try the live bot
-                    </a>
+                    <a href="https://wa.me/{{ bot_number }}?text=hi" class="dp-btn dp-btn-primary">💬 Try live bot now</a>
                     {% endif %}
-                    <a href="#demo"
-                       class="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 px-6 py-3 rounded-xl font-semibold transition">
-                        ▶ Watch demo
-                    </a>
+                    <a href="#demo" class="dp-btn dp-btn-secondary">▶ Watch demo</a>
                 </div>
-                <p class="mt-5 text-xs text-slate-500">
-                    Free 30-day pilot · No card · Setup in 10 minutes
-                </p>
+                <p class="dp-hero-trust">Free 30 days · No card required · Setup in 10 minutes</p>
+                <div class="dp-hero-stats">
+                    <div><b>30s</b><span>avg booking time</span></div>
+                    <div><b>~30%</b><span>fewer no-shows</span></div>
+                    <div><b>10 min</b><span>setup time</span></div>
+                    <div><b>₹999</b><span>starts at / month</span></div>
+                </div>
             </div>
 
-            <!-- Phone mockup with animated chat -->
-            <div class="phone-frame mx-auto w-full max-w-[330px]">
-                <div class="phone-screen">
-                    <div class="wa-header">
-                        <div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-lg">🏥</div>
-                        <div>
-                            <div class="font-semibold text-sm">Alpha Care Physio</div>
-                            <div class="text-xs opacity-80">online</div>
+            <!-- Phone mockup — smaller, CSS-only, 3 bubbles fade in -->
+            <div class="dp-hero-right">
+                <div class="dp-mock">
+                    <div class="dp-mock-screen">
+                        <div class="dp-mock-header">
+                            <div class="dp-mock-avatar">🏥</div>
+                            <div>
+                                <div class="dp-mock-name">DocPing Clinic</div>
+                                <div class="dp-mock-status"><span class="dp-mock-status-dot"></span>online</div>
+                            </div>
+                        </div>
+                        <div class="dp-mock-chat">
+                            <div class="dp-bubble dp-bubble-in" style="animation-delay:0.4s;">Welcome! Book now:
+1️⃣ Morning
+2️⃣ Evening</div>
+                            <div class="dp-bubble dp-bubble-out" style="animation-delay:1.1s;">1</div>
+                            <div class="dp-bubble dp-bubble-in" style="animation-delay:1.7s;">✅ Mon 10 AM — Dr. Sharma</div>
                         </div>
                     </div>
-                    <div id="chatBody" class="wa-chat"></div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ═══════ FEATURES ═══════ -->
-    <section id="features" class="py-10 sm:py-14 bg-white border-y border-slate-200">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 class="text-3xl sm:text-4xl font-bold text-center">Everything your clinic needs</h2>
-            <p class="mt-3 text-center text-slate-600 max-w-2xl mx-auto">
-                Booking, reminders, cancellations, doctor alerts — all on the one app your patients already use.
-            </p>
-            <div class="mt-8 grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
-                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
-                    <div class="text-2xl sm:text-3xl">📅</div>
-                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">24×7 booking</h3>
-                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Patients book at 2 AM. Your clinic opens to a full schedule.</p>
-                </div>
-                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
-                    <div class="text-2xl sm:text-3xl">🔔</div>
-                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Instant doctor alerts</h3>
-                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Patient books → doctor gets a WhatsApp ping: name, date, time.</p>
-                </div>
-                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
-                    <div class="text-2xl sm:text-3xl">⏰</div>
-                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Auto reminders</h3>
-                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Day-before + 1-hour-before. No-shows drop dramatically.</p>
-                </div>
-                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
-                    <div class="text-2xl sm:text-3xl">🌐</div>
-                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">3 languages</h3>
-                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">English · हिंदी · मराठी — patient picks once, it sticks.</p>
-                </div>
-                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
-                    <div class="text-2xl sm:text-3xl">🕐</div>
-                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Split-shift ready</h3>
-                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">Open 9–1 and 4–9? Closed Sunday? The bot adapts to your hours.</p>
-                </div>
-                <div class="p-4 sm:p-6 bg-slate-50 rounded-xl sm:rounded-2xl hover:shadow-md transition">
-                    <div class="text-2xl sm:text-3xl">📊</div>
-                    <h3 class="mt-2 sm:mt-3 font-semibold text-[15px] sm:text-lg">Live dashboard</h3>
-                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-600">See today's patients + upcoming bookings, inside WhatsApp.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ═══════ ROI CALCULATOR ═══════ -->
-    <section id="roi" class="py-10 sm:py-14 bg-gradient-to-br from-slate-50 to-green-50">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6">
-            <h2 class="text-3xl sm:text-4xl font-bold text-center">How much is your clinic losing?</h2>
-            <p class="mt-3 text-center text-slate-600">Slide to match your numbers. We'll show the math.</p>
+    <!-- ═══════ 4. TRUST BAR ═══════ -->
+    <section class="dp-trust">
+        <div class="dp-trust-inner">
+            <span class="dp-trust-label">Trusted by clinics in</span>
+            <div class="dp-trust-cities">
+                <span class="dp-trust-pill">Pune</span>
+                <span class="dp-trust-pill">Mumbai</span>
+                <span class="dp-trust-pill">Nagpur</span>
+                <span class="dp-trust-pill">Nashik</span>
+                <span class="dp-trust-pill">Thane</span>
+                <span class="dp-trust-pill">Bengaluru</span>
+            </div>
+            <div class="dp-trust-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true">
+                    <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.2 13.2-3-3 1.4-1.4 1.6 1.6 4-4 1.4 1.4-5.4 5.4z"/>
+                </svg>
+                Verified Meta Business Partner
+            </div>
+        </div>
+    </section>
 
-            <div class="mt-10 bg-white rounded-2xl p-6 sm:p-8 shadow-xl border border-slate-200">
-                <div class="grid sm:grid-cols-2 gap-6">
+    <!-- ═══════ 5. FEATURES ═══════ -->
+    <section id="features" class="dp-features">
+        <div class="dp-container">
+            <h2 class="dp-section-h2">Everything your clinic needs</h2>
+            <p class="dp-section-sub">Booking, reminders, cancellations, doctor alerts — all on the one app your patients already use.</p>
+            <div class="dp-features-grid">
+                <div class="dp-feature-card">
+                    <div class="dp-feature-icon">📅</div>
+                    <h3 class="dp-feature-title">24×7 booking</h3>
+                    <p class="dp-feature-desc">Patients book at 2 AM. Your clinic opens to a full schedule.</p>
+                </div>
+                <div class="dp-feature-card">
+                    <div class="dp-feature-icon">🔔</div>
+                    <h3 class="dp-feature-title">Instant doctor alerts</h3>
+                    <p class="dp-feature-desc">Patient books → doctor gets a WhatsApp ping: name, date, time.</p>
+                </div>
+                <div class="dp-feature-card">
+                    <div class="dp-feature-icon">⏰</div>
+                    <h3 class="dp-feature-title">Auto reminders</h3>
+                    <p class="dp-feature-desc">Day-before + 1-hour-before. No-shows drop dramatically.</p>
+                </div>
+                <div class="dp-feature-card">
+                    <div class="dp-feature-icon">🌐</div>
+                    <h3 class="dp-feature-title">3 languages</h3>
+                    <p class="dp-feature-desc">English · हिंदी · मराठी — patient picks once, it sticks.</p>
+                </div>
+                <div class="dp-feature-card">
+                    <div class="dp-feature-icon">🕐</div>
+                    <h3 class="dp-feature-title">Split-shift ready</h3>
+                    <p class="dp-feature-desc">Open 9–1 and 4–9? Closed Sunday? The bot adapts to your hours.</p>
+                </div>
+                <div class="dp-feature-card">
+                    <div class="dp-feature-icon">📊</div>
+                    <h3 class="dp-feature-title">Live dashboard</h3>
+                    <p class="dp-feature-desc">See today's patients + upcoming bookings, inside WhatsApp.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ 6. ROI CALCULATOR ═══════ -->
+    <section id="roi" class="dp-roi">
+        <div class="dp-container">
+            <h2 class="dp-section-h2">How much is your clinic losing?</h2>
+            <p class="dp-section-sub">Most clinics see 30–75× ROI in month one.</p>
+
+            <div class="dp-roi-wrap">
+                <div class="dp-roi-sliders">
                     <div>
-                        <div class="flex justify-between items-end">
-                            <label class="font-medium text-slate-700">Patients per day</label>
-                            <span id="roiPatientsLabel" class="text-2xl font-bold text-green-600">30</span>
+                        <div class="dp-roi-slider-head">
+                            <label class="dp-roi-slider-label" for="roiPatients">Patients per day</label>
+                            <span id="roiPatientsLabel" class="dp-roi-slider-value">15</span>
                         </div>
-                        <input id="roiPatients" type="range" min="5" max="100" value="30" class="w-full mt-2 accent-green-600">
-                        <div class="flex justify-between text-xs text-slate-500 mt-1">
-                            <span>5</span><span>100</span>
-                        </div>
+                        <input id="roiPatients" type="range" min="5" max="100" value="15">
+                        <div class="dp-roi-slider-range"><span>5</span><span>100</span></div>
                     </div>
                     <div>
-                        <div class="flex justify-between items-end">
-                            <label class="font-medium text-slate-700">Avg consultation fee</label>
-                            <span id="roiFeeLabel" class="text-2xl font-bold text-green-600">₹500</span>
+                        <div class="dp-roi-slider-head">
+                            <label class="dp-roi-slider-label" for="roiFee">Avg consultation fee</label>
+                            <span id="roiFeeLabel" class="dp-roi-slider-value">₹300</span>
                         </div>
-                        <input id="roiFee" type="range" min="200" max="3000" step="50" value="500" class="w-full mt-2 accent-green-600">
-                        <div class="flex justify-between text-xs text-slate-500 mt-1">
-                            <span>₹200</span><span>₹3,000</span>
-                        </div>
+                        <input id="roiFee" type="range" min="200" max="3000" step="50" value="300">
+                        <div class="dp-roi-slider-range"><span>₹200</span><span>₹3,000</span></div>
                     </div>
                 </div>
 
-                <hr class="my-8 border-slate-200">
+                <div class="dp-roi-divider"></div>
 
-                <div class="grid sm:grid-cols-3 gap-6 text-center">
-                    <div>
-                        <div class="text-sm text-slate-500">Missed calls / day</div>
-                        <div id="roiMissed" class="text-3xl sm:text-4xl font-extrabold text-red-500 mt-1">5</div>
-                        <div class="text-xs text-slate-400 mt-1">~15% industry avg</div>
+                <div class="dp-roi-results">
+                    <div class="dp-roi-metric">
+                        <div id="roiLoss" class="dp-roi-metric-num danger">₹18,000</div>
+                        <div class="dp-roi-metric-label">Lost revenue / month</div>
+                        <div class="dp-roi-metric-sub">~15% missed calls × fee × 30d</div>
                     </div>
-                    <div>
-                        <div class="text-sm text-slate-500">Lost revenue / month</div>
-                        <div id="roiLoss" class="text-3xl sm:text-4xl font-extrabold text-red-500 mt-1">₹75,000</div>
-                        <div class="text-xs text-slate-400 mt-1">30 days × missed × fee</div>
+                    <div class="dp-roi-metric">
+                        <div class="dp-roi-metric-num">₹999</div>
+                        <div class="dp-roi-metric-label">DocPing cost / month</div>
+                        <div class="dp-roi-metric-sub">Standard plan</div>
                     </div>
-                    <div class="bg-green-50 rounded-xl py-4">
-                        <div class="text-sm text-slate-500">DocPing cost</div>
-                        <div class="text-3xl sm:text-4xl font-extrabold text-green-600 mt-1">₹999</div>
-                        <div class="text-xs text-green-700 mt-1 font-semibold">
-                            <span id="roiMultiplier">75×</span> ROI / month
-                        </div>
+                    <div class="dp-roi-metric is-highlight">
+                        <div id="roiMultiplier" class="dp-roi-metric-num success">18×</div>
+                        <div class="dp-roi-metric-label">ROI in month one</div>
+                        <div class="dp-roi-metric-sub">Lost revenue ÷ cost</div>
                     </div>
                 </div>
 
                 {% if bot_number %}
-                <div class="mt-8 text-center">
-                    <a href="https://wa.me/{{ bot_number }}?text=I%27d%20like%20to%20start%20the%20free%2030-day%20pilot"
-                       class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold wa-shadow transition">
+                <div class="dp-roi-cta-wrap">
+                    <a href="https://wa.me/{{ bot_number }}?text=I%27d%20like%20to%20start%20the%20free%2030-day%20pilot" class="dp-btn dp-btn-primary">
                         💰 Stop losing revenue — start free pilot
                     </a>
                 </div>
                 {% endif %}
             </div>
+            <span id="roiMissed" style="display:none;">2</span>
         </div>
     </section>
 
-    <!-- ═══════ DEMO VIDEOS ═══════ -->
-    <section id="demo" class="py-10 sm:py-14 bg-white">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 class="text-3xl sm:text-4xl font-bold text-center">See it in action</h2>
-            <p class="mt-3 text-center text-slate-600">Both sides of every booking — patient and doctor.</p>
+    <!-- ═══════ 7. DEMO / VIDEOS ═══════ -->
+    <section id="demo" class="dp-demo">
+        <div class="dp-container" style="text-align:center;">
+            <h2 class="dp-section-h2">60 seconds. That's the whole booking.</h2>
+            <p class="dp-section-sub">Watch both sides — what patients tap, what lands on your WhatsApp.</p>
 
-            <div class="mt-8 grid md:grid-cols-2 gap-8 items-start">
-                <!-- Patient video -->
-                <div>
-                    <div class="flex items-center gap-3 mb-4">
-                        <span class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
-                            👤 For Patients
-                        </span>
-                    </div>
-                    {% if videos.patient %}
-                        {% for v in videos.patient %}
-                            {% include "marketing/_video_card.html" with v=v %}
-                        {% endfor %}
-                    {% else %}
-                    <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
-                        <p class="text-slate-500">Patient flow video coming soon.</p>
-                    </div>
-                    {% endif %}
-                </div>
+            <div class="dp-demo-tabs" role="tablist">
+                <button class="dp-demo-tab is-active" data-demo-tab="patient" role="tab" aria-selected="true">What patients see</button>
+                <button class="dp-demo-tab" data-demo-tab="doctor" role="tab" aria-selected="false">What lands on your phone</button>
+            </div>
 
-                <!-- Doctor video -->
-                <div>
-                    <div class="flex items-center gap-3 mb-4">
-                        <span class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
-                            🩺 For Doctors
-                        </span>
-                    </div>
-                    {% if videos.provider %}
-                        {% for v in videos.provider %}
+            <div class="dp-demo-panel is-active" data-demo-panel="patient" role="tabpanel">
+                {% if videos.patient %}
+                    {% for v in videos.patient %}
+                        <div class="dp-demo-frame">
                             {% include "marketing/_video_card.html" with v=v %}
-                        {% endfor %}
-                    {% else %}
-                    <div class="p-10 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl text-center">
-                        <p class="text-slate-500">Doctor flow video coming soon.</p>
-                    </div>
-                    {% endif %}
-                </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                <div class="dp-demo-empty">Patient flow video coming soon.</div>
+                {% endif %}
+            </div>
+
+            <div class="dp-demo-panel" data-demo-panel="doctor" role="tabpanel">
+                {% if videos.provider %}
+                    {% for v in videos.provider %}
+                        <div class="dp-demo-frame">
+                            {% include "marketing/_video_card.html" with v=v %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                <div class="dp-demo-empty">Doctor flow video coming soon.</div>
+                {% endif %}
             </div>
         </div>
     </section>
 
-    <!-- ═══════ TRY IT YOURSELF (interactive doctor demo) ═══════ -->
+    <!-- ═══════ TRY IT YOURSELF (interactive doctor demo — preserved) ═══════ -->
     <section id="tryout" class="py-10 sm:py-14 bg-gradient-to-br from-purple-50 via-white to-green-50 border-y border-slate-200">
         <div class="max-w-5xl mx-auto px-4 sm:px-6">
             <h2 class="text-3xl sm:text-4xl font-bold text-center">Try it yourself — right now</h2>
@@ -568,7 +1647,6 @@
             </p>
 
             <div class="mt-8 grid md:grid-cols-2 gap-10 items-center">
-                <!-- pitch copy -->
                 <div>
                     <h3 class="text-2xl font-bold text-slate-900">Your clinic, run from WhatsApp</h3>
                     <p class="mt-3 text-slate-600">
@@ -585,8 +1663,7 @@
                     </p>
                 </div>
 
-                <!-- interactive phone — visitor drives this -->
-                <div class="phone-frame mx-auto w-full max-w-[330px]">
+                <div class="phone-frame mx-auto w-full">
                     <div class="phone-screen">
                         <div class="wa-header">
                             <div class="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center text-lg">📲</div>
@@ -602,281 +1679,271 @@
         </div>
     </section>
 
-    <!-- ═══════ HOW IT WORKS ═══════ -->
-    <section class="py-10 bg-white">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6">
-            <h2 class="text-3xl sm:text-4xl font-bold text-center">How it works</h2>
-            <div class="mt-8 grid md:grid-cols-3 gap-8">
-                <div class="text-center">
-                    <div class="mx-auto w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xl font-bold">1</div>
-                    <h3 class="mt-4 font-semibold">We onboard your clinic</h3>
-                    <p class="mt-2 text-sm text-slate-600">10 minutes of setup. Add your doctors, hours, and services.</p>
+    <!-- ═══════ 8. HOW IT WORKS ═══════ -->
+    <section class="dp-how">
+        <div class="dp-container">
+            <h2 class="dp-section-h2">How it works</h2>
+            <div class="dp-how-steps">
+                <div class="dp-how-step">
+                    <div class="dp-how-num">1</div>
+                    <h3 class="dp-how-title">We onboard your clinic</h3>
+                    <p class="dp-how-desc">10 minutes of setup. Add your doctors, hours, and services.</p>
                 </div>
-                <div class="text-center">
-                    <div class="mx-auto w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xl font-bold">2</div>
-                    <h3 class="mt-4 font-semibold">Patients find you on WhatsApp</h3>
-                    <p class="mt-2 text-sm text-slate-600">Share a WhatsApp link or QR code. Patients message "hi" and book.</p>
+                <div class="dp-how-line"></div>
+                <div class="dp-how-step">
+                    <div class="dp-how-num">2</div>
+                    <h3 class="dp-how-title">Patients find you on WhatsApp</h3>
+                    <p class="dp-how-desc">Share a WhatsApp link or QR code. Patients message "hi" and book.</p>
                 </div>
-                <div class="text-center">
-                    <div class="mx-auto w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xl font-bold">3</div>
-                    <h3 class="mt-4 font-semibold">Your day just runs smoother</h3>
-                    <p class="mt-2 text-sm text-slate-600">Fewer calls, fewer no-shows, more appointments actually kept.</p>
+                <div class="dp-how-line"></div>
+                <div class="dp-how-step">
+                    <div class="dp-how-num">3</div>
+                    <h3 class="dp-how-title">Your day just runs smoother</h3>
+                    <p class="dp-how-desc">Fewer calls, fewer no-shows, more appointments actually kept.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ═══════ FAQ ═══════ -->
-    <section id="faq" class="py-10 sm:py-14 bg-slate-50 border-y border-slate-200">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6">
-            <h2 class="text-3xl sm:text-4xl font-bold text-center">Frequently asked questions</h2>
-            <div class="mt-10 space-y-3">
-                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
-                        What if my patients don't use WhatsApp?
-                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
-                    </summary>
-                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
-                        92% of Indian smartphone users are on WhatsApp — that's higher than SMS, email, or any app. If a patient uses WhatsApp to send photos to their family, they can book an appointment with you. Zero learning curve.
-                    </p>
-                </details>
-                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
-                        Do I need to train my staff?
-                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
-                    </summary>
-                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
-                        No. Your receptionist doesn't interact with the bot at all — it runs on its own. They just see confirmed appointments in your existing schedule. 5-minute walkthrough included in setup.
-                    </p>
-                </details>
-                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
-                        How do I cancel? Am I locked in?
-                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
-                    </summary>
-                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
-                        Zero lock-in. No contract. Cancel anytime with a WhatsApp message to us — we turn off your bot and your data is deleted within 30 days. The 30-day free pilot is truly free — no card required upfront.
-                    </p>
-                </details>
-                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
-                        Is patient data safe?
-                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
-                    </summary>
-                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
-                        Yes. We store only name, phone, and appointment details — no medical history or diagnoses. Data is encrypted in transit (HTTPS) and at rest. Built on Meta's WhatsApp Business Cloud API with the same security clinic apps use.
-                    </p>
-                </details>
-                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
-                        What if the bot crashes or gives wrong info?
-                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
-                    </summary>
-                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
-                        We monitor it 24×7. If anything breaks, I personally get a WhatsApp alert and fix it — usually within the hour. During the free pilot you have my direct number. Patients can also message you directly from the bot if something's unclear.
-                    </p>
-                </details>
-                <details class="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-                    <summary class="flex justify-between items-center cursor-pointer font-semibold text-slate-900">
-                        Can it work with my existing clinic software?
-                        <span class="faq-icon text-2xl text-green-600 font-normal">+</span>
-                    </summary>
-                    <p class="mt-4 text-slate-600 text-sm leading-relaxed">
-                        The bot runs standalone with its own admin. If you already use Practo / Lybrate / a spreadsheet, we can export bookings daily to Google Sheets (Standard + Premium plans). Deeper integrations on request.
-                    </p>
-                </details>
-            </div>
-        </div>
-    </section>
+    <!-- ═══════ 9. PRICING ═══════ -->
+    <section id="pricing" class="dp-pricing">
+        <div class="dp-container">
+            <h2 class="dp-section-h2">Straightforward pricing</h2>
+            <p class="dp-section-sub">Pay once a month. Cancel anytime. First 30 days free.</p>
+            <div class="dp-pricing-grid">
 
-    <!-- ═══════ ABOUT / CONTACT ═══════ -->
-    <section id="about" class="py-12 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-            <div class="inline-block bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-semibold tracking-wide mb-6">
-                MEET THE FOUNDER
-            </div>
-
-            {% comment %}
-            Founder photo. Drop a square photo at
-            apps/marketing/static/marketing/brand/founder.jpg — the landing
-            view sets `founder_photo` when it exists; until then this falls
-            back to the initials circle.
-            {% endcomment %}
-            {% if founder_photo %}
-            <img src="{% static 'marketing/brand/founder.jpg' %}" alt="Aniket Pathak"
-                 class="mx-auto w-28 h-28 rounded-full object-cover shadow-lg ring-4 ring-white">
-            {% else %}
-            <div class="mx-auto w-28 h-28 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-3xl font-bold text-white shadow-lg ring-4 ring-white">
-                AP
-            </div>
-            {% endif %}
-
-            <h2 class="mt-6 text-2xl sm:text-3xl font-bold">Hi, I'm Aniket Pathak 👋</h2>
-            <p class="mt-2 text-slate-500">Founder, DocPing · 📍 Pune, India</p>
-
-            <div class="mt-4 inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-semibold">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.2 13.2-3-3 1.4-1.4 1.6 1.6 4-4 1.4 1.4-5.4 5.4z"/>
-                </svg>
-                Verified Meta Business
-            </div>
-
-            <p class="mt-8 text-slate-600 max-w-2xl mx-auto leading-relaxed">
-                I build WhatsApp automation for small businesses. DocPing was born
-                out of watching clinic owners miss patient calls during rush hours,
-                scribble appointments on sticky notes, and lose money to no-shows.
-                It&rsquo;s the kind of tool I wished existed — so I built it.
-            </p>
-            <p class="mt-4 text-slate-600 max-w-2xl mx-auto leading-relaxed">
-                I run this myself — no call centre, no sales team. When you message,
-                you reach <b>me</b>. I set your clinic up personally, usually in under
-                10 minutes. Free for the first 30 days — no card, no contract. If it
-                helps your clinic, keep it. If not, switch it off, no hard feelings.
-            </p>
-
-            <div class="mt-10 grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                {% if contact_number %}
-                <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20know%20more"
-                   class="p-4 bg-white rounded-xl border border-slate-200 hover:border-green-400 hover:shadow-md transition text-left">
-                    <div class="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
-                        <span class="w-2 h-2 rounded-full bg-green-500"></span> Talk to me
-                    </div>
-                    <div class="mt-1 font-bold text-slate-900">{{ contact_number|pretty_phone }}</div>
-                    <div class="mt-1 text-sm text-slate-600">Onboarding, pricing, custom requests — message me directly.</div>
-                </a>
-                {% endif %}
-                {% if bot_number %}
-                <a href="https://wa.me/{{ bot_number }}?text=hi"
-                   class="p-4 bg-white rounded-xl border border-slate-200 hover:border-green-400 hover:shadow-md transition text-left">
-                    <div class="flex items-center gap-2 text-slate-500 text-xs font-semibold uppercase tracking-wide">
-                        <span class="live-dot"></span> Try the bot
-                    </div>
-                    <div class="mt-1 font-bold text-slate-900">{{ bot_number|pretty_phone }}</div>
-                    <div class="mt-1 text-sm text-slate-600">Message "hi" to see the patient flow live — it responds in seconds.</div>
-                </a>
-                {% endif %}
-            </div>
-
-        </div>
-    </section>
-
-    <!-- ═══════ FOUNDING CLINICS OFFER ═══════ -->
-    <section class="py-10 sm:py-14 bg-gradient-to-br from-slate-900 to-slate-800">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-            <div class="inline-flex items-center gap-2 bg-green-500/15 text-green-300 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide">
-                🌱 FOUNDING CLINICS — LIMITED
-            </div>
-            <h2 class="mt-5 text-3xl sm:text-4xl font-bold text-white">
-                Be one of our first 10 clinics
-            </h2>
-            <p class="mt-4 text-slate-300 max-w-2xl mx-auto leading-relaxed">
-                DocPing is new — and the clinics that join now get treated like
-                partners, not customers. We&rsquo;re hand-picking our first 10.
-            </p>
-
-            <div class="mt-10 grid sm:grid-cols-3 gap-5 text-left">
-                <div class="bg-white/5 border border-white/10 rounded-xl p-5">
-                    <div class="text-2xl">🛠️</div>
-                    <div class="mt-2 font-bold text-white">Free setup</div>
-                    <div class="mt-1 text-sm text-slate-400">We configure everything for your clinic ourselves — you do nothing.</div>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-xl p-5">
-                    <div class="text-2xl">🔒</div>
-                    <div class="mt-2 font-bold text-white">Lifetime founder pricing</div>
-                    <div class="mt-1 text-sm text-slate-400">Lock today&rsquo;s rate forever — it never goes up, even as we add features.</div>
-                </div>
-                <div class="bg-white/5 border border-white/10 rounded-xl p-5">
-                    <div class="text-2xl">📞</div>
-                    <div class="mt-2 font-bold text-white">Direct line to the founder</div>
-                    <div class="mt-1 text-sm text-slate-400">Message Aniket directly — feature requests shipped, not ticketed.</div>
-                </div>
-            </div>
-
-            {% if contact_number %}
-            <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20be%20a%20founding%20clinic%20for%20DocPing"
-               class="mt-10 inline-flex items-center gap-2 bg-green-500 hover:bg-green-400 text-white px-8 py-4 rounded-xl font-bold text-lg transition">
-                💬 Claim a founding spot
-            </a>
-            <p class="mt-3 text-xs text-slate-500">Free 30-day pilot · no card · no contract</p>
-            {% endif %}
-        </div>
-    </section>
-
-    <!-- ═══════ PRICING ═══════ -->
-    <section id="pricing" class="py-10 sm:py-14 bg-white">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6">
-            <h2 class="text-3xl sm:text-4xl font-bold text-center">Straightforward pricing</h2>
-            <p class="mt-3 text-center text-slate-600">Pay once a month. Cancel anytime. First 30 days free.</p>
-            <div class="mt-8 grid md:grid-cols-3 gap-6">
-                <div class="p-8 bg-slate-50 rounded-2xl border border-slate-200">
-                    <h3 class="font-semibold text-lg">Basic</h3>
-                    <p class="mt-2 text-3xl font-extrabold">₹999<span class="text-base font-normal text-slate-500">/mo</span></p>
-                    <ul class="mt-6 space-y-2 text-sm text-slate-600">
+                <div class="dp-pricing-card">
+                    <h3 class="dp-pricing-tier">Basic</h3>
+                    <div class="dp-pricing-price">₹999<span>/mo</span></div>
+                    <ul class="dp-pricing-features">
                         <li>✅ WhatsApp bookings</li>
                         <li>✅ Day-before reminders</li>
                         <li>✅ Cancel &amp; reschedule</li>
-                        <li class="text-slate-400">— Daily summary</li>
-                        <li class="text-slate-400">— Multilingual</li>
+                        <li class="is-dim">— Daily summary</li>
+                        <li class="is-dim">— Multilingual</li>
                     </ul>
+                    {% if contact_number %}
+                    <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20start%20the%20Basic%20plan" class="dp-pricing-cta is-outline">Choose Basic</a>
+                    {% endif %}
                 </div>
-                <div class="p-8 bg-slate-900 text-white rounded-2xl relative ring-2 ring-green-500">
-                    <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-xs font-bold text-white px-3 py-1 rounded-full">MOST POPULAR</div>
-                    <h3 class="font-semibold text-lg">Standard</h3>
-                    <p class="mt-2 text-3xl font-extrabold">₹1,999<span class="text-base font-normal text-slate-400">/mo</span></p>
-                    <ul class="mt-6 space-y-2 text-sm text-slate-300">
+
+                <div class="dp-pricing-card is-popular">
+                    <div class="dp-pricing-badge">Most popular</div>
+                    <h3 class="dp-pricing-tier">Standard</h3>
+                    <div class="dp-pricing-price">₹1,999<span>/mo</span></div>
+                    <ul class="dp-pricing-features">
                         <li>✅ Everything in Basic</li>
                         <li>✅ 1-hour-before reminders</li>
                         <li>✅ Daily owner summary</li>
                         <li>✅ Google Sheets sync</li>
-                        <li class="text-slate-500">— AI enquiry replies</li>
+                        <li class="is-dim">— AI enquiry replies</li>
                     </ul>
+                    {% if contact_number %}
+                    <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20start%20the%20Standard%20plan" class="dp-pricing-cta is-filled">Choose Standard</a>
+                    {% endif %}
                 </div>
-                <div class="p-8 bg-slate-50 rounded-2xl border border-slate-200">
-                    <h3 class="font-semibold text-lg">Premium</h3>
-                    <p class="mt-2 text-3xl font-extrabold">₹2,999<span class="text-base font-normal text-slate-500">/mo</span></p>
-                    <ul class="mt-6 space-y-2 text-sm text-slate-600">
+
+                <div class="dp-pricing-card">
+                    <h3 class="dp-pricing-tier">Premium</h3>
+                    <div class="dp-pricing-price">₹2,999<span>/mo</span></div>
+                    <ul class="dp-pricing-features">
                         <li>✅ Everything in Standard</li>
                         <li>✅ AI enquiry replies</li>
                         <li>✅ English · हिंदी · मराठी</li>
                         <li>✅ Priority WhatsApp support</li>
                         <li>✅ Custom workflows on request</li>
                     </ul>
+                    {% if contact_number %}
+                    <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20start%20the%20Premium%20plan" class="dp-pricing-cta is-outline">Choose Premium</a>
+                    {% endif %}
                 </div>
+
+            </div>
+            <p class="dp-pricing-note">💡 Annual billing saves 20% — message us to activate</p>
+        </div>
+    </section>
+
+    <!-- ═══════ 10. FAQ (accordion) ═══════ -->
+    <section id="faq" class="dp-faq">
+        <div class="dp-faq-inner">
+            <h2 class="dp-section-h2">Frequently asked questions</h2>
+            <div class="dp-faq-list">
+
+                <div class="dp-faq-item">
+                    <button class="dp-faq-q" data-faq-toggle type="button" aria-expanded="false">
+                        What if my patients don't use WhatsApp?
+                        <span class="dp-faq-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="dp-faq-a">
+                        <p>92% of Indian smartphone users are on WhatsApp — that's higher than SMS, email, or any app. If a patient uses WhatsApp to send photos to their family, they can book an appointment with you. Zero learning curve.</p>
+                    </div>
+                </div>
+
+                <div class="dp-faq-item">
+                    <button class="dp-faq-q" data-faq-toggle type="button" aria-expanded="false">
+                        Do I need to train my staff?
+                        <span class="dp-faq-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="dp-faq-a">
+                        <p>No. Your receptionist doesn't interact with the bot at all — it runs on its own. They just see confirmed appointments in your existing schedule. 5-minute walkthrough included in setup.</p>
+                    </div>
+                </div>
+
+                <div class="dp-faq-item">
+                    <button class="dp-faq-q" data-faq-toggle type="button" aria-expanded="false">
+                        How do I cancel? Am I locked in?
+                        <span class="dp-faq-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="dp-faq-a">
+                        <p>Zero lock-in. No contract. Cancel anytime with a WhatsApp message to us — we turn off your bot and your data is deleted within 30 days. The 30-day free pilot is truly free — no card required upfront.</p>
+                    </div>
+                </div>
+
+                <div class="dp-faq-item">
+                    <button class="dp-faq-q" data-faq-toggle type="button" aria-expanded="false">
+                        Is patient data safe?
+                        <span class="dp-faq-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="dp-faq-a">
+                        <p>Yes. We store only name, phone, and appointment details — no medical history or diagnoses. Data is encrypted in transit (HTTPS) and at rest. Built on Meta's WhatsApp Business Cloud API with the same security clinic apps use.</p>
+                    </div>
+                </div>
+
+                <div class="dp-faq-item">
+                    <button class="dp-faq-q" data-faq-toggle type="button" aria-expanded="false">
+                        What if the bot crashes or gives wrong info?
+                        <span class="dp-faq-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="dp-faq-a">
+                        <p>We monitor it 24×7. If anything breaks, I personally get a WhatsApp alert and fix it — usually within the hour. During the free pilot you have my direct number. Patients can also message you directly from the bot if something's unclear.</p>
+                    </div>
+                </div>
+
+                <div class="dp-faq-item">
+                    <button class="dp-faq-q" data-faq-toggle type="button" aria-expanded="false">
+                        Can it work with my existing clinic software?
+                        <span class="dp-faq-icon" aria-hidden="true">+</span>
+                    </button>
+                    <div class="dp-faq-a">
+                        <p>The bot runs standalone with its own admin. If you already use Practo / Lybrate / a spreadsheet, we can export bookings daily to Google Sheets (Standard + Premium plans). Deeper integrations on request.</p>
+                    </div>
+                </div>
+
             </div>
         </div>
     </section>
 
-    <!-- ═══════ FINAL CTA ═══════ -->
-    {% if bot_number %}
-    <section class="py-12 bg-gradient-to-br from-green-500 to-emerald-600">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">Ready to try it yourself?</h2>
-            <p class="mt-4 text-green-50 text-lg">
-                Message the bot right now. Book a fake appointment. See for yourself.
-            </p>
-            <a href="https://wa.me/{{ bot_number }}?text=hi"
-               class="mt-8 inline-flex items-center gap-2 bg-white text-green-700 hover:bg-green-50 px-8 py-4 rounded-xl font-bold text-lg transition">
-                💬 Open WhatsApp
-            </a>
+    <!-- ═══════ 11. FOUNDER ═══════ -->
+    <section id="about" class="dp-founder">
+        <div class="dp-container">
+            <div class="dp-founder-grid">
+                <div class="dp-founder-text">
+                    <span class="dp-eyebrow">Meet the founder</span>
+                    <h2 class="dp-founder-h2">Hi, I'm Aniket Pathak 👋</h2>
+                    <p>
+                        I build WhatsApp automation for small businesses. DocPing was born
+                        out of watching clinic owners miss patient calls during rush hours,
+                        scribble appointments on sticky notes, and lose money to no-shows.
+                        It&rsquo;s the kind of tool I wished existed — so I built it.
+                    </p>
+                    <p>
+                        I run this myself — no call centre, no sales team. When you message,
+                        you reach <b style="color:var(--dp-text);">me</b>. I set your clinic up personally, usually in under
+                        10 minutes. Free for the first 30 days — no card, no contract. If it
+                        helps your clinic, keep it. If not, switch it off, no hard feelings.
+                    </p>
+                </div>
+
+                <aside class="dp-founder-card">
+                    {% if founder_photo %}
+                    <img src="{% static 'marketing/brand/founder.jpg' %}" alt="Aniket Pathak" class="dp-founder-avatar">
+                    {% else %}
+                    <div class="dp-founder-avatar">AP</div>
+                    {% endif %}
+                    <h3 class="dp-founder-name">Aniket Pathak</h3>
+                    <p class="dp-founder-title">Founder, DocPing</p>
+                    <p class="dp-founder-loc">📍 Pune, India</p>
+                    <div class="dp-founder-badge">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.2 13.2-3-3 1.4-1.4 1.6 1.6 4-4 1.4 1.4-5.4 5.4z"/>
+                        </svg>
+                        Verified Meta Business
+                    </div>
+                    <div class="dp-founder-ctas">
+                        {% if contact_number %}
+                        <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20know%20more" class="dp-btn dp-btn-outline-light">Talk to me</a>
+                        {% endif %}
+                        {% if bot_number %}
+                        <a href="https://wa.me/{{ bot_number }}?text=hi" class="dp-btn dp-btn-primary">Try the bot</a>
+                        {% endif %}
+                    </div>
+                </aside>
+            </div>
         </div>
+    </section>
+
+    <!-- ═══════ 12. FOUNDING CLINICS ═══════ -->
+    <section id="founding" class="dp-founding">
+        <div class="dp-founding-inner">
+            <div class="dp-founding-head">
+                <h2 class="dp-founding-h2">Be one of our first 10 clinics</h2>
+                <span class="dp-founding-limited">Limited</span>
+            </div>
+            <p class="dp-founding-sub">
+                DocPing is new — and the clinics that join now get treated like
+                partners, not customers. We&rsquo;re hand-picking our first 10.
+            </p>
+
+            <div class="dp-founding-grid">
+                <div class="dp-founding-card">
+                    <div class="dp-founding-icon">🛠️</div>
+                    <h3>Free setup</h3>
+                    <p>We configure everything for your clinic ourselves — you do nothing.</p>
+                </div>
+                <div class="dp-founding-card">
+                    <div class="dp-founding-icon">🔒</div>
+                    <h3>Lifetime founder pricing</h3>
+                    <p>Lock today&rsquo;s rate forever — it never goes up, even as we add features.</p>
+                </div>
+                <div class="dp-founding-card">
+                    <div class="dp-founding-icon">📞</div>
+                    <h3>Direct line to the founder</h3>
+                    <p>Message Aniket directly — feature requests shipped, not ticketed.</p>
+                </div>
+            </div>
+
+            {% if contact_number %}
+            <div class="dp-founding-cta-wrap">
+                <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27d%20like%20to%20be%20a%20founding%20clinic%20for%20DocPing" class="dp-founding-cta">
+                    💬 Claim a founding spot
+                </a>
+                <p class="dp-founding-cta-note">Free 30-day pilot · no card · no contract</p>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- ═══════ FINAL CTA (preserved) ═══════ -->
+    {% if bot_number %}
+    <section class="dp-final">
+        <h2>Ready to try it yourself?</h2>
+        <p>Message the bot right now. Book a fake appointment. See for yourself.</p>
+        <a href="https://wa.me/{{ bot_number }}?text=hi" class="dp-btn dp-btn-lg">💬 Open WhatsApp</a>
     </section>
     {% endif %}
 
-    <!-- ═══════ FOOTER ═══════ -->
-    <footer class="bg-slate-950 text-slate-400">
-        <div class="max-w-6xl mx-auto px-5 sm:px-6 py-12 sm:py-14">
-            <div class="grid grid-cols-2 md:grid-cols-12 gap-x-6 gap-y-9 sm:gap-10">
+    <!-- ═══════ 13. FOOTER ═══════ -->
+    <footer class="dp-footer">
+        <div class="dp-footer-inner">
+            <div class="dp-footer-grid">
 
-                <!-- Brand -->
-                <div class="col-span-2 md:col-span-5">
-                    <a href="/" class="inline-flex items-center gap-2.5">
-                        <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="34" height="34" class="rounded-lg">
-                        <span class="font-extrabold text-xl text-white">Doc<span class="text-cyan-400">Ping</span></span>
+                <div class="dp-footer-brand">
+                    <a href="/" class="dp-footer-logo">
+                        <img src="{% static 'marketing/brand/docping-icon.svg' %}" alt="" width="32" height="32">
+                        <span>DocPing</span>
                     </a>
-                    <p class="mt-4 text-sm leading-relaxed text-slate-400 max-w-xs">
-                        WhatsApp appointment booking for clinics, hospitals, and doctors across India.
-                    </p>
-                    <div class="mt-5 inline-flex items-center gap-2 bg-slate-800/80 text-slate-200 px-3 py-1.5 rounded-full text-xs font-semibold">
+                    <p>WhatsApp appointment booking for clinics, hospitals, and doctors across India.</p>
+                    <div class="dp-footer-badge">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="#34d399" aria-hidden="true">
                             <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3zm-1.2 13.2-3-3 1.4-1.4 1.6 1.6 4-4 1.4 1.4-5.4 5.4z"/>
                         </svg>
@@ -884,142 +1951,155 @@
                     </div>
                 </div>
 
-                <!-- Product links -->
-                <nav class="md:col-span-3">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Product</h3>
-                    <ul class="mt-4 space-y-2.5 text-sm">
-                        <li><a href="#features" class="hover:text-white transition-colors">Features</a></li>
-                        <li><a href="#roi" class="hover:text-white transition-colors">ROI calculator</a></li>
-                        <li><a href="#demo" class="hover:text-white transition-colors">Watch demo</a></li>
-                        <li><a href="#pricing" class="hover:text-white transition-colors">Pricing</a></li>
-                        <li><a href="#faq" class="hover:text-white transition-colors">FAQ</a></li>
-                    </ul>
+                <nav class="dp-footer-col">
+                    <h3>Product</h3>
+                    <a href="#features">Features</a>
+                    <a href="#roi">ROI calculator</a>
+                    <a href="#demo">Watch demo</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="#faq">FAQ</a>
                 </nav>
 
-                <!-- Company / legal links -->
-                <nav class="md:col-span-2">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Company</h3>
-                    <ul class="mt-4 space-y-2.5 text-sm">
-                        <li><a href="#about" class="hover:text-white transition-colors">About</a></li>
-                        <li><a href="/privacy/" class="hover:text-white transition-colors">Privacy</a></li>
-                        <li><a href="/terms/" class="hover:text-white transition-colors">Terms</a></li>
-                        <li><a href="/data-deletion/" class="hover:text-white transition-colors">Data deletion</a></li>
-                    </ul>
+                <nav class="dp-footer-col">
+                    <h3>Company</h3>
+                    <a href="#about">About</a>
+                    <a href="/privacy/">Privacy</a>
+                    <a href="/terms/">Terms</a>
+                    <a href="/data-deletion/">Data deletion</a>
                 </nav>
 
-                <!-- Contact -->
-                <div class="col-span-2 md:col-span-2">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Get in touch</h3>
-                    <div class="mt-4 space-y-3 text-sm">
-                        {% if contact_number %}
-                        <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}"
-                           class="inline-flex items-center gap-2 hover:text-white transition-colors">
-                            <svg class="w-4 h-4 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347Z"/></svg>
-                            Chat on WhatsApp
-                        </a>
-                        {% endif %}
-                        <a href="mailto:{{ official_mail }}" class="flex items-center gap-2 hover:text-white transition-colors break-all">
-                            <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M3 8v8a2 2 0 002 2h14a2 2 0 002-2V8M3 8a2 2 0 012-2h14a2 2 0 012 2"/></svg>
-                            {{ official_mail }}
-                        </a>
-                        <p class="text-slate-500 text-xs pt-0.5">📍 Pune, Maharashtra, India</p>
-                    </div>
+                <div class="dp-footer-col">
+                    <h3>Get in touch</h3>
+                    {% if contact_number %}
+                    <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}">
+                        <svg width="14" height="14" fill="#25D366" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347Z"/></svg>
+                        Chat on WhatsApp
+                    </a>
+                    {% endif %}
+                    <a href="mailto:{{ official_mail }}" style="word-break:break-all;">
+                        <svg width="14" height="14" fill="none" stroke="#22d3ee" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M3 8v8a2 2 0 002 2h14a2 2 0 002-2V8M3 8a2 2 0 012-2h14a2 2 0 012 2"/></svg>
+                        {{ official_mail }}
+                    </a>
+                    <p class="dp-footer-loc">📍 Pune, Maharashtra, India</p>
                 </div>
+
             </div>
 
-            <!-- Bottom bar -->
-            <div class="mt-11 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+            <div class="dp-footer-bottom">
                 <p>© 2026 DocPing. All rights reserved.</p>
                 <p>Built with care by Aniket Pathak</p>
             </div>
         </div>
     </footer>
 
-    <!-- ═══════ FLOATING WhatsApp BUTTON ═══════ -->
+    <!-- ═══════ 14. FLOATING WHATSAPP BUTTON (desktop only) ═══════ -->
     {% if contact_number %}
-    <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27m%20interested%20in%20Clinic%20Bot"
-       class="fab" title="Chat with {{ contact_name }} on WhatsApp" aria-label="Chat on WhatsApp">
-        <svg class="w-8 h-8 relative z-10" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+    <a href="https://wa.me/{{ contact_number }}?text=Hi%20{{ contact_name }}%2C%20I%27m%20interested%20in%20DocPing"
+       class="dp-fab" title="Chat with us on WhatsApp" aria-label="Chat with us on WhatsApp">
+        <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+        </svg>
+        <span class="dp-fab-tooltip">Chat with us</span>
     </a>
     {% endif %}
 
-    <!-- ═══════ CHAT ANIMATION + ROI CALCULATOR SCRIPT ═══════ -->
+    <!-- ═══════ 15. STICKY MOBILE CTA BAR (mobile only) ═══════ -->
+    {% if bot_number %}
+    <div class="dp-mobile-cta">
+        <a href="https://wa.me/{{ bot_number }}?text=hi">💬 Book free 30-day pilot</a>
+    </div>
+    {% endif %}
+
+    <!-- ═══════ SCRIPTS ═══════ -->
     <script>
-    // ─── Animated WhatsApp chat in the hero ───────────────────────
-    const chatBody = document.getElementById('chatBody');
-    const script = [
-        { wait: 600,  type: 'out', text: 'hi' },
-        { wait: 900,  type: 'typing' },
-        { wait: 1400, type: 'in',  text: '👋 Welcome to *Alpha Care Physio*!\nChoose language:', buttons: ['English','हिंदी','मराठी'] },
-        { wait: 1800, type: 'out', text: 'English' },
-        { wait: 700,  type: 'typing' },
-        { wait: 1400, type: 'in',  text: 'How can I help?', buttons: ['Book Appointment','My Appointments','Enquiry'] },
-        { wait: 1800, type: 'out', text: 'Book Appointment' },
-        { wait: 700,  type: 'typing' },
-        { wait: 1300, type: 'in',  text: '📅 Available dates for Dr. Patel:', buttons: ['Today','Tomorrow','Fri 25 Apr'] },
-        { wait: 1600, type: 'out', text: 'Tomorrow' },
-        { wait: 700,  type: 'typing' },
-        { wait: 1100, type: 'in',  text: '🕐 Pick a time:', buttons: ['10:00 AM','11:30 AM','5:00 PM'] },
-        { wait: 1500, type: 'out', text: '10:00 AM' },
-        { wait: 700,  type: 'typing' },
-        { wait: 1200, type: 'in',  text: '✅ Booked: Dr. Patel, tomorrow at 10:00 AM' },
-    ];
-
-    function addMsg(cls, text) {
-        const div = document.createElement('div');
-        div.className = 'msg ' + cls;
-        div.textContent = text;
-        chatBody.appendChild(div);
-        chatBody.scrollTop = chatBody.scrollHeight;
-        return div;
-    }
-    function addButtons(labels) {
-        const row = document.createElement('div');
-        row.className = 'wa-btn-row';
-        labels.forEach((l, i) => {
-            const b = document.createElement('div');
-            b.className = 'wa-btn';
-            b.textContent = l;
-            b.style.animationDelay = (i * 0.1) + 's';
-            row.appendChild(b);
-        });
-        chatBody.appendChild(row);
-        chatBody.scrollTop = chatBody.scrollHeight;
-    }
-    function addTyping() {
-        const el = document.createElement('div');
-        el.className = 'typing';
-        el.innerHTML = '<span></span><span></span><span></span>';
-        chatBody.appendChild(el);
-        chatBody.scrollTop = chatBody.scrollHeight;
-        return el;
-    }
-
-    async function playChat() {
-        while (true) {
-            chatBody.innerHTML = '';
-            for (const step of script) {
-                await new Promise(r => setTimeout(r, step.wait));
-                if (step.type === 'typing') {
-                    const t = addTyping();
-                    await new Promise(r => setTimeout(r, 700));
-                    t.remove();
-                } else if (step.type === 'in') {
-                    addMsg('msg-in', step.text);
-                    if (step.buttons) addButtons(step.buttons);
-                } else {
-                    addMsg('msg-out', step.text);
-                }
+    // ─── Sticky urgency banner: dismissal + persistence ──────────
+    (function () {
+        const banner = document.getElementById('dpBanner');
+        const closeBtn = document.getElementById('dpBannerClose');
+        if (!banner) return;
+        try {
+            if (localStorage.getItem('dp_banner_dismissed') === '1') {
+                banner.style.display = 'none';
             }
-            await new Promise(r => setTimeout(r, 3500));
+        } catch (e) {}
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                banner.style.display = 'none';
+                try { localStorage.setItem('dp_banner_dismissed', '1'); } catch (e) {}
+            });
         }
-    }
-    playChat();
+    })();
 
-    // ─── Interactive doctor-side try-out ──────────────────────────
-    // Visitor-driven (not auto-play): a clinic owner taps through and
-    // experiences how bookings arrive + get managed from WhatsApp.
-    // Fully scripted — no backend, no real data, can't break live.
+    // ─── Mobile hamburger menu ──────────────────────────────────
+    (function () {
+        const burger = document.getElementById('dpBurger');
+        const menu = document.getElementById('dpNavMobile');
+        if (!burger || !menu) return;
+        burger.addEventListener('click', function () {
+            const isOpen = menu.classList.toggle('open');
+            burger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            burger.textContent = isOpen ? '✕' : '☰';
+        });
+        menu.querySelectorAll('a').forEach(function (a) {
+            a.addEventListener('click', function () {
+                menu.classList.remove('open');
+                burger.setAttribute('aria-expanded', 'false');
+                burger.textContent = '☰';
+            });
+        });
+    })();
+
+    // ─── FAQ accordion — scrollHeight-based (FIX 10) ────────────
+    // Sets max-height to the answer's natural height so long answers
+    // don't get truncated by a fixed CSS cap.
+    (function () {
+        const btns = document.querySelectorAll('[data-faq-toggle]');
+        btns.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const item = btn.closest('.dp-faq-item');
+                if (!item) return;
+                const answer = item.querySelector('.dp-faq-a');
+                const wasOpen = item.classList.contains('is-open');
+
+                // Close all open items
+                document.querySelectorAll('.dp-faq-item.is-open').forEach(function (i) {
+                    i.classList.remove('is-open');
+                    const a = i.querySelector('.dp-faq-a');
+                    if (a) a.style.maxHeight = null;
+                    const b = i.querySelector('[data-faq-toggle]');
+                    if (b) b.setAttribute('aria-expanded', 'false');
+                });
+
+                // Open clicked if it was closed
+                if (!wasOpen && answer) {
+                    item.classList.add('is-open');
+                    answer.style.maxHeight = answer.scrollHeight + 'px';
+                    btn.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+    })();
+
+    // ─── Demo section tabs ──────────────────────────────────────
+    (function () {
+        const tabs = document.querySelectorAll('[data-demo-tab]');
+        const panels = document.querySelectorAll('[data-demo-panel]');
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                const key = tab.dataset.demoTab;
+                tabs.forEach(function (t) {
+                    const active = (t === tab);
+                    t.classList.toggle('is-active', active);
+                    t.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                panels.forEach(function (p) {
+                    p.classList.toggle('is-active', p.dataset.demoPanel === key);
+                });
+            });
+        });
+    })();
+
+    // ─── Interactive doctor-side try-out (preserved) ────────────
     (function () {
         const body = document.getElementById('docChatBody');
         if (!body) return;
@@ -1075,7 +2155,6 @@
         function msg(cls, text) {
             const d = document.createElement('div');
             d.className = 'msg ' + cls;
-            // Hardcoded copy only — safe to use innerHTML. *bold* → <strong>.
             d.innerHTML = text.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
             body.appendChild(d);
             body.scrollTop = body.scrollHeight;
@@ -1145,40 +2224,32 @@
         start();
     })();
 
-    // ─── ROI calculator ───────────────────────────────────────────
-    const pEl   = document.getElementById('roiPatients');
-    const fEl   = document.getElementById('roiFee');
-    const pLbl  = document.getElementById('roiPatientsLabel');
-    const fLbl  = document.getElementById('roiFeeLabel');
-    const missEl= document.getElementById('roiMissed');
-    const lossEl= document.getElementById('roiLoss');
-    const multEl= document.getElementById('roiMultiplier');
+    // ─── ROI calculator (defaults: 15 patients / ₹300 fee) ──────
+    (function () {
+        const pEl   = document.getElementById('roiPatients');
+        const fEl   = document.getElementById('roiFee');
+        const pLbl  = document.getElementById('roiPatientsLabel');
+        const fLbl  = document.getElementById('roiFeeLabel');
+        const missEl= document.getElementById('roiMissed');
+        const lossEl= document.getElementById('roiLoss');
+        const multEl= document.getElementById('roiMultiplier');
+        if (!pEl || !fEl) return;
 
-    function calc() {
-        const p = +pEl.value, f = +fEl.value;
-        const missed = Math.max(1, Math.round(p * 0.15));
-        const loss = missed * f * 30;
-        const mult = Math.max(1, Math.round(loss / 999));
-        pLbl.textContent = p;
-        fLbl.textContent = '₹' + f.toLocaleString('en-IN');
-        missEl.textContent = missed;
-        lossEl.textContent = '₹' + loss.toLocaleString('en-IN');
-        multEl.textContent = mult + '×';
-    }
-    pEl.addEventListener('input', calc);
-    fEl.addEventListener('input', calc);
-    calc();
-
-    // ─── Animated "bookings today" counter ────────────────────────
-    const counter = document.getElementById('liveCounter');
-    const target = parseInt(counter.dataset.count, 10) || 0;
-    let current = 0;
-    const step = Math.max(1, Math.floor(target / 30));
-    const interval = setInterval(() => {
-        current = Math.min(target, current + step);
-        counter.innerHTML = '<span class="live-dot"></span> ' + current + '+ appointments booked today';
-        if (current >= target) clearInterval(interval);
-    }, 40);
+        function calc() {
+            const p = +pEl.value, f = +fEl.value;
+            const missed = Math.max(1, Math.round(p * 0.15));
+            const loss = missed * f * 30;
+            const mult = Math.max(1, Math.round(loss / 999));
+            pLbl.textContent = p;
+            fLbl.textContent = '₹' + f.toLocaleString('en-IN');
+            if (missEl) missEl.textContent = missed;
+            lossEl.textContent = '₹' + loss.toLocaleString('en-IN');
+            multEl.textContent = mult + '×';
+        }
+        pEl.addEventListener('input', calc);
+        fEl.addEventListener('input', calc);
+        calc();
+    })();
     </script>
 </body>
 </html>
