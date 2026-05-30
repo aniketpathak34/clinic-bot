@@ -103,6 +103,12 @@ def send_day_before_reminders():
     count = 0
 
     for appointment in appointments:
+        try:
+            if not appointment.clinic.subscription.allows('day_before_reminders'):
+                continue
+        except Exception:
+            pass  # no subscription row = allow through
+
         service = get_whatsapp_service(clinic=appointment.clinic)
         lang = appointment.patient.language_preference or 'en'
         reminder_msg = get_msg(lang, 'booking_confirmed',
@@ -335,6 +341,12 @@ def send_hour_before_reminders():
         if not (window_start <= appt_dt <= window_end):
             continue
 
+        try:
+            if not appt.clinic.subscription.allows('hour_before_reminders'):
+                continue
+        except Exception:
+            pass  # no subscription row = allow through
+
         lang = appt.patient.language_preference or 'en'
         msg = get_msg(
             lang, 'reminder_hour_before',
@@ -396,6 +408,59 @@ def fetch_daily_leads(top_n: int = 20):
         log.error('lead_fetch_failed', exc=e, top_n=top_n,
                   message='Lead-gen command crashed')
         raise
+
+
+@shared_task
+@_task_trace('check_subscription_status')
+def check_subscription_status():
+    """Daily 2 AM IST: flip subscription statuses per grace policy.
+
+    pilot + pilot_ends_at < today           → past_due
+    past_due + current_period_end < today-7d → suspended
+    suspended + current_period_end < today-30d → cancelled
+    Also logs which clinics renew in the next 3 days.
+    """
+    from apps.subscriptions.models import Subscription
+
+    today = timezone.now().astimezone(IST).date()
+
+    pilot_expired = Subscription.objects.filter(
+        status='pilot',
+        pilot_ends_at__lt=today,
+    ).update(status='past_due', current_period_end=today)
+
+    grace_over = Subscription.objects.filter(
+        status='past_due',
+        current_period_end__lt=today - timedelta(days=7),
+    ).update(status='suspended')
+
+    long_suspended = Subscription.objects.filter(
+        status='suspended',
+        current_period_end__lt=today - timedelta(days=30),
+    ).update(status='cancelled')
+
+    renewing_soon = list(
+        Subscription.objects
+        .filter(
+            status='active',
+            current_period_end__lte=today + timedelta(days=3),
+            current_period_end__gte=today,
+        )
+        .select_related('clinic')
+        .values_list('clinic__clinic_code', 'current_period_end')
+    )
+
+    log.event(
+        'subscription_status_check_ran',
+        message=(f'pilot→past_due={pilot_expired} '
+                 f'past_due→suspended={grace_over} '
+                 f'suspended→cancelled={long_suspended} '
+                 f'renewing_in_3d={len(renewing_soon)}'),
+        flipped_past_due=pilot_expired,
+        flipped_suspended=grace_over,
+        flipped_cancelled=long_suspended,
+        renewing_soon=[f'{code} due {d:%d %b}' for code, d in renewing_soon],
+    )
 
 
 @shared_task

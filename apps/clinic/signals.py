@@ -137,3 +137,23 @@ def _send_welcome(doctor_pk: int):
                   doctor=doctor.name)
         log.flush(request_kind='other',
                   inbound_text=f'welcome_error:{doctor.name}')
+
+
+@receiver(post_save, sender='clinic.Clinic')
+def create_subscription_for_new_clinic(sender, instance, created, **kwargs):
+    """Auto-seed a 30-day pilot Subscription whenever a Clinic is created."""
+    if not created:
+        return
+    from datetime import date, timedelta
+    from apps.subscriptions.models import Subscription
+    Subscription.objects.get_or_create(
+        clinic=instance,
+        defaults={
+            'tier':               'basic',
+            'status':             'pilot',
+            'started_at':         date.today(),
+            'current_period_end': date.today() + timedelta(days=30),
+            'pilot_ends_at':      date.today() + timedelta(days=30),
+            'monthly_amount_inr': 0,
+        },
+    )

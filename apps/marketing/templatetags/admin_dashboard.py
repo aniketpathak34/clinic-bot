@@ -40,6 +40,7 @@ def sidebar_counts() -> dict:
         'appts_today': 0, 'appts_next_hour': 0, 'appts_tomorrow': 0,
         'slots_unbooked': 0, 'patients_total': 0, 'doctors_total': 0,
         'call_logs_today': 0, 'demo_videos_active': 0,
+        'subs_active': 0, 'subs_past_due': 0, 'subs_pilot': 0,
     }
     now = timezone.now()
     today = now.date()
@@ -101,6 +102,14 @@ def sidebar_counts() -> dict:
         out['call_logs_today'] = CallLog.objects.filter(
             created_at__gte=day_start
         ).count()
+    except Exception:
+        pass
+
+    try:
+        from apps.subscriptions.models import Subscription
+        out['subs_active']   = Subscription.objects.filter(status='active').count()
+        out['subs_past_due'] = Subscription.objects.filter(status='past_due').count()
+        out['subs_pilot']    = Subscription.objects.filter(status='pilot').count()
     except Exception:
         pass
 
@@ -167,6 +176,27 @@ def todays_mission() -> list:
             'sub': 'strike while warm',
             'href': _safe_url('admin:marketing_lead_changelist') + '?engaged=1',
         })
+
+    # 6) Subscriptions expiring within 3 days — billing urgency
+    try:
+        from datetime import date, timedelta
+        from apps.subscriptions.models import Subscription
+        expiring = Subscription.objects.filter(
+            status='active',
+            current_period_end__lte=date.today() + timedelta(days=3),
+            current_period_end__gte=date.today(),
+        ).select_related('clinic').first()
+        if expiring:
+            cards.append({
+                'href':  f'/admin/subscriptions/subscription/{expiring.pk}/change/',
+                'title': f'{expiring.clinic.name} renews in '
+                         f'{expiring.days_until_expiry}d',
+                'sub':   f'{expiring.get_tier_display().split("—")[0].strip()} '
+                         f'· due {expiring.current_period_end:%d %b}',
+                'tone':  'amber',
+            })
+    except Exception:
+        pass
 
     # Time-aware fillers — only if we still have room
     if len(cards) < 3:

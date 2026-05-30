@@ -46,6 +46,12 @@ SCHEDULES = [
         '0', '14', '*', '*', '*',
         '2 PM IST retry of unanswered confirmation calls (mocked currently)',
     ),
+    (
+        'subscription-status-check',
+        'apps.notifications.tasks.check_subscription_status',
+        '0', '2', '*', '*', '*',
+        'Daily 2 AM IST: flip pilot→past_due→suspended→cancelled',
+    ),
 ]
 
 
