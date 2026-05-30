@@ -102,6 +102,14 @@ MESSAGES = {
         "doctor_new_booking_notification": "🔔 New appointment!\nPatient: {patient}\nDate: {date}\nTime: {time}",
         "doctor_cancel_notification": "❌ Appointment cancelled!\nPatient: {patient}\nDate: {date}\nTime: {time}\n\nThe slot is now available again.",
         "call_confirmed": "✅ Your appointment with Dr. {doctor} on {date} at {time} is confirmed. See you there!",
+
+        # Subscription gate
+        "subscription_suspended": (
+            "Online booking is temporarily unavailable at this clinic. "
+            "Please call {phone} to book your appointment."),
+        "subscription_suspended_no_phone": (
+            "Online booking is temporarily unavailable at this clinic. "
+            "Please call the clinic directly to book your appointment."),
     },
 
     "hi": {
@@ -145,6 +153,14 @@ MESSAGES = {
         "invalid_input": "माफ़ कीजिए, मैं समझ नहीं पाया। कृपया फिर से कोशिश करें।",
         "back_to_menu": "मुख्य मेनू के लिए 'menu' भेजें।",
         "error": "कुछ गलत हो गया। कृपया फिर से कोशिश करें या 'reset' भेजें।",
+
+        # Subscription gate
+        "subscription_suspended": (
+            "इस क्लिनिक में ऑनलाइन बुकिंग अभी उपलब्ध नहीं है। "
+            "कृपया {phone} पर कॉल करके अपॉइंटमेंट बुक करें।"),
+        "subscription_suspended_no_phone": (
+            "इस क्लिनिक में ऑनलाइन बुकिंग अभी उपलब्ध नहीं है। "
+            "कृपया सीधे क्लिनिक को कॉल करके अपॉइंटमेंट बुक करें।"),
     },
 
     "mr": {
@@ -188,15 +204,31 @@ MESSAGES = {
         "invalid_input": "माफ करा, मला समजले नाही. कृपया पुन्हा प्रयत्न करा.",
         "back_to_menu": "मुख्य मेनूसाठी 'menu' पाठवा.",
         "error": "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा किंवा 'reset' पाठवा.",
+
+        # Subscription gate
+        "subscription_suspended": (
+            "या क्लिनिकमध्ये ऑनलाइन बुकिंग सध्या उपलब्ध नाही. "
+            "कृपया {phone} वर फोन करून अपॉइंटमेंट बुक करा."),
+        "subscription_suspended_no_phone": (
+            "या क्लिनिकमध्ये ऑनलाइन बुकिंग सध्या उपलब्ध नाही. "
+            "कृपया थेट क्लिनिकला फोन करून अपॉइंटमेंट बुक करा."),
     },
 }
 
 
+class _DefaultEmpty(dict):
+    """dict subclass that returns '' for missing keys (used by str.format_map)."""
+    def __missing__(self, key):
+        return ''
+
+
 def get_msg(lang: str, key: str, **kwargs) -> str:
-    """Get a localized message. Falls back to English if key not found."""
+    """Get a localized message. Falls back to English if key not found.
+
+    Missing format kwargs render as empty string — never raises KeyError.
+    """
     lang_msgs = MESSAGES.get(lang, MESSAGES["en"])
     template = lang_msgs.get(key, MESSAGES["en"].get(key, ""))
-    try:
-        return template.format(**kwargs) if kwargs else template
-    except KeyError:
+    if not kwargs:
         return template
+    return template.format_map(_DefaultEmpty(kwargs))

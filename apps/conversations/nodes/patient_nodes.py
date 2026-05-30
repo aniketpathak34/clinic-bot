@@ -279,6 +279,23 @@ def _find_appointment(text, appt_ids):
 
 def handle_language_select(state, text):
     _sync_ctx(state)
+
+    # Basic tier: force English, skip the language picker.
+    try:
+        clinic = state.clinic
+        if clinic and not clinic.subscription.allows('multilingual'):
+            state.language = 'en'
+            state.current_flow = 'main_menu'
+            state.step = ''
+            state.context = {}
+            state.save()
+            Patient.objects.filter(
+                whatsapp_number=state.whatsapp_number
+            ).update(language_preference='en')
+            return _main_menu_list('en'), state
+    except Exception:
+        pass  # no subscription = allow multilingual (pilot)
+
     choice = text.strip().lower()
     lang = LANGUAGE_MAP.get(choice)
     if not lang:

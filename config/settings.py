@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.marketing',
     'apps.observability',
     'apps.utils',
+    'apps.subscriptions',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'

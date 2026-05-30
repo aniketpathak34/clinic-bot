@@ -48,7 +48,17 @@ def run_patient_graph(state, text: str):
         ).first()
 
         if patient and patient.language_preference:
-            state.language = patient.language_preference
+            lang = patient.language_preference
+            try:
+                if (state.clinic
+                        and not state.clinic.subscription.allows('multilingual')
+                        and lang != 'en'):
+                    lang = 'en'
+                    Patient.objects.filter(id=patient.id).update(
+                        language_preference='en')
+            except Exception:
+                pass  # no subscription = allow multilingual (pilot)
+            state.language = lang
             state.current_flow = 'main_menu'
             state.step = ''
             state.context = {}

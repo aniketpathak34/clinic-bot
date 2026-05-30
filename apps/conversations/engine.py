@@ -11,6 +11,7 @@ Multi-clinic architecture:
 import logging
 
 from apps.clinic.models import Doctor
+from apps.subscriptions.models import Subscription
 from apps.observability import log
 from apps.observability.context import set_correlation
 from apps.utils.phone import normalize_phone, normalize_phone_safe
@@ -163,6 +164,29 @@ def handle_message(phone: str, text: str, clinic=None):
                 "Please send the clinic code to continue.\n"
                 "Example: *TC01*"
             )
+
+    # --- Subscription gate ---
+    # Doctors bypass this entirely — a clinic owner must still manage
+    # appointments even if billing has lapsed.
+    if state.user_type == 'patient' and state.clinic:
+        try:
+            sub = state.clinic.subscription
+        except Subscription.DoesNotExist:
+            # No subscription row yet (migration backfill not yet run).
+            # Treat as pilot and allow through.
+            sub = None
+        if sub is not None and not sub.is_active_for_patients():
+            from bot_locale.messages import get_msg
+            log.event('subscription_blocked',
+                      message=(f'Clinic {state.clinic.clinic_code} is '
+                               f'{sub.status} — blocking patient'),
+                      subscription_status=sub.status,
+                      clinic_id=state.clinic.pk)
+            lang = state.language or 'en'
+            owner_number = state.clinic.owner_number or ''
+            key = ('subscription_suspended' if owner_number
+                   else 'subscription_suspended_no_phone')
+            return BotResponse.as_text(get_msg(lang, key, phone=owner_number))
 
     # --- STEP 3: Route to correct graph ---
     # Debug-only: this fires on every message and is implicit from the next
