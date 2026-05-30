@@ -186,6 +186,68 @@ class AvailableSlotAdmin(admin.ModelAdmin):
     list_filter = ('is_booked', 'date', 'doctor')
     search_fields = ('doctor__name', 'doctor__clinic__name')
 
+    # ─── Custom URL for "clear all open slots for (doctor, date)" ────
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path('clear-day/<int:doctor_id>/<str:date_iso>/',
+                 self.admin_site.admin_view(self.clear_day_view),
+                 name='clinic_availableslot_clear_day'),
+        ]
+        return custom + urls
+
+    def clear_day_view(self, request, doctor_id, date_iso):
+        """Confirmation page + handler for bulk-deleting OPEN slots for one
+        (doctor, date) combo. Booked slots are protected — they have linked
+        Appointments and shouldn't be silently lost."""
+        from datetime import datetime
+        from django.contrib import messages
+        from django.shortcuts import redirect, render
+        from django.urls import reverse
+
+        try:
+            doctor = Doctor.objects.select_related('clinic').get(pk=doctor_id)
+            day = datetime.strptime(date_iso, '%Y-%m-%d').date()
+        except (Doctor.DoesNotExist, ValueError):
+            messages.error(request, "Bad doctor or date.")
+            return redirect(reverse('admin:clinic_availableslot_changelist'))
+
+        qs_all    = AvailableSlot.objects.filter(doctor=doctor, date=day)
+        qs_open   = qs_all.filter(is_booked=False)
+        qs_booked = qs_all.filter(is_booked=True)
+
+        if request.method == 'POST':
+            n = qs_open.count()
+            qs_open.delete()
+            if qs_booked.exists():
+                messages.warning(
+                    request,
+                    f'Cleared {n} open slot{"s" if n != 1 else ""} for Dr. {doctor.name} '
+                    f'on {day} — {qs_booked.count()} booked slot{"s" if qs_booked.count() != 1 else ""} '
+                    'kept (cancel the appointment first to remove those).'
+                )
+            else:
+                messages.success(
+                    request,
+                    f'Cleared {n} open slot{"s" if n != 1 else ""} for Dr. {doctor.name} on {day}.'
+                )
+            return redirect(reverse('admin:clinic_availableslot_changelist'))
+
+        # GET — render confirmation page
+        return render(request, 'admin/clinic/availableslot/clear_day_confirm.html', {
+            'doctor': doctor,
+            'day': day,
+            'open_count': qs_open.count(),
+            'booked_count': qs_booked.count(),
+            'opts': self.model._meta,
+            'site_header': self.admin_site.site_header,
+            'title': f'Clear slots for Dr. {doctor.name} on {day}?',
+            'has_permission': True,
+            'is_popup': False,
+            'site_url': '/',
+        })
+
     # ─── Inject slot summary into list context ─────────────────────
     def changelist_view(self, request, extra_context=None):
         from datetime import date, timedelta

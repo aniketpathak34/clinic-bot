@@ -30,6 +30,7 @@ def extract_message_from_webhook(payload: dict) -> tuple:
     Returns (None, None, None) if the payload is not a user message
     (e.g. a delivery/read status callback).
     """
+    from apps.utils.phone import normalize_phone_safe
     try:
         entry = payload.get('entry', [{}])[0]
         changes = entry.get('changes', [{}])[0]
@@ -44,7 +45,11 @@ def extract_message_from_webhook(payload: dict) -> tuple:
             return None, None, display_number or None
 
         message = messages[0]
-        phone = message.get('from', '')
+        # Canonicalize at the boundary. Meta's `wa_id` is usually already
+        # canonical (12 digits with country code), but defensive normalization
+        # ensures the rest of the codebase sees one shape.
+        phone_raw = message.get('from', '')
+        phone = normalize_phone_safe(phone_raw, phone_raw)
         msg_type = message.get('type')
 
         if msg_type == 'text':

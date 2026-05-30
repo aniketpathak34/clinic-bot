@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.marketing',
     'apps.observability',
+    'apps.utils',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -156,6 +157,13 @@ META_ACCESS_TOKEN = os.getenv('META_ACCESS_TOKEN', '')
 META_DEFAULT_PHONE_NUMBER_ID = os.getenv('META_DEFAULT_PHONE_NUMBER_ID', '')
 META_GRAPH_API_VERSION = os.getenv('META_GRAPH_API_VERSION', 'v21.0')
 
+# Meta App Secret — used to verify the X-Hub-Signature-256 header on every
+# POST to /api/webhook/whatsapp/. Get it from Meta Developer Console →
+# App Dashboard → Settings → Basic → App Secret (click "Show").
+# If unset, signature verification is SKIPPED with a startup warning —
+# acceptable for local dev, NOT for production.
+META_APP_SECRET = os.getenv('META_APP_SECRET', '')
+
 WHATSAPP_VERIFY_TOKEN = os.getenv('WHATSAPP_VERIFY_TOKEN', 'clinic-bot-verify')
 WHATSAPP_SERVICE_CLASS = os.getenv(
     'WHATSAPP_SERVICE_CLASS',
@@ -182,3 +190,54 @@ CELERY_TIMEZONE = 'Asia/Kolkata'
 # Periodic tasks live in the DB so admins can edit/disable them at
 # /admin/django_celery_beat/periodictask/  (instead of a code change).
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+
+# ─── Logging ────────────────────────────────────────────────────────
+# Routes our [obs] structured stream + Django + apps loggers to stdout.
+# Without this, INFO-level events from our observability logger silently
+# drop in production because Python's lastResort handler is WARNING+.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {
+            'format': '[{asctime}] {levelname:<5} {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'stdout': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'plain',
+            'stream': 'ext://sys.stdout',
+        },
+    },
+    'loggers': {
+        # Our observability stream — every [obs] line lands here
+        'docping.observability': {
+            'handlers': ['stdout'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Catch-all for our own apps' plain `logging.getLogger(__name__)` calls
+        'apps': {
+            'handlers': ['stdout'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Django framework
+        'django': {
+            'handlers': ['stdout'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # django.server's per-request access spam is noisy in dev. WARN-only.
+        'django.server': {
+            'handlers': ['stdout'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}

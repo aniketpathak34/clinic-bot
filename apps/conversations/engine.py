@@ -13,6 +13,7 @@ import logging
 from apps.clinic.models import Doctor
 from apps.observability import log
 from apps.observability.context import set_correlation
+from apps.utils.phone import normalize_phone, normalize_phone_safe
 
 from .models import ConversationState
 from .response import BotResponse
@@ -31,6 +32,17 @@ def handle_message(phone: str, text: str, clinic=None):
     """
     incoming_clinic = clinic
 
+    # Canonicalize the sender phone so EVERY downstream lookup compares
+    # canonical-vs-canonical. If the input is malformed, log + fall back to
+    # a best-effort cleanup so we don't drop the message.
+    try:
+        phone = normalize_phone(phone)
+    except ValueError as e:
+        log.warn('phone_normalize_failed',
+                 message=f'Could not canonicalize sender phone: {e}',
+                 raw=phone[:30] if phone else '')
+        phone = normalize_phone_safe(phone, phone or '')
+
     # Defense-in-depth: even if a caller forgets to set correlation,
     # every event from here on at least carries the sender phone + clinic.
     set_correlation(
@@ -38,23 +50,19 @@ def handle_message(phone: str, text: str, clinic=None):
         clinic_id=(incoming_clinic.id if incoming_clinic else None),
     )
 
+    # ONE state per (phone, clinic) — looking up by both means a patient who
+    # also messages another clinic gets a fresh, independent conversation at
+    # that other clinic. The composite UniqueConstraint on the model enforces
+    # the invariant at the DB level.
     state, created = ConversationState.objects.get_or_create(
         whatsapp_number=phone,
+        clinic=incoming_clinic,
         defaults={'user_type': 'unknown', 'context': {}},
     )
     if created:
+        clinic_label = incoming_clinic.clinic_code if incoming_clinic else 'no_clinic'
         log.event('state_created',
-                  message=f'First-ever message from …{phone[-4:]}')
-
-    # The inbound number is authoritative — trust it over any stale state.
-    if incoming_clinic is not None and state.clinic_id != incoming_clinic.id:
-        log.event('state_clinic_reassigned',
-                  message='Inbound clinic differs from cached state.clinic — updating',
-                  old_clinic_id=state.clinic_id,
-                  new_clinic_id=incoming_clinic.id,
-                  new_clinic_code=incoming_clinic.clinic_code)
-        state.clinic = incoming_clinic
-        state.save(update_fields=['clinic'])
+                  message=f'First-ever message from …{phone[-4:]} to {clinic_label}')
 
     # Propagate flow/step into observability context so every downstream log
     # event automatically gets these fields attached.

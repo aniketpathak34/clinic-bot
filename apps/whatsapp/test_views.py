@@ -60,21 +60,33 @@ def test_get_messages(request, phone: Optional[str] = None):
 
 @router.get("/conversation/{phone}/")
 def test_conversation_state(request, phone: str):
-    """Dev-only: View conversation state for a phone number."""
-    try:
-        state = ConversationState.objects.get(whatsapp_number=phone)
-        return {
-            "whatsapp_number": state.whatsapp_number,
-            "user_type": state.user_type,
-            "current_flow": state.current_flow,
-            "step": state.step,
-            "context": state.context,
-            "language": state.language,
-            "updated_at": state.updated_at.isoformat(),
-        }
-    except ConversationState.DoesNotExist:
+    """Dev-only: View conversation states for a phone number across all clinics.
+
+    A patient can have one state per clinic now — this returns every state row
+    that exists for the given phone, ordered by most-recently updated.
+    """
+    states = (ConversationState.objects.filter(whatsapp_number=phone)
+                                       .select_related('clinic')
+                                       .order_by('-updated_at'))
+    if not states.exists():
         from ninja.errors import HttpError
-        raise HttpError(404, "No conversation found for this number")
+        raise HttpError(404, "No conversations found for this number")
+    return {
+        "whatsapp_number": phone,
+        "states": [
+            {
+                "clinic_code":  (s.clinic.clinic_code if s.clinic else None),
+                "clinic_id":    s.clinic_id,
+                "user_type":    s.user_type,
+                "current_flow": s.current_flow,
+                "step":         s.step,
+                "context":      s.context,
+                "language":     s.language,
+                "updated_at":   s.updated_at.isoformat(),
+            }
+            for s in states
+        ],
+    }
 
 
 @router.post("/clear/")

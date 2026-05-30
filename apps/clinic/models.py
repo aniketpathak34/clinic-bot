@@ -147,6 +147,14 @@ class Doctor(models.Model):
     def __str__(self):
         return f"Dr. {self.name} ({self.get_specialty_display()})"
 
+    def save(self, *args, **kwargs):
+        # Canonicalize at the boundary — same number, same row, regardless of
+        # whether the admin typed "7030344210" or "+91 70303 44210".
+        from apps.utils.phone import normalize_phone
+        if self.whatsapp_number:
+            self.whatsapp_number = normalize_phone(self.whatsapp_number)
+        super().save(*args, **kwargs)
+
 
 class Patient(models.Model):
     LANGUAGE_CHOICES = [
@@ -164,6 +172,12 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"{self.name or 'Unknown'} ({self.whatsapp_number})"
+
+    def save(self, *args, **kwargs):
+        from apps.utils.phone import normalize_phone
+        if self.whatsapp_number:
+            self.whatsapp_number = normalize_phone(self.whatsapp_number)
+        super().save(*args, **kwargs)
 
 
 class AvailableSlot(models.Model):

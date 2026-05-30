@@ -1,0 +1,101 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  :root {
+    --bg:#09090b; --surface:#131316; --surface-2:#18181b; --surface-3:#1f1f23;
+    --border:#232327; --border-2:#2e2e33;
+    --text:#fafafa; --text-2:#a1a1aa; --text-3:#71717a;
+    --accent:#818cf8; --accent-soft:rgba(129,140,248,.12);
+    --success:#34d399; --warning:#fbbf24; --danger:#f87171;
+    --r:8px; --r-sm:6px;
+  }
+  #content > h1, .breadcrumbs { display:none !important; }
+  #content { background:transparent !important; padding:32px 32px 80px !important; max-width:680px; margin:0 auto; }
+  body { background:var(--bg) !important; }
+
+  .cd { color:var(--text); font-feature-settings:'cv02','cv03','cv11','ss01','tnum'; }
+  .cd-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r); padding:24px;
+  }
+  .cd-title { font-size:18px; font-weight:600; letter-spacing:-.015em; margin:0 0 6px; }
+  .cd-sub { color:var(--text-3); font-size:13.5px; margin:0 0 18px; }
+
+  .cd-numbers {
+    display:grid; grid-template-columns:repeat(2, 1fr); gap:10px;
+    margin-bottom:20px;
+  }
+  .cd-num-card {
+    background:var(--surface-2); border:1px solid var(--border-2);
+    border-radius:var(--r-sm); padding:14px 16px;
+  }
+  .cd-num-card-num {
+    font-size:24px; font-weight:600; letter-spacing:-.02em; line-height:1;
+    font-variant-numeric:tabular-nums;
+  }
+  .cd-num-card-num--open { color:var(--danger); }
+  .cd-num-card-num--booked { color:var(--accent); }
+  .cd-num-card-lbl {
+    color:var(--text-3); font-size:11.5px; font-weight:500;
+    letter-spacing:.04em; text-transform:uppercase; margin-top:6px;
+  }
+  .cd-warn {
+    background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.25);
+    border-radius:var(--r-sm); padding:11px 14px;
+    color:var(--warning); font-size:12.5px; line-height:1.5;
+    margin-bottom:20px;
+  }
+  .cd-actions { display:flex; gap:10px; justify-content:flex-end; }
+  .cd-btn {
+    display:inline-flex; align-items:center;
+    height:34px; padding:0 14px; border-radius:var(--r-sm);
+    background:var(--surface-2); border:1px solid var(--border-2);
+    color:var(--text-2); font-size:13px; font-weight:500;
+    cursor:pointer; transition:all 120ms ease;
+    text-decoration:none !important;
+  }
+  .cd-btn:hover { background:var(--surface-3); color:var(--text); }
+  .cd-btn--danger {
+    background:#dc2626; border-color:#dc2626; color:#fff;
+  }
+  .cd-btn--danger:hover { background:#ef4444; border-color:#ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cd">
+  <div class="cd-card">
+    <h1 class="cd-title">Clear open slots for Dr. {{ doctor.name }}?</h1>
+    <p class="cd-sub">{{ day|date:'l, F j, Y' }} · {{ doctor.clinic.name }}</p>
+
+    <div class="cd-numbers">
+      <div class="cd-num-card">
+        <div class="cd-num-card-num cd-num-card-num--open">{{ open_count }}</div>
+        <div class="cd-num-card-lbl">Open · will delete</div>
+      </div>
+      <div class="cd-num-card">
+        <div class="cd-num-card-num cd-num-card-num--booked">{{ booked_count }}</div>
+        <div class="cd-num-card-lbl">Booked · will keep</div>
+      </div>
+    </div>
+
+    {% if booked_count %}
+    <div class="cd-warn">
+      <strong>{{ booked_count }} slot{{ booked_count|pluralize }}</strong> already booked.
+      Those will be preserved — cancel the appointment first if you want to remove them.
+    </div>
+    {% endif %}
+
+    <form method="post">{% csrf_token %}
+      <div class="cd-actions">
+        <a href="{% url 'admin:clinic_availableslot_changelist' %}" class="cd-btn">Cancel</a>
+        <button type="submit" class="cd-btn cd-btn--danger">
+          Delete {{ open_count }} open slot{{ open_count|pluralize }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

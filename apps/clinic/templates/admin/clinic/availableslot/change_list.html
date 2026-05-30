@@ -122,6 +122,23 @@
     transition:border-color var(--dur-fast) var(--ease-std), background var(--dur-fast) var(--ease-std);
     position:relative;
   }
+  .as-card-delete {
+    position:absolute; top:10px; right:10px;
+    width:24px; height:24px; padding:0;
+    background:transparent; border:1px solid var(--border-2);
+    border-radius:var(--r-sm);
+    color:var(--text-3); font-size:13px; line-height:1;
+    cursor:pointer; z-index:2;
+    opacity:0; transition:all var(--dur-fast);
+    display:inline-flex; align-items:center; justify-content:center;
+    text-decoration:none !important;
+  }
+  .as-card:hover .as-card-delete { opacity:1; }
+  .as-card-delete:hover {
+    background:rgba(248,113,113,.13);
+    border-color:rgba(248,113,113,.35);
+    color:var(--danger);
+  }
   .as-card:hover { border-color:var(--accent); background:var(--surface-2); }
   .as-card[data-hidden="1"] { display:none !important; }
 
@@ -315,6 +332,11 @@
                data-has-open="{% if card.open %}1{% else %}0{% endif %}"
                data-has-booked="{% if card.booked %}1{% else %}0{% endif %}"
                data-days-from-today="{% if card.date == today %}0{% elif card.date == tomorrow %}1{% else %}999{% endif %}">
+
+        <a href="clear-day/{{ card.doctor.pk }}/{{ card.date|date:'Y-m-d' }}/" class="as-card-delete"
+           title="Clear open slots for this day (booked slots are kept)"
+           aria-label="Clear open slots for Dr. {{ card.doctor.name }} on {{ card.date }}"
+           onclick="event.stopPropagation();">✕</a>
 
         <header class="as-card-head">
           <div class="as-card-avatar">{{ card.doctor.name|slice:":2"|upper }}</div>

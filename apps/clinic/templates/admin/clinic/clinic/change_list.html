@@ -188,6 +188,25 @@
   /* Hide standard pagination styling we don't want to clash */
   #changelist .actions { display: none; }
 
+  /* Delete button — top-right of each card */
+  .cc-card { position: relative; }
+  .cc-card-delete {
+    position: absolute; top: 10px; right: 10px;
+    width: 24px; height: 24px; padding: 0;
+    background: transparent; border: 1px solid #26262f;
+    border-radius: 6px;
+    color: #71717a; font-size: 14px; line-height: 1;
+    cursor: pointer; z-index: 2;
+    opacity: 0; transition: all .15s ease;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cc-card:hover .cc-card-delete { opacity: 1; }
+  .cc-card-delete:hover {
+    background: rgba(239,68,68,.12);
+    border-color: rgba(239,68,68,.4);
+    color: #fca5a5;
+  }
+
   /* Empty state */
   .cc-empty {
     grid-column: 1 / -1;
@@ -230,6 +249,11 @@
   <div class="cc-grid">
     {% for clinic in cl.result_list %}
       <a href="{{ clinic.pk }}/change/" class="cc-card">
+        <button type="button" class="cc-card-delete" title="Delete clinic"
+                aria-label="Delete {{ clinic.name }}"
+                onclick="event.stopPropagation(); event.preventDefault(); window.location.href='{{ clinic.pk }}/delete/';">
+          ✕
+        </button>
         <div class="cc-top">
           <div class="cc-avatar">{{ clinic.name|slice:":2"|upper }}</div>
           <div class="cc-name">

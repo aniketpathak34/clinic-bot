@@ -569,6 +569,15 @@ def handle_booking(state, text):
                   slot=slot.pk, slot_date=slot.date.isoformat(),
                   slot_time=slot.time.strftime('%H:%M'))
 
+        # Queue the async confirmation message (idempotent — the task itself
+        # is safe to retry).
+        try:
+            from apps.notifications.tasks import send_booking_confirmation
+            send_booking_confirmation.delay(appt.pk)
+        except Exception as e:
+            log.warn('booking_confirmation_dispatch_failed', exc=e,
+                     message='delay() raised; appointment still saved')
+
         state.current_flow = 'main_menu'
         state.step = ''
         state.context = {}

@@ -8,7 +8,10 @@ class ConversationState(models.Model):
         ('unknown', 'Unknown'),
     ]
 
-    whatsapp_number = models.CharField(max_length=15, unique=True)
+    # NOT globally unique anymore — same number can have a separate state row
+    # per clinic. Uniqueness is enforced by the composite UniqueConstraint in
+    # Meta.constraints below (added in migration 0003).
+    whatsapp_number = models.CharField(max_length=15, db_index=True)
     user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES, default='unknown')
     clinic = models.ForeignKey(
         'clinic.Clinic', on_delete=models.SET_NULL,
@@ -21,6 +24,14 @@ class ConversationState(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['whatsapp_number', 'clinic'],
+                name='uniq_convstate_phone_clinic',
+            ),
+        ]
+
     def __str__(self):
         clinic_name = self.clinic.name if self.clinic else 'No clinic'
         return f"{self.whatsapp_number} [{self.user_type}] @ {clinic_name} - {self.current_flow}/{self.step}"
@@ -31,3 +42,9 @@ class ConversationState(models.Model):
         self.context = {}
         self.clinic = None
         self.save()
+
+    def save(self, *args, **kwargs):
+        from apps.utils.phone import normalize_phone
+        if self.whatsapp_number:
+            self.whatsapp_number = normalize_phone(self.whatsapp_number)
+        super().save(*args, **kwargs)

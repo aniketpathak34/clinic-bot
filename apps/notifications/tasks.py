@@ -2,11 +2,14 @@
 import logging
 import zoneinfo
 from datetime import date, datetime, timedelta
+from functools import wraps
 
 from celery import shared_task
 from django.utils import timezone
 
 from apps.clinic.models import Appointment
+from apps.observability import log
+from apps.observability.context import new_trace, set_correlation
 from apps.whatsapp.utils import get_whatsapp_service
 from bot_locale.messages import get_msg
 from .call_service import get_call_service
@@ -17,7 +20,37 @@ logger = logging.getLogger(__name__)
 IST = zoneinfo.ZoneInfo('Asia/Kolkata')
 
 
+def _task_trace(task_name: str):
+    """Wrap a @shared_task body so it:
+      • Opens a fresh trace at entry → events go into one buffer
+      • Calls log.flush(request_kind='task') at exit → ONE RequestLog row
+      • Catches + logs unhandled exceptions, then re-raises so Celery retries
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            import time as _t
+            new_trace()
+            started = _t.monotonic()
+            try:
+                result = fn(*args, **kwargs)
+                log.flush(request_kind='task',
+                          inbound_text=f'task:{task_name}',
+                          latency_ms=int((_t.monotonic() - started) * 1000))
+                return result
+            except Exception as e:
+                log.error(f'task_{task_name}_crashed', exc=e,
+                          message=f'Celery task {task_name} raised')
+                log.flush(request_kind='task',
+                          inbound_text=f'task:{task_name}',
+                          latency_ms=int((_t.monotonic() - started) * 1000))
+                raise
+        return wrapper
+    return decorator
+
+
 @shared_task
+@_task_trace('send_booking_confirmation')
 def send_booking_confirmation(appointment_id):
     """Send booking confirmation to patient + notification to doctor."""
     try:
@@ -25,9 +58,13 @@ def send_booking_confirmation(appointment_id):
             'patient', 'doctor', 'clinic', 'slot'
         ).get(id=appointment_id)
     except Appointment.DoesNotExist:
-        logger.error(f"Appointment {appointment_id} not found")
+        log.error('appointment_not_found',
+                  message=f'Appointment {appointment_id} not found',
+                  appointment_id=appointment_id)
         return
 
+    set_correlation(clinic_id=appointment.clinic_id,
+                    whatsapp_number=appointment.patient.whatsapp_number)
     service = get_whatsapp_service(clinic=appointment.clinic)
     lang = appointment.patient.language_preference or 'en'
 
@@ -45,10 +82,16 @@ def send_booking_confirmation(appointment_id):
                         time=appointment.slot.time.strftime('%I:%M %p'))
     service.send_message(appointment.doctor.whatsapp_number, doctor_msg)
 
-    logger.info(f"Booking confirmation sent for appointment {appointment_id}")
+    log.event('booking_confirmation_sent',
+              message='Confirmation + doctor notification sent',
+              appointment_id=appointment_id,
+              doctor_id=appointment.doctor_id,
+              patient_id=appointment.patient_id,
+              clinic_code=appointment.clinic.clinic_code)
 
 
 @shared_task
+@_task_trace('send_day_before_reminders')
 def send_day_before_reminders():
     """Send WhatsApp reminders for tomorrow's appointments. Runs daily at 6 PM IST."""
     tomorrow = date.today() + timedelta(days=1)
@@ -77,11 +120,14 @@ def send_day_before_reminders():
         service.send_message(appointment.patient.whatsapp_number, reminder_msg)
         count += 1
 
-    logger.info(f"Sent {count} day-before reminders for {tomorrow}")
+    log.event('day_before_reminders_sent',
+              message=f'Sent {count} reminders for {tomorrow}',
+              date=tomorrow.isoformat(), count=count)
     return count
 
 
 @shared_task
+@_task_trace('make_confirmation_calls')
 def make_confirmation_calls():
     """Make automated calls to confirm tomorrow's appointments.
     Runs daily at 10 AM IST (morning of previous day).
@@ -108,7 +154,9 @@ def make_confirmation_calls():
         # Check how many attempts already made
         attempt_count = CallLog.objects.filter(appointment=appointment).count()
         if attempt_count >= 3:  # Max 3 call attempts
-            logger.info(f"Max call attempts reached for appointment {appointment.id}")
+            log.warn('call_max_attempts',
+                     message=f'3 attempts reached for appt {appointment.id}; skipping',
+                     appointment_id=appointment.id)
             continue
 
         lang = appointment.patient.language_preference or 'en'
@@ -134,11 +182,14 @@ def make_confirmation_calls():
 
         count += 1
 
-    logger.info(f"Initiated {count} confirmation calls for {tomorrow}")
+    log.event('confirmation_calls_initiated',
+              message=f'{count} calls initiated for {tomorrow}',
+              date=tomorrow.isoformat(), count=count)
     return count
 
 
 @shared_task
+@_task_trace('handle_call_response')
 def handle_call_response(appointment_id, patient_response):
     """Handle patient's response from the automated call.
     patient_response: '1' = confirm, '2' = cancel
@@ -148,9 +199,13 @@ def handle_call_response(appointment_id, patient_response):
             'patient', 'doctor', 'slot', 'clinic'
         ).get(id=appointment_id)
     except Appointment.DoesNotExist:
-        logger.error(f"Appointment {appointment_id} not found")
+        log.error('appointment_not_found',
+                  message=f'Appointment {appointment_id} not found for call response',
+                  appointment_id=appointment_id)
         return
 
+    set_correlation(clinic_id=appointment.clinic_id,
+                    whatsapp_number=appointment.patient.whatsapp_number)
     service = get_whatsapp_service(clinic=appointment.clinic)
     lang = appointment.patient.language_preference or 'en'
 
@@ -166,7 +221,10 @@ def handle_call_response(appointment_id, patient_response):
                      date=appointment.slot.date.strftime('%d-%b-%Y'),
                      time=appointment.slot.time.strftime('%I:%M %p'))
         service.send_message(appointment.patient.whatsapp_number, msg)
-        logger.info(f"Appointment {appointment_id} confirmed via call")
+        log.event('appointment_confirmed_via_call',
+                  message=f'Patient pressed 1 for appt {appointment_id}',
+                  appointment_id=appointment_id,
+                  doctor_id=appointment.doctor_id)
 
     elif patient_response == '2':
         # Patient wants to cancel
@@ -193,10 +251,14 @@ def handle_call_response(appointment_id, patient_response):
                             time=appointment.slot.time.strftime('%I:%M %p'))
         service.send_message(appointment.doctor.whatsapp_number, doctor_msg)
 
-        logger.info(f"Appointment {appointment_id} cancelled via call")
+        log.event('appointment_cancelled_via_call',
+                  message=f'Patient pressed 2 for appt {appointment_id}',
+                  appointment_id=appointment_id,
+                  doctor_id=appointment.doctor_id)
 
 
 @shared_task
+@_task_trace('retry_unanswered_calls')
 def retry_unanswered_calls():
     """Retry calls that were not answered. Runs at 2 PM IST."""
     tomorrow = date.today() + timedelta(days=1)
@@ -240,11 +302,13 @@ def retry_unanswered_calls():
 
         count += 1
 
-    logger.info(f"Retried {count} unanswered calls")
+    log.event('unanswered_calls_retried',
+              message=f'Retried {count} calls', count=count)
     return count
 
 
 @shared_task
+@_task_trace('send_hour_before_reminders')
 def send_hour_before_reminders():
     """Notify patients whose appointment starts in ~1 hour.
 
@@ -285,26 +349,37 @@ def send_hour_before_reminders():
             service = get_whatsapp_service(clinic=appt.clinic)
             result = service.send_message(appt.patient.whatsapp_number, msg)
             if result.get('status') == 'error':
-                logger.error(f"[hour-before] Failed for appt {appt.id}: {result}")
+                log.error('hour_before_send_failed',
+                          message=f'Meta send failed for appt {appt.id}',
+                          appointment_id=appt.id,
+                          meta_result=str(result)[:200])
                 continue
         except Exception as e:
-            logger.exception(f"[hour-before] Send crashed for appt {appt.id}: {e}")
+            log.error('hour_before_send_crashed', exc=e,
+                      message=f'Send crashed for appt {appt.id}',
+                      appointment_id=appt.id)
             continue
 
         Appointment.objects.filter(pk=appt.pk, hour_before_reminded_at__isnull=True).update(
             hour_before_reminded_at=timezone.now()
         )
-        logger.info(
-            f"[hour-before] Sent to {appt.patient.whatsapp_number} "
-            f"for appt {appt.id} ({appt.slot.date} {appt.slot.time})"
-        )
+        log.event('hour_before_reminder_sent',
+                  message=f'Reminder sent for appt {appt.id}',
+                  appointment_id=appt.id,
+                  slot_date=appt.slot.date.isoformat(),
+                  slot_time=appt.slot.time.strftime('%H:%M'))
         count += 1
 
-    logger.info(f"[hour-before] Sent {count} reminder(s) in window {window_start.time()}–{window_end.time()}")
+    log.event('hour_before_batch_done',
+              message=f'Batch done — {count} reminders',
+              count=count,
+              window_start=window_start.time().isoformat(),
+              window_end=window_end.time().isoformat())
     return count
 
 
 @shared_task
+@_task_trace('fetch_daily_leads')
 def fetch_daily_leads(top_n: int = 20):
     """Pull fresh clinic leads from Google Places API and save the top N as Lead rows.
 
@@ -314,12 +389,17 @@ def fetch_daily_leads(top_n: int = 20):
     from django.core.management import call_command
     try:
         call_command('seed_leads', top=top_n)
+        log.event('leads_fetched',
+                  message=f'fetch_daily_leads ran with top={top_n}',
+                  top_n=top_n)
     except Exception as e:
-        logger.exception(f"[lead-gen] Failed: {e}")
+        log.error('lead_fetch_failed', exc=e, top_n=top_n,
+                  message='Lead-gen command crashed')
         raise
 
 
 @shared_task
+@_task_trace('generate_monthly_slots')
 def generate_monthly_slots():
     """Fill AvailableSlot rows for the demo doctor for the entire current month.
 
@@ -332,7 +412,12 @@ def generate_monthly_slots():
     try:
         call_command('generate_monthly_slots', stdout=out, stderr=out)
         result = (out.getvalue() or '').strip().splitlines()
-        return result[-1] if result else ''
+        last = result[-1] if result else ''
+        log.event('monthly_slots_generated',
+                  message=last or 'monthly-slots ran',
+                  summary_line=last)
+        return last
     except Exception as e:
-        logger.exception(f"[monthly-slots] Failed: {e}")
+        log.error('monthly_slots_failed', exc=e,
+                  message='monthly-slots task crashed')
         raise

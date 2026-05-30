@@ -230,6 +230,12 @@
     transition:all var(--dur-fast); display:inline-flex; align-items:center; justify-content:center;
   }
   .mt-kebab:hover { background:var(--surface-3); color:var(--text); }
+  /* Delete variant — red on hover, signals destructive action */
+  .mt-card-delete { text-decoration:none !important; }
+  .mt-card-delete:hover {
+    background:rgba(248,113,113,.13) !important;
+    color:#f87171 !important;
+  }
 
   .mt-card-name {
     margin:0; font-size:14px; font-weight:500; color:var(--text);

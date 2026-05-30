@@ -22,7 +22,10 @@
       <span class="mt-check-box" aria-hidden="true"></span>
     </label>
     <span class="mt-lang">{{ tpl.language|upper }}</span>
-    <button type="button" class="mt-kebab" aria-haspopup="menu" aria-label="Actions for {{ tpl.name }}" onclick="event.stopPropagation();">⋮</button>
+    <a href="{{ tpl.pk }}/delete/" class="mt-kebab mt-card-delete"
+       title="Delete template"
+       aria-label="Delete {{ tpl.name }}"
+       onclick="event.stopPropagation();">✕</a>
   </header>
 
   <h3 id="mt-card-{{ tpl.pk }}-name" class="mt-card-name" title="{{ tpl.name }}">{{ tpl.name }}</h3>

@@ -13,3 +13,8 @@ whitenoise>=6.6
 dj-database-url>=2.1
 psycopg[binary]>=3.1
 pywebpush>=2.0
+
+# Test stack
+pytest>=7.4
+pytest-django>=4.7
+pytest-mock>=3.12

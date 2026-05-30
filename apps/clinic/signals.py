@@ -12,6 +12,8 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from apps.clinic.models import Doctor, Patient
+from apps.observability import log
+from apps.observability.context import new_trace, set_correlation
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +22,17 @@ logger = logging.getLogger(__name__)
 def clear_state_on_patient_delete(sender, instance: Patient, **kwargs):
     """Drop the ConversationState when a Patient row is removed from admin."""
     from apps.conversations.models import ConversationState
+    new_trace()
+    set_correlation(whatsapp_number=instance.whatsapp_number)
     deleted, _ = ConversationState.objects.filter(
         whatsapp_number=instance.whatsapp_number
     ).delete()
     if deleted:
-        logger.info(
-            f"[patient-delete] Cleared ConversationState for {instance.whatsapp_number}"
-        )
+        log.event('patient_state_cleared_on_delete',
+                  message=f'Cleared ConversationState for …{instance.whatsapp_number[-4:]}',
+                  deleted_count=deleted)
+    log.flush(request_kind='other',
+              inbound_text=f'patient_delete:{instance.whatsapp_number[-4:]}')
 
 
 @receiver(post_save, sender=Doctor)
@@ -41,9 +47,13 @@ def greet_doctor_on_registration(sender, instance: Doctor, created, **kwargs):
 
     clinic = instance.clinic
     if not clinic or not clinic.phone_number_id:
-        logger.warning(
-            f"Skipping welcome for Dr. {instance.name}: clinic has no phone_number_id"
-        )
+        new_trace()
+        set_correlation(clinic_id=instance.clinic_id,
+                        whatsapp_number=instance.whatsapp_number)
+        log.warn('welcome_skipped_no_pnid',
+                 message=f'Skipping welcome for Dr. {instance.name}: clinic missing pnid',
+                 doctor_id=instance.pk, doctor_name=instance.name)
+        log.flush(request_kind='other', inbound_text='doctor_signal_no_pnid')
         return
 
     # Defer the send until the DB transaction commits — avoids sending if the
@@ -56,15 +66,22 @@ def _send_welcome(doctor_pk: int):
     from apps.whatsapp.utils import get_whatsapp_service
     from bot_locale.messages import get_msg
 
+    new_trace()
+
     try:
         doctor = Doctor.objects.select_related('clinic').get(pk=doctor_pk)
     except Doctor.DoesNotExist:
+        log.flush(request_kind='other', inbound_text='doctor_gone_before_welcome')
         return
 
     if doctor.welcomed_at is not None:
-        return  # racing signal guard
+        # racing signal guard
+        log.flush(request_kind='other', inbound_text='already_welcomed')
+        return
 
     clinic = doctor.clinic
+    set_correlation(clinic_id=(clinic.id if clinic else None),
+                    whatsapp_number=doctor.whatsapp_number)
     try:
         service = get_whatsapp_service(clinic=clinic)
         msg = get_msg(
@@ -74,9 +91,7 @@ def _send_welcome(doctor_pk: int):
         result = service.send_message(doctor.whatsapp_number, msg)
 
         if result.get('status') == 'error':
-            # Try to extract Meta's error code — some failures are expected
-            # config issues, not engineering bugs. Log those as WARNING with
-            # a single actionable line; only unknown failures stay ERROR.
+            # Extract Meta error code so the admin row carries actionable detail
             meta_code = None
             try:
                 import json as _json
@@ -88,38 +103,37 @@ def _send_welcome(doctor_pk: int):
                 pass
 
             if meta_code == 131030:
-                # Recipient phone number not on the Meta test-mode allow-list.
-                # Expected during development — not an engineering failure.
-                logger.warning(
-                    "[welcome] skipped doctor=%s wa=%s reason=meta_131030 "
-                    "fix='Add %s to WhatsApp Manager > Phone numbers > To list, "
-                    "or switch the Meta app to Live mode'",
-                    doctor.name, doctor.whatsapp_number, doctor.whatsapp_number,
-                )
+                log.warn('welcome_skipped_131030',
+                         message='Recipient phone not on Meta allow-list',
+                         doctor=doctor.name, doctor_id=doctor.pk,
+                         meta_code=131030,
+                         hint=f'Add {doctor.whatsapp_number} to WhatsApp Manager allow-list, OR switch the Meta app to Live mode')
             elif meta_code in (131047, 131051):
-                # 131047: re-engagement window expired (24h rule)
-                # 131051: unsupported message type — both are config/policy, not bugs
-                logger.warning(
-                    "[welcome] skipped doctor=%s wa=%s meta_code=%s",
-                    doctor.name, doctor.whatsapp_number, meta_code,
-                )
+                log.warn('welcome_skipped_meta_policy',
+                         message='Meta policy / unsupported message type',
+                         doctor=doctor.name, meta_code=meta_code)
             else:
-                logger.error(
-                    "[welcome] failed doctor=%s wa=%s meta_code=%s body=%s",
-                    doctor.name, doctor.whatsapp_number, meta_code, result,
-                )
+                log.error('welcome_failed',
+                          message='Welcome send rejected by Meta',
+                          doctor=doctor.name, meta_code=meta_code,
+                          body=str(result)[:300])
+            log.flush(request_kind='other',
+                      inbound_text=f'welcome_skip:{doctor.name}')
             return
 
         Doctor.objects.filter(pk=doctor_pk, welcomed_at__isnull=True).update(
             welcomed_at=timezone.now()
         )
-        logger.info(
-            "[welcome] sent doctor=%s wa=%s clinic=%s",
-            doctor.name, doctor.whatsapp_number, clinic.clinic_code,
-        )
+        log.event('welcome_sent',
+                  message=f'Welcome WhatsApp sent to Dr. {doctor.name}',
+                  doctor=doctor.name, doctor_id=doctor.pk,
+                  clinic_code=clinic.clinic_code)
+        log.flush(request_kind='other',
+                  inbound_text=f'welcome:{doctor.name}')
 
     except Exception as e:
-        logger.exception(
-            "[welcome] unexpected_error doctor=%s wa=%s err=%s",
-            doctor.name, doctor.whatsapp_number, e,
-        )
+        log.error('welcome_unexpected_error', exc=e,
+                  message=f'Unexpected error sending welcome to Dr. {doctor.name}',
+                  doctor=doctor.name)
+        log.flush(request_kind='other',
+                  inbound_text=f'welcome_error:{doctor.name}')

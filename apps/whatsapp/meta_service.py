@@ -15,6 +15,8 @@ import logging
 import requests
 from django.conf import settings
 
+from apps.observability import log
+
 logger = logging.getLogger(__name__)
 
 
@@ -112,16 +114,47 @@ class MetaWhatsAppService:
     # ─── internals ───────────────────────────────────────────────
 
     def _post(self, payload: dict, to: str, log_msg: str) -> dict:
+        msg_type = payload.get('type') or 'unknown'
+        recipient_digit10 = (to or '')[-10:]
+
         if not self.phone_number_id or not self.access_token:
-            logger.error("[Meta] Missing phone_number_id or access_token — cannot send")
+            log.error('whatsapp_send_no_credentials',
+                      message='Cannot send: phone_number_id or access_token missing',
+                      msg_type=msg_type,
+                      recipient_digit10=recipient_digit10)
             return {"status": "error", "message": "missing_credentials"}
         try:
-            resp = requests.post(self.api_url, headers=self._headers, json=payload, timeout=10)
+            resp = requests.post(self.api_url, headers=self._headers,
+                                 json=payload, timeout=10)
             if resp.status_code == 200:
-                logger.info(f"[Meta] Sent to {to}: {log_msg}")
+                log.event('whatsapp_send',
+                          message=f'Sent {msg_type} to …{to[-4:] if to else "????"}',
+                          msg_type=msg_type,
+                          phone_number_id=self.phone_number_id,
+                          recipient_digit10=recipient_digit10,
+                          desc=(log_msg or '')[:80])
                 return resp.json()
-            logger.error(f"[Meta] {resp.status_code}: {resp.text[:300]}")
+            # Try to extract Meta's error code for greppable diagnosis
+            meta_code = None
+            try:
+                import json as _json
+                body = _json.loads(resp.text)
+                meta_code = (body.get('error') or {}).get('code')
+            except Exception:
+                pass
+            log.error('whatsapp_send_failed',
+                      message=f'Meta returned {resp.status_code} for {msg_type}',
+                      msg_type=msg_type,
+                      phone_number_id=self.phone_number_id,
+                      recipient_digit10=recipient_digit10,
+                      http_status=resp.status_code,
+                      meta_code=meta_code,
+                      body=resp.text[:300])
             return {"status": "error", "code": resp.status_code, "body": resp.text[:300]}
         except requests.RequestException as e:
-            logger.error(f"[Meta] Request failed: {e}")
+            log.error('whatsapp_send_exception', exc=e,
+                      message='requests.post raised',
+                      msg_type=msg_type,
+                      phone_number_id=self.phone_number_id,
+                      recipient_digit10=recipient_digit10)
             return {"status": "error", "message": str(e)}
