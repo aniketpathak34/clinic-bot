@@ -40,6 +40,8 @@ def sidebar_counts() -> dict:
         'appts_today': 0, 'appts_next_hour': 0, 'appts_tomorrow': 0,
         'slots_unbooked': 0, 'patients_total': 0, 'doctors_total': 0,
         'call_logs_today': 0, 'demo_videos_active': 0,
+        'subs_total': 0, 'subs_past_due': 0, 'subs_suspended': 0,
+        'subs_pilot': 0, 'payments_this_month': 0,
     }
     now = timezone.now()
     today = now.date()
@@ -100,6 +102,18 @@ def sidebar_counts() -> dict:
         from apps.notifications.models import CallLog
         out['call_logs_today'] = CallLog.objects.filter(
             created_at__gte=day_start
+        ).count()
+    except Exception:
+        pass
+
+    try:
+        from apps.subscriptions.models import Subscription, Payment
+        out['subs_total']     = Subscription.objects.count()
+        out['subs_past_due']  = Subscription.objects.filter(status='past_due').count()
+        out['subs_suspended'] = Subscription.objects.filter(status='suspended').count()
+        out['subs_pilot']     = Subscription.objects.filter(status='pilot').count()
+        out['payments_this_month'] = Payment.objects.filter(
+            paid_at__gte=today.replace(day=1)
         ).count()
     except Exception:
         pass

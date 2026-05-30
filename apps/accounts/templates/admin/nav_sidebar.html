@@ -111,6 +111,43 @@
     </a>
   </div>
 
+  {# ─── Billing ─── #}
+  <div class="dp-section">
+    <div class="dp-section-head">Billing</div>
+    <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Subscriptions</span>
+      <span class="dp-link-meta">
+        {% if c.subs_suspended %}<span class="dp-badge dp-badge--danger">{{ c.subs_suspended }}</span>{% endif %}
+        {% if c.subs_past_due %}<span class="dp-badge dp-badge--warning">{{ c.subs_past_due }}</span>{% endif %}
+        {% if c.subs_total %}<span class="dp-badge">{{ c.subs_total }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}?status__exact=past_due" class="dp-link dp-sublink">
+      <span class="dp-link-name">Past due</span>
+      <span class="dp-link-meta">
+        {% if c.subs_past_due %}<span class="dp-badge dp-badge--warning">{{ c.subs_past_due }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}?status__exact=suspended" class="dp-link dp-sublink">
+      <span class="dp-link-name">Suspended</span>
+      <span class="dp-link-meta">
+        {% if c.subs_suspended %}<span class="dp-badge dp-badge--danger">{{ c.subs_suspended }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:subscriptions_subscription_changelist' %}?status__exact=pilot" class="dp-link dp-sublink">
+      <span class="dp-link-name">On pilot</span>
+      <span class="dp-link-meta">
+        {% if c.subs_pilot %}<span class="dp-badge dp-badge--accent">{{ c.subs_pilot }}</span>{% endif %}
+      </span>
+    </a>
+    <a href="{% admin_url 'admin:subscriptions_payment_changelist' %}" class="dp-link">
+      <span class="dp-link-name">Payments</span>
+      <span class="dp-link-meta">
+        {% if c.payments_this_month %}<span class="dp-badge">{{ c.payments_this_month }}</span>{% endif %}
+      </span>
+    </a>
+  </div>
+
   {# ─── Conversations ─── #}
   <div class="dp-section">
     <div class="dp-section-head">Conversations</div>
@@ -166,10 +203,6 @@
 
   <div class="dp-foot">
     <span class="dp-foot-brand">DocPing · ops console</span>
-  </div>
-
-  <div style="display:none" aria-hidden="true">
-    {% include 'admin/app_list.html' with app_list=available_apps show_changelinks=False %}
   </div>
 </nav>
 
