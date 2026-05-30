@@ -694,7 +694,9 @@
         .dp-demo-tabs {
             display: flex; gap: 8px;
             justify-content: center;
+            flex-wrap: wrap;
             margin: 32px auto 0;
+            max-width: 100%;
         }
         .dp-demo-tab {
             background: rgba(255,255,255,0.06);
@@ -914,18 +916,44 @@
         }
         @media (max-width: 768px) {
             .dp-how { padding: 48px 16px; }
+
+            /* Reset the desktop 5-column grid into a vertical stack;
+               each step becomes its own 2-column subgrid (circle | text). */
             .dp-how-steps {
-                grid-template-columns: 40px 1fr;
-                row-gap: 28px; column-gap: 20px;
+                display: flex;
+                flex-direction: column;
+                gap: 0;
+                grid-template-columns: none;
                 max-width: 500px;
             }
-            .dp-how-step { text-align: left; padding: 0; }
+            .dp-how-step {
+                display: grid;
+                grid-template-columns: 40px 1fr;
+                grid-template-rows: 40px auto;
+                column-gap: 16px;
+                align-items: start;
+                text-align: left;
+                padding: 0;
+            }
+            .dp-how-step .dp-how-num {
+                grid-row: 1; grid-column: 1;
+                align-self: center;
+            }
+            .dp-how-step .dp-how-title {
+                grid-row: 1; grid-column: 2;
+                align-self: center;
+                margin: 0;
+                font-size: 16px;
+            }
+            .dp-how-step .dp-how-desc {
+                grid-row: 2; grid-column: 2;
+                margin: 8px 0 0;
+            }
             .dp-how-line {
-                grid-column: 1;
-                width: 0; height: 28px;
+                width: 0; height: 24px;
+                margin-left: 19px;  /* center under 40px circle */
                 border-top: 0;
                 border-left: 2px dashed var(--dp-green);
-                margin: 0 auto;
                 opacity: 0.5;
             }
         }
