@@ -30,11 +30,19 @@ services:
         generateValue: true
       - key: DEBUG
         value: "False"
-      # Database moved off Render Postgres (free tier expires every 90 days)
-      # to Neon (free, permanent). DATABASE_URL is now set manually in the
-      # Render dashboard → Environment tab. Paste the Neon DIRECT connection
-      # string there (the host WITHOUT "-pooler"). sync:false tells the
-      # Blueprint not to manage or overwrite it.
+      # Database moved to Supabase (free, permanent, no CU-hour metering).
+      # Project region: aws-1-ap-southeast-1 (Singapore). DATABASE_URL is
+      # set manually in the Render dashboard → Environment tab using the
+      # Session pooler URL:
+      #   postgresql://postgres.<project>:<pwd>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+      # The pooler URL is required because Supabase's "Direct connection"
+      # host (db.<project>.supabase.co) is IPv6-only on the free plan and
+      # Render's egress is currently IPv4 only. sync:false tells the
+      # Blueprint not to manage or overwrite this value.
+      #
+      # Migration history (most recent first):
+      #   2026-06-01  Neon → Supabase  (Neon free tier 100 CU-hr/mo cap)
+      #   2026-05-17  Render Postgres → Neon  (Render free tier 90-day expiry)
       - key: DATABASE_URL
         sync: false
       - key: CELERY_BROKER_URL
