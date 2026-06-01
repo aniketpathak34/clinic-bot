@@ -49,15 +49,16 @@ def run_patient_graph(state, text: str):
 
         if patient and patient.language_preference:
             lang = patient.language_preference
-            try:
-                if (state.clinic
-                        and not state.clinic.subscription.allows('multilingual')
-                        and lang != 'en'):
-                    lang = 'en'
+            # If the clinic no longer enables this patient's stored language
+            # (operator changed the config, or subscription downgraded), fall
+            # back to the first language the clinic DOES enable. Persist the
+            # new pref so we don't keep "fixing" it on every message.
+            if state.clinic:
+                enabled = state.clinic.get_enabled_languages()
+                if lang not in enabled:
+                    lang = enabled[0]
                     Patient.objects.filter(id=patient.id).update(
-                        language_preference='en')
-            except Exception:
-                pass  # no subscription = allow multilingual (pilot)
+                        language_preference=lang)
             state.language = lang
             state.current_flow = 'main_menu'
             state.step = ''
@@ -72,9 +73,19 @@ def run_patient_graph(state, text: str):
         if flow == 'language_select':
             response, state = handle_language_select(state, text)
             return response
-        # First message from a genuinely new user — show language buttons
-        clinic_name = state.clinic.name if state.clinic else None
-        return _language_buttons(clinic_name)
+
+        # First message from a genuinely new user. If the clinic only has
+        # ONE language enabled, skip the picker entirely and go straight
+        # to the main menu in that language.
+        if state.clinic:
+            langs = state.clinic.get_enabled_languages()
+            if len(langs) == 1:
+                state.language = langs[0]
+                state.current_flow = 'main_menu'
+                state.step = ''
+                state.save()
+                return _main_menu_list(state.language)
+        return _language_buttons(state.clinic)
 
     # Registration flow (lazy — only when booking)
     if flow == 'registration':

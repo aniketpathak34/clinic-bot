@@ -1,8 +1,56 @@
+from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from .models import Clinic, Doctor, Patient, AvailableSlot, Appointment
+
+
+# ────────────────────────────────────────────────────────────────────
+# Clinic admin form — renders the comma-separated `enabled_languages`
+# CharField as a checkbox group instead of a free-text input. Saves
+# the user from typing/typo-ing language codes.
+# ────────────────────────────────────────────────────────────────────
+LANGUAGE_CHOICES = [
+    ('en', 'English'),
+    ('hi', 'हिंदी (Hindi)'),
+    ('mr', 'मराठी (Marathi)'),
+]
+
+
+class ClinicAdminForm(forms.ModelForm):
+    enabled_languages = forms.MultipleChoiceField(
+        choices=LANGUAGE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+        help_text="Tick which languages this clinic's bot offers. "
+                  "If only one is ticked, the language picker is skipped "
+                  "and patients land directly in the main menu. "
+                  "Basic/Standard subscriptions are forced to English regardless.",
+    )
+
+    class Meta:
+        model = Clinic
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Convert stored 'en,hi,mr' string → list for the checkbox widget
+        instance = kwargs.get('instance')
+        if instance and instance.pk and instance.enabled_languages:
+            self.initial['enabled_languages'] = [
+                code.strip() for code in instance.enabled_languages.split(',')
+                if code.strip()
+            ]
+
+    def clean_enabled_languages(self):
+        # Convert list back to comma-separated string for storage
+        codes = self.cleaned_data['enabled_languages']
+        if not codes:
+            raise forms.ValidationError("Pick at least one language.")
+        # Preserve order from LANGUAGE_CHOICES so admin sees a stable result
+        ordered = [c for c, _ in LANGUAGE_CHOICES if c in codes]
+        return ','.join(ordered)
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -22,6 +70,7 @@ def _pill(text, bg, fg='#fff'):
 # ────────────────────────────────────────────────────────────────────
 @admin.register(Clinic)
 class ClinicAdmin(admin.ModelAdmin):
+    form = ClinicAdminForm
 
     # ─── Custom templates — card grid + hero detail page ───────────
     change_list_template = 'admin/clinic/clinic/change_list.html'
@@ -110,6 +159,11 @@ class ClinicAdmin(admin.ModelAdmin):
         ('WhatsApp', {
             'fields': ('display_phone_number', 'whatsapp_number', 'phone_number_id', 'owner_number'),
             'description': "The Meta-registered WhatsApp number. Use digits with country code, no plus sign.",
+        }),
+        ('Customization', {
+            'fields': ('enabled_languages', 'intake_form_url'),
+            'description': "Per-clinic bot behavior. Add more knobs here as new "
+                           "customization options are introduced.",
         }),
         ('Advanced', {
             'fields': ('access_token',),
