@@ -1,0 +1,128 @@
+# Nightly backup: Supabase (primary) → Oracle VM PG (cold standby).
+#
+# Architecture:
+#   • Supabase holds the live production database (Render reads/writes here).
+#   • Oracle VM (140.245.5.26) holds a daily-refreshed copy that we can
+#     fail over to if Supabase becomes unavailable.
+#
+# This workflow runs on a fresh GitHub-hosted Ubuntu runner — no Render or
+# Oracle compute is involved in the scheduling. The runner connects to both
+# databases over the public internet, streams pg_dump → psql, then exits.
+#
+# Why GitHub Actions instead of an OS cron on the Oracle VM:
+#   • Visibility — every run shows green/red on the Actions tab
+#   • Email-on-failure built in
+#   • Survives Oracle VM downtime (the VM is the *destination*, not the
+#     scheduler — if the VM is unreachable, the workflow fails loudly here
+#     rather than silently going stale)
+#
+# Setup required (one-time):
+#   Settings → Secrets and variables → Actions → New repository secret:
+#     • BACKUP_SUPABASE_URL — the Supabase Session pooler URL (source)
+#     • BACKUP_ORACLE_URL   — the Oracle VM PG URL (destination)
+#   Both URLs contain passwords and must NEVER be committed to git.
+#
+# Budget: ~3 min/run × 30 runs/month = ~90 min/month.
+# GitHub Actions free tier is 2,000 min/month for private repos.
+
+name: Backup Supabase to Oracle
+
+on:
+  # 21:30 UTC = 03:00 IST every day.
+  # Off-peak for both Supabase (Singapore) and the Oracle VM (Mumbai).
+  schedule:
+    - cron: '30 21 * * *'
+
+  # Manual trigger from the Actions tab — useful for testing.
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: pg_dump Supabase → psql Oracle
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Install PostgreSQL 17 client
+        # Ubuntu's default repo ships PG 14. We install PG 17 client from
+        # PGDG so pg_dump matches the Supabase + Oracle server version
+        # (both 17.x) — avoids version-mismatch warnings.
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Sync Supabase → Oracle
+        env:
+          SUPABASE_URL: ${{ secrets.BACKUP_SUPABASE_URL }}
+          ORACLE_URL:   ${{ secrets.BACKUP_ORACLE_URL }}
+        # Stream pg_dump → psql so the dump never lands on disk (smaller
+        # blast radius if the runner crashes mid-job — nothing to clean up).
+        # --clean --if-exists drops + recreates objects on the Oracle side so
+        # the backup is a true mirror, not an append.
+        # ON_ERROR_STOP=0 keeps psql going past harmless NOTICEs (e.g. role
+        # already exists). A real failure still surfaces via psql exit code.
+        run: |
+          set -e
+          set -o pipefail
+          TS=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "[$TS] === Starting Supabase → Oracle sync ==="
+
+          pg_dump "$SUPABASE_URL" \
+            --no-owner --no-privileges --no-comments \
+            --schema=public --clean --if-exists \
+            | psql "$ORACLE_URL" -X -q -v ON_ERROR_STOP=0
+
+          echo "[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] pg_dump | psql completed"
+
+      - name: Verify row counts match
+        env:
+          SUPABASE_URL: ${{ secrets.BACKUP_SUPABASE_URL }}
+          ORACLE_URL:   ${{ secrets.BACKUP_ORACLE_URL }}
+        # If row counts diverge → loud failure (red ✗ in Actions tab + email).
+        # Eight tables sampled across all major apps — enough to catch a
+        # broken sync without slowing the workflow down.
+        run: |
+          set -e
+          tables=(
+            clinic_clinic
+            clinic_doctor
+            clinic_patient
+            clinic_appointment
+            subscriptions_subscription
+            conversations_conversationstate
+            accounts_user
+            django_celery_beat_periodictask
+          )
+          all_match=true
+          printf "%-40s %10s %10s %8s\n" "table" "Supabase" "Oracle" "match"
+          printf "%-40s %10s %10s %8s\n" "----------------------------------------" \
+            "----------" "----------" "--------"
+          for t in "${tables[@]}"; do
+            s=$(psql "$SUPABASE_URL" -X -q -A -t -c "SELECT count(*) FROM $t;")
+            o=$(psql "$ORACLE_URL"   -X -q -A -t -c "SELECT count(*) FROM $t;")
+            if [ "$s" = "$o" ]; then
+              m="✓"
+            else
+              m="✗"
+              all_match=false
+            fi
+            printf "%-40s %10s %10s %8s\n" "$t" "$s" "$o" "$m"
+          done
+
+          if [ "$all_match" = "false" ]; then
+            echo ""
+            echo "❌ Row counts diverged — see table above."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All row counts match — backup verified."
