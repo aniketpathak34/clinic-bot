@@ -46,7 +46,14 @@ jobs:
       - name: Install PostgreSQL 17 client
         # Ubuntu's default repo ships PG 14. We install PG 17 client from
         # PGDG so pg_dump matches the Supabase + Oracle server version
-        # (both 17.x) — avoids version-mismatch warnings.
+        # (both 17.x). pg_dump REFUSES to dump from a server newer than
+        # itself — without this the workflow fails with "aborting because
+        # of server version mismatch".
+        #
+        # The GitHub-hosted ubuntu-latest image ships with PG 16's client
+        # pre-installed at /usr/bin/pg_dump, which "wins" on the default
+        # PATH. We append the PG 17 bin dir to $GITHUB_PATH so every
+        # subsequent step uses pg_dump/psql 17.
         run: |
           set -e
           sudo apt-get update -qq
@@ -59,6 +66,11 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
+          # Make PG 17 win on PATH for the rest of the job
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          # Confirm the right binary will be used downstream
+          /usr/lib/postgresql/17/bin/pg_dump --version
+          /usr/lib/postgresql/17/bin/psql --version
 
       - name: Sync Supabase → Oracle
         env:
