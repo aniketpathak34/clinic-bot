@@ -24,25 +24,46 @@ def _sync_ctx(state):
         step=state.step or '',
     )
 
-LANGUAGE_MAP = {
-    '1': 'en', '2': 'hi', '3': 'mr',
-    'english': 'en', 'hindi': 'hi', 'marathi': 'mr',
-    'हिंदी': 'hi', 'मराठी': 'mr',
+# Words a patient might type for each supported language. The button ids
+# (1/2/3) are also mapped — but those vary per clinic depending on which
+# languages are enabled, so we resolve them at runtime in handle_language_select.
+LANGUAGE_NAME_MAP = {
+    'english': 'en', 'en': 'en',
+    'hindi':   'hi', 'hi': 'hi', 'हिंदी': 'hi',
+    'marathi': 'mr', 'mr': 'mr', 'मराठी': 'mr',
+}
+
+LANGUAGE_BUTTON_LABELS = {
+    'en': 'English',
+    'hi': 'हिंदी',
+    'mr': 'मराठी',
 }
 
 
 # ─── Interactive Response Builders ───────────────────────────────
 
-def _language_buttons(clinic_name: str = None):
-    body = f"👋 Welcome to {clinic_name} — choose language:" if clinic_name else "Choose language:"
-    return BotResponse.as_buttons(
-        body,
-        [
-            {"id": "1", "title": "English"},
-            {"id": "2", "title": "हिंदी"},
-            {"id": "3", "title": "मराठी"},
-        ]
-    )
+def _language_buttons(clinic=None):
+    """Render the language picker showing ONLY this clinic's enabled languages.
+
+    Caller passes the Clinic object. If clinic is None, falls back to all
+    three supported languages. The button ids are 1..N in display order
+    (NOT fixed to language code) so handle_language_select must map them
+    back via the same enabled-languages list.
+    """
+    clinic_name = clinic.name if clinic else None
+    body = (f"👋 Welcome to {clinic_name} — choose language:"
+            if clinic_name else "Choose language:")
+
+    if clinic and hasattr(clinic, 'get_enabled_languages'):
+        langs = clinic.get_enabled_languages()
+    else:
+        langs = ['en', 'hi', 'mr']
+
+    buttons = [
+        {"id": str(idx + 1), "title": LANGUAGE_BUTTON_LABELS.get(code, code)}
+        for idx, code in enumerate(langs)
+    ]
+    return BotResponse.as_buttons(body, buttons)
 
 
 def _main_menu_list(lang):
@@ -280,30 +301,48 @@ def _find_appointment(text, appt_ids):
 def handle_language_select(state, text):
     _sync_ctx(state)
 
-    # Basic tier: force English, skip the language picker.
-    try:
-        clinic = state.clinic
-        if clinic and not clinic.subscription.allows('multilingual'):
-            state.language = 'en'
-            state.current_flow = 'main_menu'
-            state.step = ''
-            state.context = {}
-            state.save()
-            Patient.objects.filter(
-                whatsapp_number=state.whatsapp_number
-            ).update(language_preference='en')
-            return _main_menu_list('en'), state
-    except Exception:
-        pass  # no subscription = allow multilingual (pilot)
+    # Compute the clinic's enabled language list once — drives both the
+    # auto-pick and validation paths below. Falls back to ['en'] if no
+    # clinic context (legacy code-resolution flow).
+    clinic = state.clinic
+    enabled = clinic.get_enabled_languages() if clinic else ['en']
 
-    choice = text.strip().lower()
-    lang = LANGUAGE_MAP.get(choice)
+    # If only one language is enabled (basic-tier subscription OR clinic
+    # config narrowed to one), skip the picker and auto-select it.
+    if len(enabled) == 1:
+        only = enabled[0]
+        state.language = only
+        state.current_flow = 'main_menu'
+        state.step = ''
+        state.context = {}
+        state.save()
+        Patient.objects.filter(
+            whatsapp_number=state.whatsapp_number
+        ).update(language_preference=only)
+        return _main_menu_list(only), state
+
+    # Resolve the user's input:
+    # - "1"/"2"/"3" → button id → enabled[id-1]
+    # - "english"/"hindi"/"मराठी" → look up by name
+    raw = text.strip().lower()
+    lang = None
+    if raw.isdigit():
+        idx = int(raw) - 1
+        if 0 <= idx < len(enabled):
+            lang = enabled[idx]
+    if lang is None:
+        lang = LANGUAGE_NAME_MAP.get(raw)
+        # Reject if user typed a language NOT enabled for this clinic
+        if lang not in enabled:
+            lang = None
+
     if not lang:
         log.warn('language_select_no_match',
-                 message='Input did not match any language option',
-                 text=text.strip()[:30])
-        clinic_name = state.clinic.name if state.clinic else None
-        return _language_buttons(clinic_name), state
+                 message='Input did not match any enabled language option',
+                 text=text.strip()[:30],
+                 enabled=enabled)
+        return _language_buttons(clinic), state
+
     state.language = lang
     state.current_flow = 'main_menu'
     state.step = ''
@@ -363,6 +402,19 @@ def handle_registration(state, text):
         state.context = {}
         clinic_name = state.clinic.name if state.clinic else 'our clinic'
         welcome = get_msg(lang, 'registration_complete', name=patient.name, clinic_name=clinic_name)
+
+        # Optional per-clinic intake form (Google Form / Typeform / etc.):
+        # if the clinic has pasted a URL, share it with the patient now.
+        # We don't wait for a "DONE" reply — the clinic owns the form data on
+        # their side, and the bot continues straight to booking/menu.
+        form_url = (state.clinic.intake_form_url if state.clinic else '') or ''
+        if form_url:
+            form_blurbs = {
+                'en': f"\n\n📋 Please also fill this short form for our records: {form_url}",
+                'hi': f"\n\n📋 कृपया यह छोटा फॉर्म भी भरें: {form_url}",
+                'mr': f"\n\n📋 कृपया हा छोटा फॉर्म पण भरा: {form_url}",
+            }
+            welcome = welcome + form_blurbs.get(lang, form_blurbs['en'])
 
         if pending_flow == 'booking':
             state.current_flow = 'booking_start'
@@ -427,8 +479,7 @@ def handle_main_menu(state, text):
         state.context = {}
         state.save()
         log.event('main_menu_choice', choice='change_language')
-        clinic_name = state.clinic.name if state.clinic else None
-        return _language_buttons(clinic_name), state
+        return _language_buttons(state.clinic), state
     else:
         log.warn('main_menu_no_match',
                  message='Input did not match any main-menu option',

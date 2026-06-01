@@ -60,10 +60,59 @@ class Clinic(models.Model):
         help_text="Slot granularity in minutes (usually 15 or 30)",
     )
 
+    # Optional URL to an external intake form (Google Form, Typeform, etc.).
+    # When set, the bot appends "Please also fill: <url>" to the registration-
+    # complete message. When blank, registration ends with the default welcome
+    # and the patient proceeds to booking without seeing any form link.
+    # The clinic is responsible for collecting + reading the form responses
+    # — DocPing does NOT receive submission data from the form.
+    intake_form_url = models.URLField(
+        blank=True,
+        help_text="Optional. If you have a Google Form / Typeform for patient "
+                  "intake, paste the link here and the bot will share it with "
+                  "patients after they register. Leave blank to skip.",
+    )
+
+    # Which languages the bot should offer to patients of THIS clinic.
+    # Comma-separated codes from bot_locale (en/hi/mr). The admin form
+    # renders this as a checkbox group via ClinicAdminForm.
+    # Premium tier may override the available pool, but Basic/Standard
+    # subscription gate already forces English-only regardless of this.
+    enabled_languages = models.CharField(
+        max_length=50,
+        default='en,hi,mr',
+        help_text="Languages this clinic's bot offers. Comma-separated codes: en, hi, mr. "
+                  "Patients see a picker only if more than one is enabled. "
+                  "Basic/Standard tier subscriptions are forced to English regardless.",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.name} ({self.clinic_code})"
+
+    SUPPORTED_LANGUAGES = ('en', 'hi', 'mr')
+
+    def get_enabled_languages(self) -> list:
+        """Parse enabled_languages into a clean list, intersected with supported.
+
+        Always returns a non-empty list — if the field is misconfigured or
+        the subscription forces English-only, returns ['en'] as a safe default.
+        """
+        # 1) Subscription-tier override: basic/standard force English-only
+        try:
+            sub = self.subscription
+            if sub and not sub.allows('multilingual'):
+                return ['en']
+        except Exception:
+            pass  # no subscription row yet — fall through to field value
+
+        # 2) Field value, cleaned + intersected with supported list +
+        # deduped while preserving order (so 'en,en,hi' becomes ['en','hi']).
+        raw = (self.enabled_languages or 'en').split(',')
+        cleaned = [code.strip().lower() for code in raw if code.strip()]
+        valid = [c for c in cleaned if c in self.SUPPORTED_LANGUAGES]
+        return list(dict.fromkeys(valid)) or ['en']
 
     @classmethod
     def find_by_display_number(cls, display_number: str):
